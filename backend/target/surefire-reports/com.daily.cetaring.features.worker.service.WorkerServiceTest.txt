@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.daily.cetaring.features.worker.service.WorkerServiceTest
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.486 s -- in com.daily.cetaring.features.worker.service.WorkerServiceTest

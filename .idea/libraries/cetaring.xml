@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="cetaring">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/cetaring.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
