@@ -1,4 +1,64 @@
 -------------------------------------------------------------------------------
 Test set: com.daily.cetaring.features.auth.service.AuthServiceTest
 -------------------------------------------------------------------------------
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.950 s -- in com.daily.cetaring.features.auth.service.AuthServiceTest
+Tests run: 5, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 1.194 s <<< FAILURE! -- in com.daily.cetaring.features.auth.service.AuthServiceTest
+com.daily.cetaring.features.auth.service.AuthServiceTest.testRegisterWorkerUsesWorkerRole -- Time elapsed: 0.064 s <<< ERROR!
+org.mockito.exceptions.misusing.PotentialStubbingProblem: 
+
+Strict stubbing argument mismatch. Please check:
+ - this invocation of 'existsByPhoneNumber' method:
+    userRepository.existsByPhoneNumber(
+    "+919876543211"
+);
+    -> at com.daily.cetaring.features.auth.service.AuthService.mobileExists(AuthService.java:268)
+ - has following stubbing(s) with different arguments:
+    1. userRepository.existsByPhoneNumber(
+    "9876543211"
+);
+      -> at com.daily.cetaring.features.auth.service.AuthServiceTest.testRegisterWorkerUsesWorkerRole(AuthServiceTest.java:208)
+Typically, stubbing argument mismatch indicates user mistake when writing tests.
+Mockito fails early so that you can debug potential problem easily.
+However, there are legit scenarios when this exception generates false negative signal:
+  - stubbing the same method multiple times using 'given().will()' or 'when().then()' API
+    Please use 'will().given()' or 'doReturn().when()' API for stubbing.
+  - stubbed method is intentionally invoked with different arguments by code under test
+    Please use default or 'silent' JUnit Rule (equivalent of Strictness.LENIENT).
+For more information see javadoc for PotentialStubbingProblem class.
+	at com.daily.cetaring.shared.repository.UserRepository.existsByPhoneNumber(UserRepository.java:58)
+	at com.daily.cetaring.features.auth.service.AuthService.mobileExists(AuthService.java:268)
+	at com.daily.cetaring.features.auth.service.AuthService.register(AuthService.java:122)
+	at com.daily.cetaring.features.auth.service.AuthServiceTest.testRegisterWorkerUsesWorkerRole(AuthServiceTest.java:217)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.daily.cetaring.features.auth.service.AuthServiceTest.testRegisterSuccess -- Time elapsed: 0.024 s <<< ERROR!
+org.mockito.exceptions.misusing.PotentialStubbingProblem: 
+
+Strict stubbing argument mismatch. Please check:
+ - this invocation of 'existsByPhoneNumber' method:
+    userRepository.existsByPhoneNumber(
+    "+919876543210"
+);
+    -> at com.daily.cetaring.features.auth.service.AuthService.mobileExists(AuthService.java:268)
+ - has following stubbing(s) with different arguments:
+    1. userRepository.existsByPhoneNumber(
+    "9876543210"
+);
+      -> at com.daily.cetaring.features.auth.service.AuthServiceTest.testRegisterSuccess(AuthServiceTest.java:114)
+Typically, stubbing argument mismatch indicates user mistake when writing tests.
+Mockito fails early so that you can debug potential problem easily.
+However, there are legit scenarios when this exception generates false negative signal:
+  - stubbing the same method multiple times using 'given().will()' or 'when().then()' API
+    Please use 'will().given()' or 'doReturn().when()' API for stubbing.
+  - stubbed method is intentionally invoked with different arguments by code under test
+    Please use default or 'silent' JUnit Rule (equivalent of Strictness.LENIENT).
+For more information see javadoc for PotentialStubbingProblem class.
+	at com.daily.cetaring.shared.repository.UserRepository.existsByPhoneNumber(UserRepository.java:58)
+	at com.daily.cetaring.features.auth.service.AuthService.mobileExists(AuthService.java:268)
+	at com.daily.cetaring.features.auth.service.AuthService.register(AuthService.java:122)
+	at com.daily.cetaring.features.auth.service.AuthServiceTest.testRegisterSuccess(AuthServiceTest.java:123)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+

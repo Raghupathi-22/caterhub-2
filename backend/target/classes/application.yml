@@ -45,6 +45,25 @@ jwt:
   expiration: ${JWT_EXPIRATION_MS:900000}  # 15 minutes
   refreshExpiration: ${JWT_REFRESH_EXPIRATION_MS:604800000}  # 7 days
 
+otp:
+  dev:
+    mode: ${OTP_DEV_MODE:false}
+    code: ${OTP_DEV_CODE:123456}
+  expiration:
+    seconds: ${OTP_EXPIRATION_SECONDS:300}
+  resend:
+    cooldown:
+      seconds: ${OTP_RESEND_COOLDOWN_SECONDS:60}
+  rate-limit:
+    mobile:
+      window-seconds: ${OTP_RATE_LIMIT_MOBILE_WINDOW_SECONDS:3600}
+      max-sends: ${OTP_RATE_LIMIT_MOBILE_MAX_SENDS:5}
+    ip:
+      window-seconds: ${OTP_RATE_LIMIT_IP_WINDOW_SECONDS:3600}
+      max-sends: ${OTP_RATE_LIMIT_IP_MAX_SENDS:20}
+  sms:
+    enabled: ${OTP_SMS_ENABLED:false}
+
 logging:
   level:
     root: INFO

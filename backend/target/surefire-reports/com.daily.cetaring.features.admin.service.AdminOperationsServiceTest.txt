@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.daily.cetaring.features.admin.service.AdminOperationsServiceTest
 -------------------------------------------------------------------------------
-Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.854 s -- in com.daily.cetaring.features.admin.service.AdminOperationsServiceTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.342 s -- in com.daily.cetaring.features.admin.service.AdminOperationsServiceTest
