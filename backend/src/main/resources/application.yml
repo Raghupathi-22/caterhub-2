@@ -64,6 +64,16 @@ otp:
   sms:
     enabled: ${OTP_SMS_ENABLED:false}
 
+sms:
+  provider:
+    base-url: ${SMS_PROVIDER_BASE_URL:}
+    api-key: ${SMS_PROVIDER_API_KEY:}
+    sender-id: ${SMS_PROVIDER_SENDER_ID:}
+    template-id: ${SMS_PROVIDER_TEMPLATE_ID:}
+    entity-id: ${SMS_PROVIDER_ENTITY_ID:}
+    otp-variable: ${SMS_PROVIDER_OTP_VARIABLE:OTP}
+    timeout-seconds: ${SMS_PROVIDER_TIMEOUT_SECONDS:10}
+
 logging:
   level:
     root: INFO
