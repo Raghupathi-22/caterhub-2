@@ -46,7 +46,7 @@ android {
         buildConfig = true
     }
 
-    val productionApiBaseUrl = "https://caterhub-production.up.railway.app/api/v1/"
+    val productionApiBaseUrl = "https://caterhub-2-production.up.railway.app/api/v1/"
     val developmentApiBaseUrl = System.getenv("CATERHUB_ANDROID_DEV_API_URL")
         ?: productionApiBaseUrl
     val prodApiBaseUrl = System.getenv("CATERHUB_ANDROID_PROD_API_URL")
