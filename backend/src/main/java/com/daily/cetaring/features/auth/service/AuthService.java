@@ -1,8 +1,7 @@
 package com.daily.cetaring.features.auth.service;
 
 import com.daily.cetaring.shared.dto.AuthResponse;
-import com.daily.cetaring.shared.dto.LoginRequest;
-import com.daily.cetaring.shared.dto.RegisterRequest;
+import com.daily.cetaring.features.auth.dto.OtpPurpose;
 import com.daily.cetaring.shared.dto.UserDTO;
 import com.daily.cetaring.shared.entity.RefreshToken;
 import com.daily.cetaring.shared.entity.Role;
@@ -14,18 +13,12 @@ import com.daily.cetaring.config.security.JwtTokenProvider;
 import com.daily.cetaring.features.auth.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
-import java.util.Collections;
-import java.util.Locale;
 import java.util.Optional;
 
 @Service
@@ -37,49 +30,35 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final AuthenticationManager authenticationManager;
-    private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserMapper userMapper;
 
-    public AuthResponse authenticateOrRegisterWithOtp(String mobileNumber, String name, String userType) {
+    public AuthResponse authenticateWithVerifiedOtp(String mobileNumber, String name, OtpPurpose purpose) {
         String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
-
         Optional<User> existingUserOpt = findByMobileNumber(normalizedMobile);
 
         User user;
-        if (existingUserOpt.isPresent()) {
-            user = existingUserOpt.get();
-            if (user.getRoles() == null) {
-                user.setRoles(new HashSet<>());
-            }
-            if (user.getRoles().isEmpty()) {
-                String requestedType = userType == null ? "CUSTOMER" : userType.trim().toUpperCase(Locale.ROOT);
-                String roleName = "WORKER".equals(requestedType) ? "ROLE_WORKER" : "ROLE_CUSTOMER";
-                ensureRolePresent(user, roleName);
-            }
-            if (name != null && !name.isBlank()) {
-                String[] parts = name.trim().split("\\s+", 2);
-                user.setFirstName(parts[0]);
-                if (parts.length > 1) {
-                    user.setLastName(parts[1]);
-                }
-            }
+        if (purpose == OtpPurpose.LOGIN) {
+            user = existingUserOpt.orElseThrow(() ->
+                    new IllegalArgumentException("No account exists for this mobile number. Please register first."));
             user.setLastLoginAt(LocalDateTime.now());
             user = userRepository.save(user);
             log.info("Existing user authenticated via OTP: {} (ID: {})", user.getPhoneNumber(), user.getId());
         } else {
-            String requestedType = userType == null ? "CUSTOMER" : userType.trim().toUpperCase(Locale.ROOT);
-            String roleName = "WORKER".equals(requestedType) ? "ROLE_WORKER" : "ROLE_CUSTOMER";
+            if (existingUserOpt.isPresent()) {
+                throw new IllegalArgumentException("An account already exists for this mobile number. Please login.");
+            }
+            if (name == null || name.isBlank()) {
+                throw new IllegalArgumentException("Full name is required to register");
+            }
+            String roleName = purpose == OtpPurpose.REGISTER_WORKER ? "ROLE_WORKER" : "ROLE_CUSTOMER";
 
-            String firstName = "User";
+            String firstName;
             String lastName = "";
-            if (name != null && !name.isBlank()) {
-                String[] parts = name.trim().split("\\s+", 2);
-                firstName = parts[0];
-                if (parts.length > 1) {
-                    lastName = parts[1];
-                }
+            String[] parts = name.trim().split("\\s+", 2);
+            firstName = parts[0];
+            if (parts.length > 1) {
+                lastName = parts[1];
             }
 
             String username = "user_" + normalizedMobile.replaceAll("[^0-9]", "");
@@ -104,67 +83,6 @@ public class AuthService {
             user = userRepository.save(user);
             log.info("New user registered via OTP: {} (Role: {})", user.getPhoneNumber(), roleName);
         }
-
-        return generateAuthResponse(user);
-    }
-
-    public AuthResponse register(RegisterRequest request) {
-        String normalizedPhone = MobileNumberNormalizer.normalize(request.getPhoneNumber());
-
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new IllegalArgumentException("Username already exists");
-        }
-
-        if (request.getEmail() != null && userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
-        }
-
-        if (mobileExists(normalizedPhone)) {
-            throw new IllegalArgumentException("Phone number already exists");
-        }
-
-        User user = User.builder()
-                .username(request.getUsername())
-                .email(request.getEmail())
-                .phoneNumber(normalizedPhone)
-                .passwordHash(request.getPassword() != null ? passwordEncoder.encode(request.getPassword()) : null)
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .isActive(true)
-                .isVerified(false)
-                .build();
-
-        // Assign role based on request
-        String requestedType = request.getUserType() == null ? "CUSTOMER" : request.getUserType().trim().toUpperCase(Locale.ROOT);
-        String roleName = "WORKER".equals(requestedType) ? "ROLE_WORKER" : "ROLE_CUSTOMER";
-        Role role = roleRepository.findByName(roleName)
-                .orElseThrow(() -> new RuntimeException("Role not found: " + roleName));
-        if (user.getRoles() == null) {
-            user.setRoles(new HashSet<>());
-        }
-        user.getRoles().add(role);
-
-        user = userRepository.save(user);
-        log.info("New user registered: {} (ID: {})", user.getUsername(), user.getId());
-
-        return generateAuthResponse(user);
-    }
-
-    public AuthResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmailOrUsername(),
-                        request.getPassword()
-                )
-        );
-
-        User user = userRepository.findByEmailOrUsername(request.getEmailOrUsername(), request.getEmailOrUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        user.setLastLoginAt(LocalDateTime.now());
-        user = userRepository.save(user);
-
-        log.info("User logged in: {} (ID: {})", user.getUsername(), user.getId());
 
         return generateAuthResponse(user);
     }
@@ -262,15 +180,6 @@ public class AuthService {
         }
 
         return Optional.empty();
-    }
-
-    private boolean mobileExists(String normalizedMobile) {
-        if (userRepository.existsByPhoneNumber(normalizedMobile)) {
-            return true;
-        }
-
-        String legacyMobile = toLegacyLocalMobile(normalizedMobile);
-        return legacyMobile != null && userRepository.existsByPhoneNumber(legacyMobile);
     }
 
     private String toLegacyLocalMobile(String normalizedMobile) {

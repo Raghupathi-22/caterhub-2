@@ -47,10 +47,10 @@ public class OtpController {
             throw new IllegalArgumentException("Invalid OTP");
         }
 
-        AuthResponse response = authService.authenticateOrRegisterWithOtp(
+        AuthResponse response = authService.authenticateWithVerifiedOtp(
                 request.getMobileNumber(),
                 request.getName(),
-                request.getUserType()
+                request.getPurpose()
         );
 
         return ResponseEntity.ok(response);

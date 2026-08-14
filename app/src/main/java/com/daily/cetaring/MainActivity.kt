@@ -31,9 +31,7 @@ import com.daily.cetaring.presentation.screens.BookingSuccessScreen
 import com.daily.cetaring.presentation.screens.CustomerProfileScreen
 import com.daily.cetaring.presentation.screens.HelpSupportScreen
 import com.daily.cetaring.presentation.screens.HomeScreen
-import com.daily.cetaring.presentation.screens.LoginScreen
-import com.daily.cetaring.presentation.screens.PhoneOtpLoginScreen
-import com.daily.cetaring.presentation.screens.RegisterScreen
+import com.daily.cetaring.presentation.screens.OtpAuthScreen
 import com.daily.cetaring.presentation.screens.WorkerDashboardScreen
 import com.daily.cetaring.presentation.screens.WorkerJobsScreen
 import com.daily.cetaring.presentation.screens.WorkerJobDetailsScreen
@@ -51,9 +49,8 @@ import kotlinx.coroutines.flow.combine
 
 private object AppRoute {
     const val AUTH_LANDING = "auth_landing"
-    const val REGISTER = "register"
-    const val PHONE_OTP_LOGIN = "phone_otp_login"
-    const val PASSWORD_LOGIN = "password_login"
+    const val CUSTOMER_REGISTER = "customer_register"
+    const val CUSTOMER_LOGIN = "customer_login"
     const val HOME = "home"
     const val BOOKING_FLOW = "booking_flow"
     const val BOOKINGS = "bookings"
@@ -68,6 +65,7 @@ private object AppRoute {
     const val WORKER_PROFILE = "worker_profile"
     const val HELP_SUPPORT = "help_support"
     const val WORKER_ACCOUNT_REGISTER = "worker_account_register"
+    const val WORKER_LOGIN = "worker_login"
 }
 
 class MainActivity : ComponentActivity() {
@@ -130,9 +128,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                fun routeAfterAuth() {
-                    val success = authViewModel.uiState.value as? AuthUiState.Success
-                    val destination = AuthRoleRouter.destinationForRoles(success?.response?.user?.roles.orEmpty())
+                fun routeAfterAuth(response: com.daily.cetaring.data.remote.dto.AuthResponse) {
+                    val destination = AuthRoleRouter.destinationForRoles(response.user.roles)
                     navController.navigate(routeForDestination(destination)) {
                         popUpTo(AppRoute.AUTH_LANDING) { inclusive = true }
                     }
@@ -145,65 +142,48 @@ class MainActivity : ComponentActivity() {
                     composable(AppRoute.AUTH_LANDING) {
                         AuthLandingScreen(
                             onCreateAccountClick = {
-                                authViewModel.resetUiState()
-                                navController.navigate(AppRoute.REGISTER)
+                                authViewModel.resetOtpState()
+                                navController.navigate(AppRoute.CUSTOMER_REGISTER)
                             },
-                            onPhoneLoginClick = {
-                                authViewModel.resetUiState()
-                                navController.navigate(AppRoute.PHONE_OTP_LOGIN)
-                            },
-                            onPasswordLoginClick = {
-                                authViewModel.resetUiState()
-                                navController.navigate(AppRoute.PASSWORD_LOGIN)
+                            onCustomerLoginClick = {
+                                authViewModel.resetOtpState()
+                                navController.navigate(AppRoute.CUSTOMER_LOGIN)
                             },
                             onWorkerRegisterClick = {
-                                authViewModel.resetUiState()
+                                authViewModel.resetOtpState()
                                 navController.navigate(AppRoute.WORKER_ACCOUNT_REGISTER)
                             },
                             onWorkerLoginClick = {
-                                authViewModel.resetUiState()
-                                navController.navigate(AppRoute.PASSWORD_LOGIN)
+                                authViewModel.resetOtpState()
+                                navController.navigate(AppRoute.WORKER_LOGIN)
                             }
                         )
                     }
 
-                    composable(AppRoute.REGISTER) {
-                        RegisterScreen(
+                    composable(AppRoute.CUSTOMER_REGISTER) {
+                        OtpAuthScreen(
                             viewModel = authViewModel,
+                            isRegistration = true,
+                            userType = "CUSTOMER",
                             onBackClick = { navController.popBackStack() },
-                            onLoginClick = {
-                                authViewModel.resetUiState()
-                                navController.navigate(AppRoute.PASSWORD_LOGIN) {
+                            onAuthSuccess = { routeAfterAuth(it) },
+                            onSwitchMode = {
+                                authViewModel.resetOtpState()
+                                navController.navigate(AppRoute.CUSTOMER_LOGIN) {
                                     popUpTo(AppRoute.AUTH_LANDING)
                                 }
-                            },
-                            onRegisterSuccess = { routeAfterAuth() }
-                        )
-                    }
-
-                    composable(AppRoute.PHONE_OTP_LOGIN) {
-                        PhoneOtpLoginScreen(
-                            onBackClick = { navController.popBackStack() },
-                            onUsePasswordClick = {
-                                authViewModel.resetUiState()
-                                navController.navigate(AppRoute.PASSWORD_LOGIN)
-                            },
-                            onCreateAccountClick = {
-                                authViewModel.resetUiState()
-                                navController.navigate(AppRoute.REGISTER)
                             }
                         )
                     }
 
-                    composable(AppRoute.PASSWORD_LOGIN) {
-                        LoginScreen(
+                    composable(AppRoute.CUSTOMER_LOGIN) {
+                        OtpAuthScreen(
                             viewModel = authViewModel,
+                            isRegistration = false,
+                            userType = "CUSTOMER",
                             onBackClick = { navController.popBackStack() },
-                            onCreateAccountClick = {
-                                authViewModel.resetUiState()
-                                navController.navigate(AppRoute.REGISTER)
-                            },
-                            onLoginSuccess = { routeAfterAuth() }
+                            onAuthSuccess = { routeAfterAuth(it) },
+                            onSwitchMode = { navController.navigate(AppRoute.CUSTOMER_REGISTER) }
                         )
                     }
 
@@ -379,19 +359,32 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable(AppRoute.WORKER_ACCOUNT_REGISTER) {
-                        RegisterScreen(
+                        OtpAuthScreen(
                             viewModel = authViewModel,
+                            isRegistration = true,
+                            userType = "WORKER",
                             onBackClick = { navController.popBackStack() },
-                            onLoginClick = {
-                                authViewModel.resetUiState()
-                                navController.navigate(AppRoute.PASSWORD_LOGIN)
-                            },
-                            onRegisterSuccess = {
-                                navController.navigate(AppRoute.WORKER_ONBOARDING) {
+                            onAuthSuccess = { response ->
+                                if (AuthRoleRouter.destinationForRoles(response.user.roles) == AuthDestination.WORKER_DASHBOARD) {
+                                    navController.navigate(AppRoute.WORKER_ONBOARDING) {
                                     popUpTo(AppRoute.AUTH_LANDING) { inclusive = true }
                                 }
+                                } else {
+                                    routeAfterAuth(response)
+                                }
                             },
-                            userType = "WORKER"
+                            onSwitchMode = { navController.navigate(AppRoute.WORKER_LOGIN) }
+                        )
+                    }
+
+                    composable(AppRoute.WORKER_LOGIN) {
+                        OtpAuthScreen(
+                            viewModel = authViewModel,
+                            isRegistration = false,
+                            userType = "WORKER",
+                            onBackClick = { navController.popBackStack() },
+                            onAuthSuccess = { routeAfterAuth(it) },
+                            onSwitchMode = { navController.navigate(AppRoute.WORKER_ACCOUNT_REGISTER) }
                         )
                     }
                 }

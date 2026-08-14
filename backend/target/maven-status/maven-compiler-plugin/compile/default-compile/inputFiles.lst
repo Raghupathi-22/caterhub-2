@@ -92,9 +92,7 @@ C:\app\application\caterhub-3\backend\src\main\java\com\daily\cetaring\features\
 C:\app\application\caterhub-3\backend\src\main\java\com\daily\cetaring\features\worker\repository\WorkerProfileRepository.java
 C:\app\application\caterhub-3\backend\src\main\java\com\daily\cetaring\features\worker\service\WorkerService.java
 C:\app\application\caterhub-3\backend\src\main\java\com\daily\cetaring\shared\dto\AuthResponse.java
-C:\app\application\caterhub-3\backend\src\main\java\com\daily\cetaring\shared\dto\LoginRequest.java
 C:\app\application\caterhub-3\backend\src\main\java\com\daily\cetaring\shared\dto\RefreshTokenRequest.java
-C:\app\application\caterhub-3\backend\src\main\java\com\daily\cetaring\shared\dto\RegisterRequest.java
 C:\app\application\caterhub-3\backend\src\main\java\com\daily\cetaring\shared\dto\UpdateUserProfileRequest.java
 C:\app\application\caterhub-3\backend\src\main\java\com\daily\cetaring\shared\dto\UserDTO.java
 C:\app\application\caterhub-3\backend\src\main\java\com\daily\cetaring\shared\entity\AuditLog.java

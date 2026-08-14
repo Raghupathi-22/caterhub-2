@@ -53,28 +53,7 @@ data class VerifyOtpRequest(
     val mobileNumber: String,
     val otp: String,
     val purpose: String,
-    val name: String? = null,
-    val userType: String? = null,
-    val email: String? = null
-)
-
-data class RegisterRequest(
-    val username: String,
-    val email: String? = null,
-    @SerializedName("phone_number")
-    val phoneNumber: String,
-    val password: String? = null,
-    @SerializedName("first_name")
-    val firstName: String? = null,
-    @SerializedName("last_name")
-    val lastName: String? = null,
-    @SerializedName("user_type")
-    val userType: String = "CUSTOMER"
-)
-
-data class LoginRequest(
-    val emailOrUsername: String,
-    val password: String
+    val name: String? = null
 )
 
 data class UpdateUserProfileRequest(

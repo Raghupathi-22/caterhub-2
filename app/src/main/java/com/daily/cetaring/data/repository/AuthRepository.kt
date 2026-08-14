@@ -4,8 +4,9 @@ import com.daily.cetaring.data.local.AuthLocalDataSource
 import com.daily.cetaring.data.remote.AuthApiService
 import com.daily.cetaring.data.remote.HealthApiService
 import com.daily.cetaring.data.remote.dto.AuthResponse
-import com.daily.cetaring.data.remote.dto.LoginRequest
-import com.daily.cetaring.data.remote.dto.RegisterRequest
+import com.daily.cetaring.data.remote.dto.SendOtpRequest
+import com.daily.cetaring.data.remote.dto.SendOtpResponse
+import com.daily.cetaring.data.remote.dto.VerifyOtpRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
@@ -32,16 +33,14 @@ class AuthRepository(
     val phoneNumberFlow: Flow<String?> = localDataSource.phoneNumberFlow
     val rolesFlow: Flow<String?> = localDataSource.rolesFlow
 
-    suspend fun register(request: RegisterRequest): AuthResponse {
+    suspend fun sendOtp(request: SendOtpRequest): SendOtpResponse {
         ensureBackendAvailable()
-        val response = executeNetworkCall { apiService.register(request) }
-        saveAuthResponse(response)
-        return response
+        return executeNetworkCall { apiService.sendOtp(request) }
     }
 
-    suspend fun login(request: LoginRequest): AuthResponse {
+    suspend fun verifyOtp(request: VerifyOtpRequest): AuthResponse {
         ensureBackendAvailable()
-        val response = executeNetworkCall { apiService.login(request) }
+        val response = executeNetworkCall { apiService.verifyOtp(request) }
         saveAuthResponse(response)
         return response
     }

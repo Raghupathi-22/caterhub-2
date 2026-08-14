@@ -38,8 +38,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AuthLandingScreen(
     onCreateAccountClick: () -> Unit,
-    onPhoneLoginClick: () -> Unit,
-    onPasswordLoginClick: () -> Unit,
+    onCustomerLoginClick: () -> Unit,
     onWorkerRegisterClick: () -> Unit,
     onWorkerLoginClick: () -> Unit
 ) {
@@ -106,7 +105,7 @@ fun AuthLandingScreen(
                     Button(onClick = onCreateAccountClick, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp)) {
                         Text("Create Customer Account")
                     }
-                    OutlinedButton(onClick = onPasswordLoginClick, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp)) {
+                    OutlinedButton(onClick = onCustomerLoginClick, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp)) {
                         Text("Customer Login")
                     }
                 }
@@ -131,18 +130,7 @@ fun AuthLandingScreen(
                     }
                 }
             }
-
             Spacer(modifier = Modifier.weight(1f))
-
-            OutlinedButton(
-                onClick = onPhoneLoginClick,
-                modifier = Modifier.fillMaxWidth().height(54.dp),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Icon(imageVector = Icons.Filled.PhoneAndroid, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Login with phone OTP", style = MaterialTheme.typography.titleMedium)
-            }
         }
     }
 }

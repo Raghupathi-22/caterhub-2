@@ -22,6 +22,4 @@ public class VerifyOtpRequest {
     private OtpPurpose purpose;
 
     private String name;
-    private String userType;
-    private String email;
 }
