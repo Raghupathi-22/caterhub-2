@@ -105,7 +105,7 @@ private fun ProfileContent(
     var editMode by remember(user.id) { mutableStateOf(false) }
     var firstName by remember(user.id) { mutableStateOf(user.firstName.orEmpty()) }
     var lastName by remember(user.id) { mutableStateOf(user.lastName.orEmpty()) }
-    var email by remember(user.id) { mutableStateOf(user.email) }
+    var email by remember(user.id) { mutableStateOf(user.email.orEmpty()) }
     var phone by remember(user.id) { mutableStateOf(user.phoneNumber) }
 
     Column(
@@ -141,7 +141,7 @@ private fun ProfileContent(
                 } else {
                     SummaryRow("First name", user.firstName.orEmpty())
                     SummaryRow("Last name", user.lastName.orEmpty())
-                    SummaryRow("Email", user.email)
+                    SummaryRow("Email", user.email.orEmpty())
                     SummaryRow("Mobile number", user.phoneNumber)
                     SummaryRow("Username", user.username)
                     SummaryRow("Account type", accountType(user.roles))

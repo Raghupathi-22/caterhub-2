@@ -71,7 +71,7 @@ class AuthLocalDataSource(private val context: Context) {
     suspend fun saveUserData(
         userId: String,
         username: String,
-        email: String,
+        email: String? = null,
         firstName: String? = null,
         lastName: String? = null,
         phoneNumber: String? = null,
@@ -80,7 +80,7 @@ class AuthLocalDataSource(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.USER_ID] = userId
             preferences[PreferencesKeys.USERNAME] = username
-            preferences[PreferencesKeys.EMAIL] = email
+            preferences[PreferencesKeys.EMAIL] = email ?: ""
             firstName?.let { preferences[PreferencesKeys.FIRST_NAME] = it }
             lastName?.let { preferences[PreferencesKeys.LAST_NAME] = it }
             phoneNumber?.let { preferences[PreferencesKeys.PHONE_NUMBER] = it }
