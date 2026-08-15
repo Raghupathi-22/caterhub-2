@@ -7,6 +7,7 @@ import com.daily.cetaring.data.remote.dto.AcceptStaffingJobResponse
 import com.daily.cetaring.data.remote.dto.AssignmentResponse
 import com.daily.cetaring.data.remote.dto.AssignmentStatus
 import com.daily.cetaring.data.remote.dto.CreateWorkerProfileRequest
+import com.daily.cetaring.data.remote.dto.CreateStaffingRequest
 import com.daily.cetaring.data.remote.dto.RespondAssignmentRequest
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
 import com.daily.cetaring.data.remote.dto.UpdateAvailabilityToggleRequest
@@ -80,6 +81,11 @@ class WorkerRepository(
     suspend fun updateAvailability(available: Boolean) {
         ensureBackendAvailable()
         executeNetworkCall { workerApiService.updateAvailability(bearerToken(), UpdateAvailabilityToggleRequest(available = available)) }
+    }
+
+    suspend fun createStaffingRequest(request: CreateStaffingRequest): StaffingJobResponse {
+        ensureBackendAvailable()
+        return executeNetworkCall { workerApiService.createStaffingRequest(bearerToken(), request) }
     }
 
     private suspend fun bearerToken(): String {

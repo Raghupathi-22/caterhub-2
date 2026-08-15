@@ -32,6 +32,19 @@ data class CreateWorkerProfileRequest(
     val bio: String?
 )
 
+data class CreateStaffingRequest(
+    val eventType: String,
+    val workerType: WorkerType,
+    val eventDate: String,
+    val startTime: String,
+    val endTime: String,
+    val location: String,
+    val area: String,
+    val requiredWorkers: Int,
+    val payment: BigDecimal,
+    val additionalRequirements: String? = null
+)
+
 data class WorkerProfileResponse(
     val id: Long,
     val userId: Long,

@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
             authLocalDataSource = authLocalDataSource
         )
         val authViewModel = AuthViewModel(authRepository)
-        val bookingViewModel = BookingViewModel(bookingRepository)
+        val bookingViewModel = BookingViewModel(bookingRepository, workerRepository)
         val homeViewModel = HomeViewModel(bookingRepository, authLocalDataSource)
         val workerViewModel = WorkerViewModel(workerRepository)
         val customerProfileViewModel = CustomerProfileViewModel(userRepository, authRepository)
@@ -205,10 +205,6 @@ class MainActivity : ComponentActivity() {
                             },
                             onEventTypeClick = { eventType ->
                                 bookingViewModel.startNewBooking(eventType = eventType)
-                                navController.navigate(AppRoute.BOOKING_FLOW)
-                            },
-                            onFoodTypeClick = { foodType ->
-                                bookingViewModel.startNewBooking(foodType = foodType)
                                 navController.navigate(AppRoute.BOOKING_FLOW)
                             },
                             onLogout = {
