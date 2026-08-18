@@ -1,5 +1,6 @@
 C:\app\application\caterhub-3\backend\src\test\java\com\daily\cetaring\features\admin\service\AdminOperationsServiceTest.java
 C:\app\application\caterhub-3\backend\src\test\java\com\daily\cetaring\features\auth\service\AuthServiceTest.java
+C:\app\application\caterhub-3\backend\src\test\java\com\daily\cetaring\features\auth\service\OtpServiceTest.java
 C:\app\application\caterhub-3\backend\src\test\java\com\daily\cetaring\features\auth\service\SmsOtpSenderTest.java
 C:\app\application\caterhub-3\backend\src\test\java\com\daily\cetaring\features\booking\service\BookingServiceTest.java
 C:\app\application\caterhub-3\backend\src\test\java\com\daily\cetaring\features\health\controller\HealthControllerTest.java
