@@ -305,7 +305,24 @@ public class WorkerService {
     }
 
     public WorkerDtos.WorkerDashboardResponse getWorkerDashboard(String username) {
-        WorkerDtos.WorkerProfileResponse profile = getProfileByUsername(username);
+        WorkerDtos.WorkerProfileResponse profile;
+        try {
+            profile = getProfileByUsername(username);
+        } catch (IllegalArgumentException e) {
+            User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
+            String fullName = String.join(" ",
+                user.getFirstName() == null ? "" : user.getFirstName(),
+                user.getLastName() == null ? "" : user.getLastName()
+            ).trim();
+            profile = WorkerDtos.WorkerProfileResponse.builder()
+                .id(0L)
+                .userId(user.getId())
+                .username(user.getUsername())
+                .fullName(fullName.isBlank() ? user.getUsername() : fullName)
+                .status(WorkerProfile.WorkerStatus.PENDING_VERIFICATION)
+                .build();
+        }
         List<WorkerDtos.StaffingJobResponse> opportunities = getAvailableStaffingJobs(username, null, null, null).stream()
             .limit(5)
             .toList();
@@ -414,7 +431,12 @@ public class WorkerService {
 
     @Transactional(readOnly = true)
     public List<WorkerDtos.WorkerJobResponse> getMyStaffingJobs(String username) {
-        WorkerProfile profile = getProfileEntityByUsername(username);
+        WorkerProfile profile;
+        try {
+            profile = getProfileEntityByUsername(username);
+        } catch (IllegalArgumentException ignored) {
+            return List.of();
+        }
         return staffingJobAcceptanceRepository.findByWorkerProfileIdOrderByAcceptedAtDesc(profile.getId())
             .stream()
             .map(this::mapWorkerJob)

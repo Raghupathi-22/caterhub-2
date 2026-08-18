@@ -70,6 +70,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     }
 
     default Optional<User> findByUsername(String username) {
+        Optional<User> direct = findByUsernameAndDeletedAtIsNull(username);
+        if (direct.isPresent()) {
+            return direct;
+        }
         return findByIdentifier(username);
     }
 
