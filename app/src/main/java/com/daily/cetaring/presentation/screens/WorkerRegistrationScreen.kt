@@ -212,7 +212,7 @@ private fun WorkerTypeStep(workerType: WorkerType, onWorkerTypeChange: (WorkerTy
                 modifier = Modifier.menuAnchor().fillMaxWidth()
             )
             ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                WorkerType.entries.forEach { type ->
+                WorkerType.entries.distinctBy { it.label }.forEach { type ->
                     DropdownMenuItem(text = { Text(type.label) }, onClick = {
                         onWorkerTypeChange(type)
                         expanded = false

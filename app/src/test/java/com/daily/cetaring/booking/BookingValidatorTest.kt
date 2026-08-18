@@ -7,6 +7,7 @@ import com.daily.cetaring.data.remote.dto.BookingValidator
 import com.daily.cetaring.data.remote.dto.StaffingRequirement
 import com.daily.cetaring.data.remote.dto.WorkerType
 import java.math.BigDecimal
+import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,7 +33,7 @@ class BookingValidatorTest {
             eventType = "Birthday",
             guestCount = 100,
             foodService = "Full Catering",
-            eventDate = "2026-08-15",
+            eventDate = LocalDate.now().plusDays(1).toString(),
             eventTime = "19:00",
             address = "Plot 10",
             area = "Kondapur",
@@ -50,7 +51,7 @@ class BookingValidatorTest {
             staffingRequirements = mapOf(
                 WorkerType.SERVING_BOY to StaffingRequirement(quantity = 10, paymentPerWorker = BigDecimal("0"))
             ),
-            eventDate = "2026-08-15",
+            eventDate = LocalDate.now().plusDays(1).toString(),
             eventTime = "19:00",
             address = "Plot 10",
             area = "Kondapur",

@@ -17,4 +17,6 @@ public class SendOtpRequest {
 
     @NotNull(message = "Purpose is required")
     private OtpPurpose purpose;
+
+    private String userType;
 }

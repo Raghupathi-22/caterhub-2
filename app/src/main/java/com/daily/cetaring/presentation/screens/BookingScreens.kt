@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -163,7 +164,7 @@ private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
         }
     }
     OutlinedTextField(
-        value = draft.guestCount?.toString().orEmpty(),
+        value = if (draft.guestCount in BookingOptions.guestQuickOptions) "" else draft.guestCount?.toString().orEmpty(),
         onValueChange = { value ->
             viewModel.updateDraft { it.copy(guestCount = value.filter(Char::isDigit).toIntOrNull()) }
         },
@@ -330,13 +331,16 @@ private fun DateTimeStep(draft: BookingDraft, viewModel: BookingViewModel) {
 
 @Composable
 private fun PickerField(label: String, value: String, onClick: () -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        readOnly = true,
-        label = { Text(label) },
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
-    )
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

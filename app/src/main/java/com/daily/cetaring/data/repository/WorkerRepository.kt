@@ -126,7 +126,7 @@ class WorkerRepository(
             is HttpException -> when (exception.code()) {
                 400 -> IllegalArgumentException("Please check the worker details and try again.")
                 401 -> IllegalStateException("Please login again")
-                403 -> IllegalArgumentException("You do not have permission to access this worker profile.")
+                403 -> IllegalArgumentException("Your worker profile is still under verification.")
                 404 -> IllegalStateException("Worker profile or job not found")
                 409 -> IllegalArgumentException("Sorry, all positions have been filled or this job was already accepted.")
                 in 500..599 -> ServerOfflineException("Something went wrong. Please try again.")

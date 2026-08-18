@@ -39,7 +39,9 @@ data class SendOtpRequest(
     @SerializedName("mobileNumber")
     val mobileNumber: String,
     @SerializedName("purpose")
-    val purpose: String
+    val purpose: String,
+    @SerializedName("userType")
+    val userType: String? = null
 )
 
 data class SendOtpResponse(

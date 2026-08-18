@@ -4,6 +4,8 @@ import com.daily.cetaring.features.auth.entity.OtpEntity;
 import com.daily.cetaring.features.auth.dto.OtpPurpose;
 import com.daily.cetaring.features.auth.dto.OtpSendResponse;
 import com.daily.cetaring.features.auth.repository.OtpRepository;
+import com.daily.cetaring.shared.entity.User;
+import com.daily.cetaring.shared.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +26,7 @@ public class OtpService {
     private final OtpRepository otpRepository;
     private final OtpSender otpSender;
     private final PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
 
     @Value("${otp.dev.mode:false}")
     private boolean devMode;
@@ -49,13 +52,15 @@ public class OtpService {
     @Value("${otp.rate-limit.ip.max-sends:20}")
     private long ipRateLimitMaxSends;
 
-    public OtpSendResponse generateAndSendOtp(String mobileNumber, OtpPurpose purpose, String requesterIp) {
+    public OtpSendResponse generateAndSendOtp(String mobileNumber, OtpPurpose purpose, String userType, String requesterIp) {
         String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
         String purposeValue = purpose.name();
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime cooldownCutoff = now.minusSeconds(resendCooldownSeconds);
         LocalDateTime mobileRateLimitCutoff = now.minusSeconds(mobileRateLimitWindowSeconds);
         LocalDateTime ipRateLimitCutoff = now.minusSeconds(ipRateLimitWindowSeconds);
+
+        validateLoginTarget(normalizedMobile, purpose, userType);
 
         Optional<OtpEntity> lastOtpOpt = otpRepository.findTopByMobileNumberAndPurposeOrderByCreatedAtDesc(normalizedMobile, purposeValue);
         if (lastOtpOpt.isPresent()) {
@@ -110,6 +115,46 @@ public class OtpService {
                 .message("OTP sent successfully")
                 .expiresInSeconds(expirationSeconds)
                 .build();
+    }
+
+    private void validateLoginTarget(String normalizedMobile, OtpPurpose purpose, String userType) {
+        if (purpose != OtpPurpose.LOGIN) {
+            return;
+        }
+        User user = findByMobileNumber(normalizedMobile)
+                .orElseThrow(() -> new IllegalArgumentException(notRegisteredMessage(userType)));
+        String requiredRole = requiredRoleForUserType(userType);
+        if (requiredRole != null && user.getRoles().stream().noneMatch(role -> requiredRole.equals(role.getName()))) {
+            throw new IllegalArgumentException(notRegisteredMessage(userType));
+        }
+    }
+
+    private String requiredRoleForUserType(String userType) {
+        if ("CUSTOMER".equalsIgnoreCase(userType)) {
+            return "ROLE_CUSTOMER";
+        }
+        if ("WORKER".equalsIgnoreCase(userType)) {
+            return "ROLE_WORKER";
+        }
+        return null;
+    }
+
+    private String notRegisteredMessage(String userType) {
+        if ("WORKER".equalsIgnoreCase(userType)) {
+            return "You are not registered as a CaterHub worker. Please create a worker account first.";
+        }
+        return "You are not registered with CaterHub. Please create an account first.";
+    }
+
+    private Optional<User> findByMobileNumber(String normalizedMobile) {
+        Optional<User> directMatch = userRepository.findByPhoneNumber(normalizedMobile);
+        if (directMatch.isPresent()) {
+            return directMatch;
+        }
+        if (normalizedMobile != null && normalizedMobile.startsWith("+91") && normalizedMobile.length() == 13) {
+            return userRepository.findByPhoneNumber(normalizedMobile.substring(3));
+        }
+        return Optional.empty();
     }
 
     public boolean verifyOtp(String mobileNumber, String otp, OtpPurpose purpose) {

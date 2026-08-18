@@ -109,6 +109,7 @@ class AuthRepository(
             is EOFException, is ProtocolException -> IllegalStateException("Received an invalid response from the server. Please try again.")
             is IOException -> ServerOfflineException()
             is HttpException -> when (exception.code()) {
+                400 -> IllegalArgumentException(apiErrorMessage(exception) ?: "Please check your details and try again.")
                 401 -> IllegalArgumentException("Session expired or credentials are invalid. Please login again.")
                 403 -> IllegalArgumentException("You do not have permission to perform this action.")
                 404 -> IllegalArgumentException("Requested service was not found. Please update the app or try again later.")
@@ -117,5 +118,12 @@ class AuthRepository(
             }
             else -> exception
         }
+    }
+
+    private fun apiErrorMessage(exception: HttpException): String? {
+        return exception.response()?.errorBody()?.string()
+            ?.let { body -> Regex("\"message\"\\s*:\\s*\"([^\"]+)\"").find(body)?.groupValues?.getOrNull(1) }
+            ?.replace("\\n", "\n")
+            ?.replace("\\\"", "\"")
     }
 }

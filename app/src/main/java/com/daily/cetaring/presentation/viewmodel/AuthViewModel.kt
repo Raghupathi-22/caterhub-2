@@ -34,11 +34,11 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     private val _otpUiState = MutableStateFlow<OtpUiState>(OtpUiState.Idle)
     val otpUiState: StateFlow<OtpUiState> = _otpUiState.asStateFlow()
 
-    fun sendOtp(mobileNumber: String, purpose: String) {
+    fun sendOtp(mobileNumber: String, purpose: String, userType: String) {
         viewModelScope.launch {
             _otpUiState.value = OtpUiState.Sending
             try {
-                val response = authRepository.sendOtp(SendOtpRequest(mobileNumber, purpose))
+                authRepository.sendOtp(SendOtpRequest(mobileNumber, purpose, userType))
                 _otpUiState.value = OtpUiState.Sent(resendCooldownSeconds = 60)
             } catch (e: Exception) {
                 _otpUiState.value = OtpUiState.Error(e.message ?: "Unable to send OTP")

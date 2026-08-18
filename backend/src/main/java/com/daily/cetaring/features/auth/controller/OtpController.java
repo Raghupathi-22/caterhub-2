@@ -33,6 +33,7 @@ public class OtpController {
         OtpSendResponse response = otpService.generateAndSendOtp(
                 request.getMobileNumber(),
                 request.getPurpose(),
+                request.getUserType(),
                 extractClientIp(servletRequest)
         );
         return ResponseEntity.ok(response);

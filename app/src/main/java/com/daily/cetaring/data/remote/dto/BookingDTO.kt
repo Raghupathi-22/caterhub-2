@@ -2,6 +2,9 @@ package com.daily.cetaring.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 data class CreateBookingRequest(
     @SerializedName("businessId") val businessId: Long = 1L,
@@ -90,7 +93,7 @@ object BookingOptions {
         WorkerType.CLEANER
     )
     val menuCategories = listOf(
-        "Breakfast", "Lunch", "Dinner", "Snacks", "Starters", "Main Course",
+        "Breakfast & Tiffin", "Lunch", "Dinner", "Snacks", "Starters", "Main Course",
         "Biryani", "Curries", "Rice", "Breads", "Desserts", "Beverages"
     )
     val guestQuickOptions = listOf(20, 50, 100, 150, 200)
@@ -133,6 +136,13 @@ object BookingValidator {
     private fun validateDateTime(draft: BookingDraft): BookingValidationResult {
         if (draft.eventDate.isBlank()) return BookingValidationResult.Invalid("Please select an event date.")
         if (draft.eventTime.isBlank()) return BookingValidationResult.Invalid("Please select an event time.")
+        val eventDate = runCatching { LocalDate.parse(draft.eventDate) }.getOrNull()
+            ?: return BookingValidationResult.Invalid("Please select a valid event date.")
+        val eventTime = runCatching { LocalTime.parse(draft.eventTime) }.getOrNull()
+            ?: return BookingValidationResult.Invalid("Please select a valid event time.")
+        if (LocalDateTime.of(eventDate, eventTime).isBefore(LocalDateTime.now())) {
+            return BookingValidationResult.Invalid("Please select a future event date and time.")
+        }
         if (draft.staffingRequirements.values.any { it.quantity > 0 } && draft.staffingEndTime.isBlank()) {
             return BookingValidationResult.Invalid("Please select when the staffing shift ends.")
         }
