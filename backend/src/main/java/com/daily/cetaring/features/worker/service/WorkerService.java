@@ -119,7 +119,27 @@ public class WorkerService {
     public WorkerDtos.WorkerProfileResponse getProfileByUsername(String username) {
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
-        return getProfileByUserId(user.getId());
+        try {
+            return getProfileByUserId(user.getId());
+        } catch (IllegalArgumentException e) {
+            // A newly authenticated worker has not created a worker profile yet.
+            // Return the existing pending/initial profile representation instead of a 400 error.
+            return buildPendingProfileResponse(user);
+        }
+    }
+
+    private WorkerDtos.WorkerProfileResponse buildPendingProfileResponse(User user) {
+        String fullName = String.join(" ",
+            user.getFirstName() == null ? "" : user.getFirstName(),
+            user.getLastName() == null ? "" : user.getLastName()
+        ).trim();
+        return WorkerDtos.WorkerProfileResponse.builder()
+            .id(0L)
+            .userId(user.getId())
+            .username(user.getUsername())
+            .fullName(fullName.isBlank() ? user.getUsername() : fullName)
+            .status(WorkerProfile.WorkerStatus.PENDING_VERIFICATION)
+            .build();
     }
 
     private WorkerProfile getProfileEntity(Long profileId) {
@@ -305,24 +325,7 @@ public class WorkerService {
     }
 
     public WorkerDtos.WorkerDashboardResponse getWorkerDashboard(String username) {
-        WorkerDtos.WorkerProfileResponse profile;
-        try {
-            profile = getProfileByUsername(username);
-        } catch (IllegalArgumentException e) {
-            User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
-            String fullName = String.join(" ",
-                user.getFirstName() == null ? "" : user.getFirstName(),
-                user.getLastName() == null ? "" : user.getLastName()
-            ).trim();
-            profile = WorkerDtos.WorkerProfileResponse.builder()
-                .id(0L)
-                .userId(user.getId())
-                .username(user.getUsername())
-                .fullName(fullName.isBlank() ? user.getUsername() : fullName)
-                .status(WorkerProfile.WorkerStatus.PENDING_VERIFICATION)
-                .build();
-        }
+        WorkerDtos.WorkerProfileResponse profile = getProfileByUsername(username);
         List<WorkerDtos.StaffingJobResponse> opportunities = getAvailableStaffingJobs(username, null, null, null).stream()
             .limit(5)
             .toList();
@@ -444,13 +447,22 @@ public class WorkerService {
     }
 
     public WorkerDtos.AvailabilityResponse updateMyAvailability(String username, WorkerDtos.UpdateAvailabilityToggleRequest request) {
-        WorkerProfile profile = getProfileEntityByUsername(username);
+        WorkerProfile profile;
+        try {
+            profile = getProfileEntityByUsername(username);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Please complete your worker profile before setting availability.");
+        }
+        boolean requestedAvailable = !Boolean.FALSE.equals(request.getAvailable());
+        if (requestedAvailable && profile.getStatus() != WorkerProfile.WorkerStatus.ACTIVE) {
+            throw new IllegalArgumentException("Availability will be enabled after your profile is verified.");
+        }
         WorkerAvailability availability = WorkerAvailability.builder()
             .workerProfile(profile)
             .availableDate(LocalDate.now())
             .startTime(LocalTime.of(9, 0))
             .endTime(LocalTime.of(22, 0))
-            .status(Boolean.FALSE.equals(request.getAvailable()) ? WorkerAvailability.AvailabilityStatus.UNAVAILABLE : WorkerAvailability.AvailabilityStatus.AVAILABLE)
+            .status(requestedAvailable ? WorkerAvailability.AvailabilityStatus.AVAILABLE : WorkerAvailability.AvailabilityStatus.UNAVAILABLE)
             .notes(trimToNull(request.getNotes()))
             .build();
         return mapAvailability(workerAvailabilityRepository.save(availability));
