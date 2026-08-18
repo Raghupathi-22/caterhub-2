@@ -67,7 +67,6 @@ otp:
 twofactor:
   api-key: ${TWOFACTOR_API_KEY:}
   base-url: ${TWOFACTOR_BASE_URL:https://2factor.in}
-  otp-template: ${TWOFACTOR_OTP_TEMPLATE:LOGIN_OTP}
   timeout-seconds: ${TWOFACTOR_TIMEOUT_SECONDS:10}
 
 logging:
