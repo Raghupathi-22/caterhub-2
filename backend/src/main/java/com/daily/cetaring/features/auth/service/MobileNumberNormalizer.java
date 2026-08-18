@@ -1,11 +1,11 @@
 package com.daily.cetaring.features.auth.service;
 
-final class MobileNumberNormalizer {
+public final class MobileNumberNormalizer {
 
     private MobileNumberNormalizer() {
     }
 
-    static String normalize(String mobileNumber) {
+    public static String normalize(String mobileNumber) {
         if (mobileNumber == null) {
             throw new IllegalArgumentException("Mobile number cannot be null");
         }

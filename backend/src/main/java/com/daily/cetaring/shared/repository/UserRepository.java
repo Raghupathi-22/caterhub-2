@@ -1,5 +1,6 @@
 package com.daily.cetaring.shared.repository;
 
+import com.daily.cetaring.features.auth.service.MobileNumberNormalizer;
 import com.daily.cetaring.shared.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -30,8 +31,46 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByPhoneNumberAndDeletedAtIsNull(String phoneNumber);
 
+    default Optional<User> findByIdentifier(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            return Optional.empty();
+        }
+
+        Optional<User> user = findByUsernameAndDeletedAtIsNull(identifier);
+        if (user.isPresent()) {
+            return user;
+        }
+
+        user = findByEmailAndDeletedAtIsNull(identifier);
+        if (user.isPresent()) {
+            return user;
+        }
+
+        user = findByPhoneNumberAndDeletedAtIsNull(identifier);
+        if (user.isPresent()) {
+            return user;
+        }
+
+        try {
+            String normalized = MobileNumberNormalizer.normalize(identifier);
+            user = findByPhoneNumberAndDeletedAtIsNull(normalized);
+            if (user.isPresent()) {
+                return user;
+            }
+            if (normalized.startsWith("+91") && normalized.length() == 13) {
+                user = findByPhoneNumberAndDeletedAtIsNull(normalized.substring(3));
+                if (user.isPresent()) {
+                    return user;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        return findActiveByEmailOrUsername(identifier, identifier);
+    }
+
     default Optional<User> findByUsername(String username) {
-        return findByUsernameAndDeletedAtIsNull(username);
+        return findByIdentifier(username);
     }
 
     default Optional<User> findByEmail(String email) {
@@ -43,7 +82,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     }
 
     default Optional<User> findByEmailOrUsername(String email, String username) {
-        return findActiveByEmailOrUsername(email, username);
+        return findByIdentifier(username);
     }
 
     default boolean existsByUsername(String username) {
