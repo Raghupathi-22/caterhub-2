@@ -12,42 +12,57 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.daily.cetaring.data.remote.dto.AuthResponse
 import com.daily.cetaring.presentation.viewmodel.AuthViewModel
 import com.daily.cetaring.presentation.viewmodel.OtpUiState
+import kotlinx.coroutines.delay
+
+private val Cream = Color(0xFFFFFCF6)
+private val Maroon = Color(0xFF941820)
+private val Green = Color(0xFF086526)
+private val Gold = Color(0xFFC98B13)
+private val Dark = Color(0xFF292522)
+private val Muted = Color(0xFF716A63)
+private val Border = Color(0xFFDCD5C8)
+private val ErrorBg = Color(0xFFFFEEEE)
 
 @Composable
 fun OtpAuthScreen(
@@ -55,143 +70,392 @@ fun OtpAuthScreen(
     isRegistration: Boolean,
     userType: String,
     onBackClick: () -> Unit,
-    onAuthSuccess: (AuthResponse) -> Unit,
+    onAuthSuccess: (com.daily.cetaring.data.remote.dto.AuthResponse) -> Unit,
     onSwitchMode: () -> Unit
 ) {
-    val otpUiState by viewModel.otpUiState.collectAsState()
-    var mobileNumber by remember { mutableStateOf("") }
-    var otpCode by remember { mutableStateOf("") }
+    val otpState by viewModel.otpUiState.collectAsState()
+
     var name by remember { mutableStateOf("") }
+    var mobile by remember { mutableStateOf("") }
+    var otp by remember { mutableStateOf("") }
 
-    val titleText = if (isRegistration) "Create an account" else "Login with OTP"
-    val subtitleText = if (isRegistration) "Verify your phone number to get started." else "Use your mobile number to sign in securely."
-    val purpose = if (isRegistration) "register" else "login"
+    var cooldown by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(otpUiState) {
-        val state = otpUiState
-        if (state is OtpUiState.Success) {
-            onAuthSuccess(state.response)
+    val title = if (isRegistration) {
+        "Create an account"
+    } else {
+        "Login with OTP"
+    }
+
+    val subtitle = if (isRegistration) {
+        "Verify your mobile number to get started."
+    } else {
+        "Use your mobile number to sign in securely."
+    }
+
+    val purpose = when {
+        !isRegistration -> "LOGIN"
+        userType.equals("WORKER", ignoreCase = true) -> "REGISTER_WORKER"
+        else -> "REGISTER_CUSTOMER"
+    }
+
+    val normalizedMobile = remember(mobile) {
+        mobile.filter { it.isDigit() }.take(10)
+    }
+
+    LaunchedEffect(otpState) {
+        when (val state = otpState) {
+            is OtpUiState.Sent -> {
+                cooldown = state.resendCooldownSeconds
+            }
+
+            is OtpUiState.Success -> {
+                onAuthSuccess(state.response)
+            }
+
+            else -> Unit
         }
     }
 
-    Scaffold(containerColor = Color(0xFFFFFCF6)) { padding ->
+    LaunchedEffect(cooldown) {
+        if (cooldown > 0) {
+            delay(1000)
+            cooldown--
+        }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Cream
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFFFFCF6))
-                .padding(padding)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Dark
+                    )
                 }
-                Spacer(Modifier.weight(1f))
+
+                Spacer(modifier = Modifier.weight(1f))
+
                 TextButton(onClick = onSwitchMode) {
-                    Text(if (isRegistration) "Login instead" else "Create account")
+                    Text(
+                        text = if (isRegistration) "Login instead" else "Create account",
+                        color = Color(0xFF8FCDBD),
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Card(
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF8E171C)),
-                    modifier = Modifier.fillMaxWidth(0.6f)
-                ) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.Security, contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(22.dp))
 
-            Text(titleText, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF8E171C))
-            Text(subtitleText, fontSize = 15.sp, color = Color(0xFF6C655D))
-
-            if (isRegistration) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Full name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+            // Security icon
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Maroon),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Security,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(58.dp)
                 )
             }
 
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Text(
+                text = title,
+                modifier = Modifier.fillMaxWidth(),
+                color = Maroon,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = subtitle,
+                modifier = Modifier.fillMaxWidth(),
+                color = Muted,
+                fontSize = 17.sp,
+                lineHeight = 24.sp
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Registration name
+            if (isRegistration) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = {
+                        name = it.take(80)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Full name") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Mobile
             OutlinedTextField(
-                value = mobileNumber,
-                onValueChange = { mobileNumber = it.filter { ch -> ch.isDigit() || ch == '+' } },
+                value = normalizedMobile,
+                onValueChange = {
+                    mobile = it.filter { char -> char.isDigit() }.take(10)
+                },
+                modifier = Modifier.fillMaxWidth(),
                 label = { Text("Mobile number") },
-                leadingIcon = { Icon(Icons.Filled.Phone, null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                prefix = {
+                    Text(
+                        "+91 ",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Filled.Phone,
+                        contentDescription = null
+                    )
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone
+                ),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
             )
 
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Send OTP
             Button(
                 onClick = {
-                    if (mobileNumber.isNotBlank()) {
-                        viewModel.sendOtp(mobileNumber.trim(), purpose, userType)
-                    }
+                    viewModel.sendOtp(
+                        mobileNumber = "+91$normalizedMobile",
+                        purpose = purpose,
+                        userType = userType
+                    )
                 },
-                enabled = otpUiState !is OtpUiState.Sending,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8E171C)),
-                modifier = Modifier.fillMaxWidth().height(52.dp)
+                enabled = normalizedMobile.length == 10 &&
+                        otpState !is OtpUiState.Sending &&
+                        cooldown == 0,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = Maroon
+                )
             ) {
-                Text(if (otpUiState is OtpUiState.Sending) "Sending OTP..." else "Send OTP")
+                if (otpState is OtpUiState.Sending) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = when {
+                            cooldown > 0 -> "Resend OTP in ${cooldown}s"
+                            otpState is OtpUiState.Sent -> "Resend OTP"
+                            else -> "Send OTP"
+                        },
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
-            OutlinedTextField(
-                value = otpCode,
-                onValueChange = { otpCode = it.filter { ch -> ch.isDigit() } },
-                label = { Text("OTP") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            Button(
-                onClick = {
-                    if (mobileNumber.isNotBlank() && otpCode.isNotBlank()) {
-                        viewModel.verifyOtp(mobileNumber.trim(), otpCode.trim(), purpose, name.takeIf { it.isNotBlank() })
-                    }
-                },
-                enabled = otpUiState !is OtpUiState.Verifying,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D5B22)),
-                modifier = Modifier.fillMaxWidth().height(52.dp)
+            // OTP section
+            if (
+                otpState is OtpUiState.Sent ||
+                otpState is OtpUiState.Verifying ||
+                otp.isNotEmpty()
             ) {
-                Text(if (otpUiState is OtpUiState.Verifying) "Verifying..." else "Verify OTP")
-            }
+                Spacer(modifier = Modifier.height(26.dp))
 
-            when (val state = otpUiState) {
-                is OtpUiState.Error -> {
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F1))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFF5F8F3)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Icon(
+                            imageVector = Icons.Filled.Lock,
+                            contentDescription = null,
+                            tint = Green,
+                            modifier = Modifier.size(30.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Enter verification code",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Dark
+                        )
+
+                        Text(
+                            text = "We sent a 6-digit OTP to +91 $normalizedMobile",
+                            color = Muted,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 5.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = otp,
+                            onValueChange = {
+                                otp = it.filter { char -> char.isDigit() }.take(6)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("6-digit OTP") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Filled.CheckCircle,
+                                    contentDescription = null
+                                )
+                            },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number
+                            ),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Button(
+                            onClick = {
+                                viewModel.verifyOtp(
+                                    mobileNumber = "+91$normalizedMobile",
+                                    otp = otp,
+                                    purpose = purpose,
+                                    name = if (isRegistration) name.trim() else null
+                                )
+                            },
+                            enabled = otp.length == 6 &&
+                                    otpState !is OtpUiState.Verifying &&
+                                    (!isRegistration || name.trim().isNotEmpty()),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            shape = RoundedCornerShape(27.dp),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = Green
+                            )
                         ) {
-                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Color(0xFFB3261E))
-                            Spacer(Modifier.size(8.dp))
-                            Text(state.message, color = Color(0xFFB3261E), fontSize = 13.sp)
+                            if (otpState is OtpUiState.Verifying) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(21.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(
+                                    "Verify OTP",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        if (cooldown == 0) {
+                            TextButton(
+                                onClick = {
+                                    viewModel.sendOtp(
+                                        mobileNumber = "+91$normalizedMobile",
+                                        purpose = purpose,
+                                        userType = userType
+                                    )
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Filled.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+
+                                Spacer(modifier = Modifier.size(5.dp))
+
+                                Text("Resend OTP")
+                            }
                         }
                     }
                 }
-                is OtpUiState.Sent -> {
-                    Text("OTP sent. Code expires in ${state.resendCooldownSeconds}s.", color = Color(0xFF0D5B22), fontWeight = FontWeight.Medium)
-                }
-                else -> Unit
             }
 
+            // Error
+            if (otpState is OtpUiState.Error) {
+                val message = (otpState as OtpUiState.Error).message
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = ErrorBg
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = Maroon,
+                            modifier = Modifier.size(26.dp)
+                        )
+
+                        Spacer(modifier = Modifier.size(10.dp))
+
+                        Text(
+                            text = message,
+                            color = Maroon,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
             Text(
-                text = "By continuing, you agree to our terms and privacy policy.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = "By continuing, you agree to our Terms and Privacy Policy.",
+                color = Color(0xFFAAA69F),
                 fontSize = 12.sp,
-                modifier = Modifier.padding(top = 4.dp)
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
