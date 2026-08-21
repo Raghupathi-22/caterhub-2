@@ -9,9 +9,11 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 /**
@@ -93,7 +95,8 @@ public class SmsOtpSender implements OtpSender {
 
             String legacyEndpoint = baseUrl + "/API/V1/" + apiKey + "/SMS/" + normalizedMobile + "/" + otp;
             if (otpTemplate != null && !otpTemplate.isBlank()) {
-                legacyEndpoint += "?template_id=" + otpTemplate;
+                String encodedTemplate = URLEncoder.encode(otpTemplate, StandardCharsets.UTF_8);
+                legacyEndpoint += "?template_id=" + encodedTemplate;
             }
 
             HttpRequest legacyRequest = HttpRequest.newBuilder(URI.create(legacyEndpoint))
