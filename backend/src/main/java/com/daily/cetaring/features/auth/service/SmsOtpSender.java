@@ -34,6 +34,7 @@ public class SmsOtpSender implements OtpSender {
     private final String baseUrl;
     private final String apiKey;
     private final String otpTemplate;
+    private final String senderId;
     private final Duration timeout;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -42,11 +43,13 @@ public class SmsOtpSender implements OtpSender {
             @Value("${twofactor.base-url}") String baseUrl,
             @Value("${twofactor.api-key}") String apiKey,
             @Value("${twofactor.otp-template:}") String otpTemplate,
+            @Value("${twofactor.sender-id:}") String senderId,
             @Value("${twofactor.timeout-seconds:10}") long timeoutSeconds
     ) {
         this.baseUrl = normalizeBaseUrl(requireConfiguration("TWOFACTOR_BASE_URL", baseUrl));
         this.apiKey = requireConfiguration("TWOFACTOR_API_KEY", apiKey);
         this.otpTemplate = requireConfiguration("TWOFACTOR_OTP_TEMPLATE", otpTemplate);
+        this.senderId = senderId == null ? "" : senderId.trim();
         this.timeout = Duration.ofSeconds(timeoutSeconds);
         this.httpClient = HttpClient.newBuilder().connectTimeout(this.timeout).build();
         this.objectMapper = new ObjectMapper();
@@ -62,12 +65,20 @@ public class SmsOtpSender implements OtpSender {
             // The template controls the approved DLT sender/header and message text.
             String endpoint = baseUrl + "/API/V1/OTP/SEND";
 
-            String json = objectMapper.createObjectNode()
+            var node = objectMapper.createObjectNode()
                     .put("to", normalizedMobile)
                     .put("channel", "SMS")
-                    .put("template_name", otpTemplate)
-                    .put("var1", otp)
-                    .toString();
+                    .put("var1", otp);
+            // Include both template_name and template_id — some 2Factor installations expect one or the other
+            if (otpTemplate != null && !otpTemplate.isBlank()) {
+                node.put("template_name", otpTemplate);
+                node.put("template_id", otpTemplate);
+            }
+            // Include sender if configured
+            if (senderId != null && !senderId.isBlank()) {
+                node.put("sender", senderId);
+            }
+            String json = node.toString();
 
             HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
                     .timeout(timeout)
@@ -94,6 +105,9 @@ public class SmsOtpSender implements OtpSender {
                     maskedMobile, response.statusCode(), sanitizeProviderResponse(response.body()));
 
             String legacyEndpoint = baseUrl + "/API/V1/" + apiKey + "/SMS/" + normalizedMobile + "/" + otp;
+            if (senderId != null && !senderId.isBlank()) {
+                legacyEndpoint += "/" + URLEncoder.encode(senderId, StandardCharsets.UTF_8);
+            }
             if (otpTemplate != null && !otpTemplate.isBlank()) {
                 String encodedTemplate = URLEncoder.encode(otpTemplate, StandardCharsets.UTF_8);
                 legacyEndpoint += "?template_id=" + encodedTemplate;
