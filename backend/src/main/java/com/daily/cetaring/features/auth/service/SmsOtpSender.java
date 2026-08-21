@@ -77,25 +77,50 @@ public class SmsOtpSender implements OtpSender {
             HttpResponse<String> response =
                     httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() < 200
-                    || response.statusCode() >= 300
-                    || !isSuccessfulProviderResponse(response.body())) {
-                log.error(
-                        "2Factor SMS OTP rejected for mobile {} with status {}, purpose {}, response {}",
+            if (response.statusCode() >= 200 && response.statusCode() < 300 && isSuccessfulProviderResponse(response.body())) {
+                log.info(
+                        "2Factor SMS OTP accepted for mobile {} with status {} and purpose {}",
                         maskedMobile,
                         response.statusCode(),
-                        purpose,
-                        sanitizeProviderResponse(response.body())
+                        purpose
                 );
-                throw new IllegalStateException("SMS provider rejected OTP delivery");
+                return; // success
             }
 
-            log.info(
-                    "2Factor SMS OTP accepted for mobile {} with status {} and purpose {}",
+            // Primary JSON POST failed — attempt legacy path (some 2Factor installations expect API key in URL)
+            log.warn("Primary 2Factor JSON API rejected SMS for mobile {} with status {} — trying legacy endpoint. Response: {}",
+                    maskedMobile, response.statusCode(), sanitizeProviderResponse(response.body()));
+
+            String legacyEndpoint = baseUrl + "/API/V1/" + apiKey + "/SMS/" + normalizedMobile + "/" + otp;
+            if (otpTemplate != null && !otpTemplate.isBlank()) {
+                legacyEndpoint += "?template_id=" + otpTemplate;
+            }
+
+            HttpRequest legacyRequest = HttpRequest.newBuilder(URI.create(legacyEndpoint))
+                    .timeout(timeout)
+                    .GET()
+                    .build();
+
+            HttpResponse<String> legacyResponse = httpClient.send(legacyRequest, HttpResponse.BodyHandlers.ofString());
+
+            if (legacyResponse.statusCode() >= 200 && legacyResponse.statusCode() < 300 && isSuccessfulProviderResponse(legacyResponse.body())) {
+                log.info("2Factor SMS OTP accepted via legacy endpoint for mobile {} with status {} and purpose {}",
+                        maskedMobile, legacyResponse.statusCode(), purpose);
+                return; // success via legacy
+            }
+
+            // Both attempts failed — log both responses and raise
+            log.error(
+                    "2Factor SMS OTP rejected for mobile {} with primary status {} and legacy status {}, purpose {}, primary response {}, legacy response {}",
                     maskedMobile,
                     response.statusCode(),
-                    purpose
+                    legacyResponse.statusCode(),
+                    purpose,
+                    sanitizeProviderResponse(response.body()),
+                    sanitizeProviderResponse(legacyResponse.body())
             );
+            throw new IllegalStateException("SMS provider rejected OTP delivery");
+        }
 
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
