@@ -180,7 +180,7 @@ public class SmsOtpSender implements OtpSender {
     private static String normalizeIndianMobile(String mobileNumber) {
         String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
 
-        if (!normalizedMobile.matches("^\+91\d{10}$")) {
+        if (!normalizedMobile.matches("^\\+91\\d{10}$")) {
             throw new IllegalArgumentException(
                     "2Factor SMS OTP delivery requires an Indian mobile number"
             );
