@@ -69,6 +69,9 @@ twofactor:
   api-key: ${TWOFACTOR_API_KEY:}
   base-url: ${TWOFACTOR_BASE_URL:https://2factor.in}
   timeout-seconds: ${TWOFACTOR_TIMEOUT_SECONDS:10}
+  # Optional approved 2Factor/DLT sender ID. Leave empty when the OTP account
+  # already has its sender/template configured server-side.
+  sender-id: ${TWOFACTOR_SENDER_ID:}
 
 logging:
   level:
