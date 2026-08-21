@@ -46,15 +46,23 @@ data class BookingResponse(
     val createdAt: String?
 )
 
+/**
+ * Draft used only by the customer catering flow.
+ *
+ * Catering is always "Full Catering" here. Staff requests are deliberately
+ * kept out of this flow; staff booking has its own entry point on Home.
+ */
 data class BookingDraft(
     val eventType: String = "",
     val guestCount: Int? = null,
+    // Legacy fields kept for source/test compatibility. The new UI does not expose them.
     val foodService: String = "",
     val staffingRequirements: Map<WorkerType, StaffingRequirement> = emptyMap(),
+    val staffingEndTime: String = "",
+    val cateringPlan: String = "",
     val foodRequirements: String = "",
     val eventDate: String = "",
     val eventTime: String = "",
-    val staffingEndTime: String = "",
     val address: String = "",
     val area: String = "",
     val city: String = "Hyderabad",
@@ -68,14 +76,16 @@ data class BookingDraft(
 
     fun eventDateTimeIso(): String = "${eventDate}T${eventTime}:00"
 
-    fun mealTypeForBackend(): String = listOf(
-        foodService,
-        staffingRequirements.entries
-            .filter { it.value.quantity > 0 }
-            .joinToString { "${it.value.quantity} ${it.key.label}" }
-    )
-        .filter { it.isNotBlank() }
-        .joinToString(" - ")
+    fun mealTypeForBackend(): String {
+        val plan = cateringPlan.ifBlank {
+            if (foodService.isNotBlank()) foodService else BookingOptions.fullCatering
+        }
+        return if (plan == BookingOptions.fullCatering) {
+            BookingOptions.fullCatering
+        } else {
+            "Full Catering - $plan"
+        }
+    }
 }
 
 data class StaffingRequirement(
@@ -84,18 +94,42 @@ data class StaffingRequirement(
 )
 
 object BookingOptions {
-    val eventTypes = listOf("Wedding", "Birthday", "Engagement", "Housewarming", "Corporate", "Baby Shower", "Naming Ceremony", "Festival", "Other")
-    val foodServices = listOf("Full Catering", "Food Only")
-    val staffingServices = listOf(
-        WorkerType.CHEF,
-        WorkerType.SERVING_BOY,
-        WorkerType.KITCHEN_HELPER,
-        WorkerType.CLEANER
+    val eventTypes = listOf(
+        "Wedding",
+        "Birthday",
+        "Engagement",
+        "Housewarming",
+        "Corporate",
+        "Baby Shower",
+        "Naming Ceremony",
+        "Festival",
+        "Other"
     )
+
+    const val fullCatering = "Full Catering"
+
+    val cateringPlans = listOf(
+        "Basic",
+        "Classic",
+        "Premium",
+        "Customized"
+    )
+
     val menuCategories = listOf(
-        "Breakfast & Tiffin", "Lunch", "Dinner", "Snacks", "Starters", "Main Course",
-        "Biryani", "Curries", "Rice", "Breads", "Desserts", "Beverages"
+        "Breakfast & Tiffin",
+        "Lunch",
+        "Dinner",
+        "Snacks",
+        "Starters",
+        "Main Course",
+        "Biryani",
+        "Curries",
+        "Rice",
+        "Breads",
+        "Desserts",
+        "Beverages"
     )
+
     val guestQuickOptions = listOf(20, 50, 100, 150, 200)
     const val maxGuestCount = 5000
 }
@@ -108,7 +142,7 @@ sealed class BookingValidationResult {
 object BookingValidator {
     fun validateStep(step: Int, draft: BookingDraft): BookingValidationResult = when (step) {
         0 -> validateEvent(draft)
-        1 -> validateServicesAndLocation(draft)
+        1 -> validatePlanAndLocation(draft)
         2 -> validateDateTime(draft)
         else -> BookingValidationResult.Valid
     }
@@ -124,42 +158,67 @@ object BookingValidator {
     fun validateGuests(guestCount: Int?): BookingValidationResult = when {
         guestCount == null -> BookingValidationResult.Invalid("Please enter guest count.")
         guestCount <= 0 -> BookingValidationResult.Invalid("Guest count must be a positive number.")
-        guestCount > BookingOptions.maxGuestCount -> BookingValidationResult.Invalid("Guest count cannot exceed ${BookingOptions.maxGuestCount}.")
+        guestCount > BookingOptions.maxGuestCount ->
+            BookingValidationResult.Invalid("Guest count cannot exceed ${BookingOptions.maxGuestCount}.")
         else -> BookingValidationResult.Valid
     }
 
     private fun validateEvent(draft: BookingDraft): BookingValidationResult {
-        val eventType = requireText(draft.eventType, "Please select an event type.")
-        return if (eventType is BookingValidationResult.Invalid) eventType else validateGuests(draft.guestCount)
+        val eventType = if (draft.eventType.isBlank()) {
+            BookingValidationResult.Invalid("Please select an event type.")
+        } else {
+            BookingValidationResult.Valid
+        }
+        return if (eventType is BookingValidationResult.Invalid) eventType
+        else validateGuests(draft.guestCount)
     }
 
-    private fun validateDateTime(draft: BookingDraft): BookingValidationResult {
-        if (draft.eventDate.isBlank()) return BookingValidationResult.Invalid("Please select an event date.")
-        if (draft.eventTime.isBlank()) return BookingValidationResult.Invalid("Please select an event time.")
-        val eventDate = runCatching { LocalDate.parse(draft.eventDate) }.getOrNull()
-            ?: return BookingValidationResult.Invalid("Please select a valid event date.")
-        val eventTime = runCatching { LocalTime.parse(draft.eventTime) }.getOrNull()
-            ?: return BookingValidationResult.Invalid("Please select a valid event time.")
-        if (LocalDateTime.of(eventDate, eventTime).isBefore(LocalDateTime.now())) {
-            return BookingValidationResult.Invalid("Please select a future event date and time.")
-        }
-        if (draft.staffingRequirements.values.any { it.quantity > 0 } && draft.staffingEndTime.isBlank()) {
-            return BookingValidationResult.Invalid("Please select when the staffing shift ends.")
-        }
-        return BookingValidationResult.Valid
-    }
+    private fun validatePlanAndLocation(draft: BookingDraft): BookingValidationResult = when {
+        draft.cateringPlan.isBlank() &&
+            draft.foodService.isBlank() &&
+            draft.staffingRequirements.values.none { it.quantity > 0 } ->
+            BookingValidationResult.Invalid("Please select a catering plan.")
 
-    private fun validateServicesAndLocation(draft: BookingDraft): BookingValidationResult = when {
-        draft.foodService.isBlank() && draft.staffingRequirements.values.none { it.quantity > 0 } ->
-            BookingValidationResult.Invalid("Please select at least one catering service.")
-        draft.staffingRequirements.values.any { it.quantity > 0 && (it.paymentPerWorker == null || it.paymentPerWorker <= BigDecimal.ZERO) } ->
+        draft.staffingRequirements.values.any {
+            it.quantity > 0 &&
+                (it.paymentPerWorker == null || it.paymentPerWorker <= BigDecimal.ZERO)
+        } ->
             BookingValidationResult.Invalid("Please enter a positive offer for every staff service.")
-        draft.address.isBlank() -> BookingValidationResult.Invalid("Please enter the event address.")
-        draft.area.isBlank() -> BookingValidationResult.Invalid("Please enter the area.")
-        draft.city.isBlank() -> BookingValidationResult.Invalid("Please enter the city.")
+
+        draft.staffingRequirements.values.any { it.quantity > 0 } &&
+            draft.staffingEndTime.isBlank() ->
+            BookingValidationResult.Invalid("Please select when the staffing shift ends.")
+
+        draft.address.isBlank() ->
+            BookingValidationResult.Invalid("Please enter the event address.")
+
+        draft.area.isBlank() ->
+            BookingValidationResult.Invalid("Please enter the area.")
+
+        draft.city.isBlank() ->
+            BookingValidationResult.Invalid("Please enter the city.")
+
         else -> BookingValidationResult.Valid
     }
 
-    private fun requireText(value: String, message: String): BookingValidationResult =
-        if (value.isBlank()) BookingValidationResult.Invalid(message) else BookingValidationResult.Valid
+    private fun validateDateTime(draft: BookingDraft): BookingValidationResult {
+        if (draft.eventDate.isBlank()) {
+            return BookingValidationResult.Invalid("Please select an event date.")
+        }
+        if (draft.eventTime.isBlank()) {
+            return BookingValidationResult.Invalid("Please select an event time.")
+        }
+
+        val eventDate = runCatching { LocalDate.parse(draft.eventDate) }.getOrNull()
+            ?: return BookingValidationResult.Invalid("Please select a valid event date.")
+
+        val eventTime = runCatching { LocalTime.parse(draft.eventTime) }.getOrNull()
+            ?: return BookingValidationResult.Invalid("Please select a valid event time.")
+
+        if (LocalDateTime.of(eventDate, eventTime).isBefore(LocalDateTime.now())) {
+            return BookingValidationResult.Invalid("Please select a future event date and time.")
+        }
+
+        return BookingValidationResult.Valid
+    }
 }
