@@ -120,8 +120,6 @@ public class SmsOtpSender implements OtpSender {
                     sanitizeProviderResponse(legacyResponse.body())
             );
             throw new IllegalStateException("SMS provider rejected OTP delivery");
-        }
-
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("SMS provider request was interrupted", exception);
