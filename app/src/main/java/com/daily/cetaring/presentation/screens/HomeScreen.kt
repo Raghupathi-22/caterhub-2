@@ -1,15 +1,20 @@
 package com.daily.cetaring.presentation.screens
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,17 +23,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.RestaurantMenu
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Card
@@ -38,36 +45,43 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.daily.cetaring.data.remote.dto.BookingOptions
-import com.daily.cetaring.presentation.components.CaterHubBookingCard
-import com.daily.cetaring.presentation.components.CaterHubCategoryChip
-import com.daily.cetaring.presentation.components.CaterHubEmptyState
-import com.daily.cetaring.presentation.components.CaterHubErrorState
-import com.daily.cetaring.presentation.components.CaterHubLoadingState
-import com.daily.cetaring.presentation.components.CaterHubPrimaryButton
-import com.daily.cetaring.presentation.components.CaterHubSectionHeader
-import com.daily.cetaring.presentation.viewmodel.HomeUiState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.unit.sp
+import com.daily.cetaring.R
 import com.daily.cetaring.presentation.viewmodel.HomeViewModel
-import java.util.Calendar
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+private val Cream = Color(0xFFFFFCF5)
+private val Maroon = Color(0xFF971B1E)
+private val DarkMaroon = Color(0xFF721316)
+private val Gold = Color(0xFFC58A16)
+private val Green = Color(0xFF0A672A)
+private val DarkGreen = Color(0xFF07501F)
+private val LightGreen = Color(0xFFEAF4E7)
+private val SoftGold = Color(0xFFFFF3D6)
+private val TextDark = Color(0xFF292524)
+private val Muted = Color(0xFF6B625B)
+private val Border = Color(0xFFE4D9C6)
+
+/**
+ * Public/customer home.  The screen intentionally does not call the Home API:
+ * the catalogue, offers and quality information are public and must work
+ * before authentication.
+ */
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
@@ -79,118 +93,418 @@ fun HomeScreen(
     onProfileClick: () -> Unit,
     onGuestSizeClick: (Int) -> Unit,
     onEventTypeClick: (String) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onStaffBookingClick: () -> Unit = {},
+    onEquipmentClick: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    LaunchedEffect(Unit) { viewModel.loadHome() }
     Scaffold(
+        containerColor = Cream,
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(true, {}, { Icon(Icons.Filled.Home, null) }, label = { Text("Home") })
-                NavigationBarItem(false, onBookingsClick, { Icon(Icons.Filled.Celebration, null) }, label = { Text("Bookings") })
-                NavigationBarItem(false, onProfileClick, { Icon(Icons.Filled.AccountCircle, null) }, label = { Text("Profile") })
-            }
+            PublicBottomBar(
+                onBookingsClick = onBookingsClick,
+                onProfileClick = onProfileClick
+            )
         }
     ) { padding ->
-        when (val state = uiState) {
-            HomeUiState.Loading -> CaterHubLoadingState("Preparing your CaterHub home...")
-            is HomeUiState.Error -> Surface(Modifier.fillMaxSize().padding(padding)) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    HomeHeader(state.firstName, onProfileClick, onLogout)
-                    CaterHubErrorState(state.message, { viewModel.loadHome() })
-                    CaterHubPrimaryButton("Start Booking", onBookCateringClick, Modifier.fillMaxWidth())
-                }
-            }
-            is HomeUiState.Loaded -> Column(
-                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                HomeHeader(state.firstName, onProfileClick, onLogout)
-                SearchField()
-                Hero(onBookCateringClick)
-                Specialities()
-                CaterHubMenu(onBookCateringClick)
-                Offers()
-                Services(onBookCateringClick, onWorkerRegisterClick)
-                EventTypes(onEventTypeClick)
-                GuestSizes(onGuestSizeClick)
-                CaterHubSectionHeader("My bookings", if (state.bookingCount > 0) "View all" else null, onBookingsClick)
-                if (state.upcomingBooking != null) {
-                    CaterHubBookingCard(state.upcomingBooking, { onBookingClick(state.upcomingBooking.id) }, compact = true)
-                } else {
-                    CaterHubEmptyState("No bookings yet", "Plan your next event with CaterHub.", actionText = "Start Booking", onActionClick = onBookCateringClick)
-                }
-                Spacer(Modifier.padding(bottom = 8.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun HomeHeader(firstName: String, onProfileClick: () -> Unit, onLogout: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Column(Modifier.weight(1f)) {
-            Text("${greeting()}, ${firstName.ifBlank { "there" }}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Plan your next event", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.LocationOn, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                Text("Hyderabad", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            }
-        }
-        IconButton(onClick = onProfileClick) { Icon(Icons.Filled.AccountCircle, "Profile") }
-        IconButton(onClick = onLogout) { Icon(Icons.AutoMirrored.Filled.Logout, "Logout") }
-    }
-}
-
-@Composable
-private fun SearchField() {
-    var query by remember { mutableStateOf("") }
-    OutlinedTextField(
-        value = query,
-        onValueChange = { query = it },
-        leadingIcon = { Icon(Icons.Filled.Search, null) },
-        placeholder = { Text("Search catering, food, chef or staff") },
-        singleLine = true,
-        shape = RoundedCornerShape(18.dp),
-        modifier = Modifier.fillMaxWidth()
-    )
-}
-
-@Composable
-private fun Hero(onBook: () -> Unit) {
-    Card(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
         Column(
-            Modifier.background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.tertiaryContainer))).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(Cream)
+                .verticalScroll(rememberScrollState())
+                .padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(Icons.Filled.RestaurantMenu, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
-            Text("Plan your event with CaterHub", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-            Text("Reliable catering, trained staff, and a simpler way to host.", color = MaterialTheme.colorScheme.onPrimaryContainer)
-            CaterHubPrimaryButton("Start Booking", onBook, Modifier.fillMaxWidth())
+            PublicHeader(
+                onNotificationsClick = onNotificationsClick,
+                onProfileClick = onProfileClick
+            )
+
+            BrandSection()
+
+            SearchSection()
+
+            HeroSection(onBookCateringClick)
+
+            ServiceActionCard(
+                title = "Book Catering Staff",
+                description = "Chef • Catering Boys • Catering Girls • Helpers • Cleaning Staff",
+                icon = Icons.Filled.Groups,
+                background = Maroon,
+                onClick = onStaffBookingClick
+            )
+
+            ServiceActionCard(
+                title = "Event Decorations & Equipment",
+                description = "Chairs • Tables • Decorations • Stage • Lighting & More",
+                icon = Icons.Filled.Celebration,
+                background = Green,
+                onClick = onEquipmentClick
+            )
+
+            OffersSection()
+
+            SpecialitiesSection()
+
+            PackagesSection(onBookCateringClick)
+
+            WhyChooseCaterHub()
+
+            HelpSection()
+
+            Spacer(Modifier.height(4.dp))
         }
     }
 }
 
 @Composable
-private fun Specialities() {
-    CaterHubSectionHeader("Our specialities")
-    val values = listOf(
-        "Quality Catering" to Icons.Filled.Restaurant,
-        "Experienced Chefs" to Icons.Filled.RestaurantMenu,
-        "Trained Serving Staff" to Icons.Filled.Groups,
-        "Kitchen Helpers" to Icons.Filled.Handyman,
-        "Event Support" to Icons.Filled.Celebration,
-        "Verified Workers" to Icons.Filled.Verified
+private fun PublicHeader(
+    onNotificationsClick: () -> Unit,
+    onProfileClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Filled.LocationOn,
+                contentDescription = null,
+                tint = Maroon,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                "Hyderabad",
+                color = TextDark,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        IconButton(onClick = onNotificationsClick) {
+            Icon(
+                Icons.Filled.NotificationsNone,
+                contentDescription = "Notifications",
+                tint = TextDark,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        IconButton(onClick = onProfileClick) {
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = CircleShape,
+                color = Maroon
+            ) {
+                Icon(
+                    Icons.Filled.AccountCircle,
+                    contentDescription = "Profile",
+                    tint = Color.White,
+                    modifier = Modifier.padding(7.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrandSection() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 0.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(R.drawable.public_logo),
+            contentDescription = "CaterHub logo",
+            modifier = Modifier
+                .size(width = 245.dp, height = 155.dp)
+                .offset(y = (-8).dp)
+                .padding(top = 0.dp),
+            contentScale = ContentScale.Fit
+        )
+
+        Text(
+            text = "Delicious Food.",
+            color = Maroon,
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Text(
+            text = "Memorable Moments.",
+            color = Gold,
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 2.dp)
+        )
+
+        Text(
+            text = "From weddings to small get-togethers, we make every occasion special.",
+            color = TextDark,
+            style = MaterialTheme.typography.bodyLarge,
+            lineHeight = 25.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 5.dp)
+        )
+    }
+}
+
+@Composable
+private fun SearchSection() {
+    // Kept deliberately simple; the public catalogue is static at this stage.
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Border)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Filled.RestaurantMenu,
+                contentDescription = null,
+                tint = Maroon,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                "Search food, catering or services",
+                color = Muted,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroSection(onBookCateringClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Border),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                "Start your event with CaterHub",
+                color = DarkMaroon,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                "Choose your event, guests and catering plan. We take care of the rest.",
+                color = TextDark,
+                style = MaterialTheme.typography.bodyLarge,
+                lineHeight = 24.sp
+            )
+            PrimaryButton(
+                "Start Booking",
+                Maroon,
+                onBookCateringClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun ServiceActionCard(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    background: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(25.dp),
+        colors = CardDefaults.cardColors(containerColor = background),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(62.dp),
+                shape = CircleShape,
+                color = Color.White
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = background,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            Spacer(Modifier.width(15.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    title,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    description,
+                    color = Color.White.copy(alpha = 0.92f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    lineHeight = 20.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            Surface(
+                modifier = Modifier.size(42.dp),
+                shape = CircleShape,
+                color = Color.White
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Open",
+                    tint = background,
+                    modifier = Modifier.padding(10.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OffersSection() {
+    Column {
+        SectionHeader("Today's Offers", Icons.Filled.Star)
+        Spacer(Modifier.height(9.dp))
+
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OfferCard(
+                "Wedding Special",
+                "Catering packages from ₹499 / person",
+                SoftGold
+            )
+            OfferCard(
+                "Family Function",
+                "Special pricing for 100+ guests",
+                Color(0xFFF8E9E9)
+            )
+        }
+    }
+}
+
+@Composable
+private fun OfferCard(
+    title: String,
+    description: String,
+    background: Color
+) {
+    Card(
+        modifier = Modifier.width(300.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = background),
+        border = BorderStroke(1.dp, Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                title,
+                color = Maroon,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(description, color = TextDark)
+            Text(
+                "View Offer  →",
+                color = Maroon,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun SpecialitiesSection() {
+    val items = listOf(
+        "Biryani" to R.drawable.public_biryani,
+        "Starters" to R.drawable.public_starters,
+        "Main Course" to R.drawable.public_main_course,
+        "Veg Specials" to R.drawable.public_veg_specials,
+        "Desserts" to R.drawable.public_desserts,
+        "Beverages" to R.drawable.public_beverages
     )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        values.chunked(2).forEach { pair ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                pair.forEach { (title, icon) ->
-                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
-                            Icon(icon, null, Modifier.padding(8.dp).size(18.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                        }
-                        Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+
+    Column {
+        SectionHeader("Our Specialities", Icons.Filled.Restaurant)
+        Spacer(Modifier.height(9.dp))
+
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items.forEach { (title, image) ->
+                Card(
+                    modifier = Modifier.width(125.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Border)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(
+                            painter = painterResource(image),
+                            contentDescription = title,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(88.dp)
+                                .clip(
+                                    RoundedCornerShape(
+                                        topStart = 18.dp,
+                                        topEnd = 18.dp
+                                    )
+                                ),
+                            contentScale = ContentScale.Crop
+                        )
+                        Text(
+                            title,
+                            color = TextDark,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 11.dp)
+                        )
                     }
                 }
             }
@@ -198,29 +512,117 @@ private fun Specialities() {
     }
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun CaterHubMenu(onBook: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = onBook), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("CaterHub Menu", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-            Text("Browse meal and menu categories for every occasion.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                BookingOptions.menuCategories.forEach { CaterHubCategoryChip(it, false, onBook) }
-            }
+private fun PackagesSection(onBookCateringClick: () -> Unit) {
+    Column {
+        SectionHeader("Popular Catering Packages", Icons.Filled.Star)
+        Spacer(Modifier.height(9.dp))
+
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            PackageCard(
+                "BASIC PACKAGE", "₹499", Green,
+                listOf("Biryani", "2 Curries", "Rice", "Raita", "Sweet"),
+                onBookCateringClick
+            )
+            PackageCard(
+                "CLASSIC PACKAGE", "₹699", Maroon,
+                listOf("2 Starters", "Biryani", "3 Curries", "Dal", "Raita", "Sweet"),
+                onBookCateringClick
+            )
+            PackageCard(
+                "PREMIUM PACKAGE", "₹999", Gold,
+                listOf("2 Starters", "Biryani", "4 Curries", "Dal", "Raita", "2 Desserts", "Beverages"),
+                onBookCateringClick
+            )
         }
     }
 }
 
 @Composable
-private fun Offers() {
-    CaterHubSectionHeader("Offers")
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        listOf("Special Event Packages", "Bulk Guest Offers", "Catering + Staff Packages", "Festival & Event Specials").forEachIndexed { index, title ->
-            Card(Modifier.width(210.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = if (index % 2 == 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.tertiaryContainer)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
-                    Text("Packages tailored to your event requirements.", style = MaterialTheme.typography.bodySmall)
+private fun PackageCard(
+    title: String,
+    price: String,
+    accent: Color,
+    items: List<String>,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.width(285.dp),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Border)
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        accent,
+                        RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+                    )
+                    .padding(vertical = 13.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(title, color = Color.White, fontWeight = FontWeight.ExtraBold)
+            }
+
+            Column(
+                modifier = Modifier.padding(17.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Text(
+                    "100+",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = TextDark
+                )
+                Text("People", color = Muted)
+
+                items.forEach { item ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(item, color = TextDark)
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Column {
+                        Text(
+                            price,
+                            color = accent,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text("/ Person", color = Muted, style = MaterialTheme.typography.labelSmall)
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .clickable(onClick = onClick)
+                            .clip(RoundedCornerShape(12.dp)),
+                        color = accent,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            "View Details",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+                        )
+                    }
                 }
             }
         }
@@ -228,48 +630,173 @@ private fun Offers() {
 }
 
 @Composable
-private fun Services(onBook: () -> Unit, onWorkerRegister: () -> Unit) {
-    CaterHubSectionHeader("Services")
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        listOf(
-            Triple("Full Catering", Icons.Filled.RestaurantMenu, onBook),
-            Triple("Food Only", Icons.Filled.Restaurant, onBook),
-            Triple("Chef", Icons.Filled.Restaurant, onBook),
-            Triple("Serving Staff", Icons.Filled.Groups, onBook),
-            Triple("Kitchen Helper", Icons.Filled.Handyman, onBook),
-            Triple("Cleaning Staff", Icons.Filled.CleaningServices, onBook)
-        ).forEach { (title, icon, action) -> ServiceTile(title, icon, action) }
-    }
-}
+private fun WhyChooseCaterHub() {
+    Column {
+        Text(
+            "Why Choose CaterHub?",
+            modifier = Modifier.fillMaxWidth(),
+            color = Maroon,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(12.dp))
 
-@Composable
-private fun ServiceTile(title: String, icon: ImageVector, onClick: () -> Unit) {
-    Card(Modifier.width(142.dp).clickable(onClick = onClick), shape = RoundedCornerShape(18.dp)) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-            Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TrustItem(Icons.Filled.Verified, "Quality", "Ingredients")
+            TrustItem(Icons.Filled.Groups, "Experienced", "Team")
+            TrustItem(Icons.Filled.CheckCircle, "Hygienic", "Preparation")
+            TrustItem(Icons.Filled.Celebration, "On-time", "Service")
+            TrustItem(Icons.Filled.Star, "Customer", "Satisfaction")
         }
     }
 }
 
 @Composable
-private fun EventTypes(onEventTypeClick: (String) -> Unit) {
-    CaterHubSectionHeader("Event types")
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        BookingOptions.eventTypes.forEach { CaterHubCategoryChip(it, false, { onEventTypeClick(it) }) }
+private fun TrustItem(icon: ImageVector, first: String, second: String) {
+    Column(
+        modifier = Modifier.width(66.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(icon, null, tint = Maroon, modifier = Modifier.size(28.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(
+            first,
+            color = TextDark,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            second,
+            color = TextDark,
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
 @Composable
-private fun GuestSizes(onGuestSizeClick: (Int) -> Unit) {
-    CaterHubSectionHeader("Popular guest sizes")
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        BookingOptions.guestQuickOptions.forEach { guests -> CaterHubCategoryChip("$guests guests", false, { onGuestSizeClick(guests) }) }
+private fun HelpSection() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = LightGreen)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Need Help?",
+                    color = DarkGreen,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text("We're here for you!", color = TextDark)
+            }
+            ContactButton("WhatsApp")
+            Spacer(Modifier.width(10.dp))
+            ContactButton("Call Us")
+        }
     }
 }
 
-private fun greeting(): String = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
-    in 5..11 -> "Good morning"
-    in 12..16 -> "Good afternoon"
-    else -> "Good evening"
+@Composable
+private fun ContactButton(label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(
+            modifier = Modifier.size(45.dp),
+            shape = CircleShape,
+            color = Green
+        ) {
+            Icon(
+                Icons.Filled.Call,
+                contentDescription = label,
+                tint = Color.White,
+                modifier = Modifier.padding(11.dp)
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(label, color = TextDark, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String, icon: ImageVector) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Gold, modifier = Modifier.size(25.dp))
+        Spacer(Modifier.width(7.dp))
+        Text(
+            title,
+            modifier = Modifier.weight(1f),
+            color = Maroon,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.ExtraBold
+        )
+        Text("View All  →", color = TextDark, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun PrimaryButton(text: String, color: Color, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(15.dp),
+        color = color
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 14.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text, color = Color.White, fontWeight = FontWeight.ExtraBold)
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color.White, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+private fun PublicBottomBar(
+    onBookingsClick: () -> Unit,
+    onProfileClick: () -> Unit
+) {
+    NavigationBar(
+        modifier = Modifier.navigationBarsPadding(),
+        containerColor = Color.White,
+        tonalElevation = 8.dp
+    ) {
+        NavigationBarItem(
+            selected = true,
+            onClick = {},
+            icon = { Icon(Icons.Filled.Home, "Home") },
+            label = { Text("Home") }
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = onBookingsClick,
+            icon = { Icon(Icons.Filled.Celebration, "Bookings") },
+            label = { Text("Bookings") }
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = onProfileClick,
+            icon = { Icon(Icons.Filled.AccountCircle, "Profile") },
+            label = { Text("Profile") }
+        )
+    }
 }

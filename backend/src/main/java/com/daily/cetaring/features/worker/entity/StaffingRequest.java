@@ -21,6 +21,7 @@ import java.time.LocalTime;
 @Builder
 public class StaffingRequest {
     public enum StaffingStatus {
+        PENDING,
         OPEN,
         FILLED,
         CANCELLED,

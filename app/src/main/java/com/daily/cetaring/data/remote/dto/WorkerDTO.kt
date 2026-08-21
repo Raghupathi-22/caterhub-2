@@ -20,6 +20,23 @@ enum class WorkerStatus(val label: String) {
     REJECTED("Rejected")
 }
 
+data class ServiceRequestRequest(
+    val serviceType: String,
+    val eventType: String,
+    val eventDate: String,
+    val startTime: String,
+    val location: String,
+    val area: String,
+    val details: String? = null,
+    val totalAmount: BigDecimal
+)
+
+data class ServiceRequestResponse(
+    val id: Long, val serviceType: String, val eventType: String, val eventDate: String,
+    val startTime: String, val location: String, val area: String, val details: String?,
+    val totalAmount: BigDecimal, val status: String, val createdAt: String?
+)
+
 data class CreateWorkerProfileRequest(
     @SerializedName("workerType")
     val workerType: WorkerType,

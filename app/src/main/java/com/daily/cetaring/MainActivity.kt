@@ -46,6 +46,7 @@ import com.daily.cetaring.presentation.viewmodel.HomeViewModel
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 import com.daily.cetaring.ui.theme.CetaringTheme
 import kotlinx.coroutines.flow.combine
+import com.daily.cetaring.presentation.screens.ServiceRequestScreen
 
 private object AppRoute {
     const val AUTH_LANDING = "auth_landing"
@@ -53,6 +54,8 @@ private object AppRoute {
     const val CUSTOMER_LOGIN = "customer_login"
     const val HOME = "home"
     const val BOOKING_FLOW = "booking_flow"
+    const val STAFF_SERVICES = "staff_services"
+    const val EQUIPMENT_SERVICES = "equipment_services"
     const val BOOKINGS = "bookings"
     const val BOOKING_SUCCESS = "booking_success/{bookingId}"
     const val BOOKING_DETAILS = "booking_details/{bookingId}"
@@ -195,6 +198,8 @@ class MainActivity : ComponentActivity() {
                                 navController.navigate(AppRoute.BOOKING_FLOW)
                             },
                             onWorkerRegisterClick = { navController.navigate(AppRoute.WORKER_ONBOARDING) },
+                            onStaffBookingClick = { navController.navigate(AppRoute.STAFF_SERVICES) },
+                            onEquipmentClick = { navController.navigate(AppRoute.EQUIPMENT_SERVICES) },
                             onBookingsClick = { navController.navigate(AppRoute.BOOKINGS) },
                             onBookingClick = { bookingId -> navController.navigate("booking_details/$bookingId") },
                             onNotificationsClick = { },
@@ -221,7 +226,6 @@ class MainActivity : ComponentActivity() {
                             viewModel = customerProfileViewModel,
                             onBackClick = { navController.popBackStack() },
                             onBookingsClick = { navController.navigate(AppRoute.BOOKINGS) },
-                            onNotificationsClick = { },
                             onHelpClick = { navController.navigate(AppRoute.HELP_SUPPORT) },
                             onLoggedOut = {
                                 navController.navigate(AppRoute.AUTH_LANDING) {
@@ -240,6 +244,24 @@ class MainActivity : ComponentActivity() {
                                     popUpTo(AppRoute.BOOKING_FLOW) { inclusive = true }
                                 }
                             }
+                        )
+                    }
+
+                    composable(AppRoute.STAFF_SERVICES) {
+                        ServiceRequestScreen(
+                            serviceType = "staff",
+                            workerRepository = workerRepository,
+                            onBackClick = { navController.popBackStack() },
+                            onSubmitted = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(AppRoute.EQUIPMENT_SERVICES) {
+                        ServiceRequestScreen(
+                            serviceType = "equipment",
+                            workerRepository = workerRepository,
+                            onBackClick = { navController.popBackStack() },
+                            onSubmitted = { navController.popBackStack() }
                         )
                     }
 

@@ -16,6 +16,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard'
 import AssignmentIcon from '@mui/icons-material/Assignment'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import EventIcon from '@mui/icons-material/Event'
+import MiscellaneousServicesIcon from '@mui/icons-material/MiscellaneousServices'
 import LogoutIcon from '@mui/icons-material/Logout'
 import { useAuthStore } from '../store/authStore'
 
@@ -26,6 +27,7 @@ const navItems = [
   { label: 'Orders', to: '/orders', icon: <AssignmentIcon /> },
   { label: 'Offers', to: '/offers', icon: <LocalOfferIcon /> },
   { label: 'Events', to: '/events', icon: <EventIcon /> },
+  { label: 'Service Requests', to: '/service-requests', icon: <MiscellaneousServicesIcon /> },
 ]
 
 interface AdminLayoutProps {
