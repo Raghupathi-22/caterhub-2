@@ -62,7 +62,8 @@ otp:
       window-seconds: ${OTP_RATE_LIMIT_IP_WINDOW_SECONDS:3600}
       max-sends: ${OTP_RATE_LIMIT_IP_MAX_SENDS:20}
   sms:
-    enabled: ${OTP_SMS_ENABLED:false}
+    # SMS only. Voice/OBD is never requested by CaterHub.
+    enabled: ${OTP_SMS_ENABLED:true}
 
 twofactor:
   api-key: ${TWOFACTOR_API_KEY:}

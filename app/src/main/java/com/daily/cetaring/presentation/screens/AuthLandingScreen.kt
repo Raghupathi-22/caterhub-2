@@ -135,19 +135,31 @@ private fun PublicHomeContent(
             color = TextDark
         )
 
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "What would you like to do?",
+                color = TextDark,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ActionCard(
                 modifier = Modifier.weight(1f),
                 title = "Book Catering",
-                subtitle = "Plan your event in\nfew easy steps",
+                subtitle = "Plan your event\nin a few easy steps",
                 color = Maroon,
                 icon = Icons.Filled.RestaurantMenu,
                 onClick = onBook
             )
             ActionCard(
                 modifier = Modifier.weight(1f),
-                title = "Join as Worker",
-                subtitle = "Find catering jobs\nnear you",
+                title = "Join CaterHub",
+                subtitle = "Find flexible catering\nopportunities near you",
                 color = Green,
                 icon = Icons.Filled.Groups,
                 onClick = onWorkerRegister
@@ -209,8 +221,8 @@ private fun PublicTopBar(onCustomerLogin: () -> Unit, onWorkerLogin: () -> Unit)
                             Icon(Icons.Filled.Groups, null, tint = Green)
                             Spacer(Modifier.width(10.dp))
                             Column {
-                                Text("Worker Login", fontWeight = FontWeight.Bold, color = TextDark)
-                                Text("Find catering jobs near you", fontSize = 11.sp, color = Muted)
+                                Text("Partner Login", fontWeight = FontWeight.Bold, color = TextDark)
+                                Text("Find flexible catering opportunities", fontSize = 11.sp, color = Muted)
                             }
                         }
                     }
@@ -243,23 +255,72 @@ private fun ActionCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
+        modifier = modifier
+            .height(178.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = color),
-        elevation = CardDefaults.cardElevation(1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(58.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
-                Icon(icon, null, tint = color, modifier = Modifier.size(34.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(58.dp)
+                        .clip(CircleShape)
+                        .background(Color.White),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.96f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.ArrowForward,
+                        contentDescription = "Open",
+                        tint = color,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
-            Spacer(Modifier.width(9.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                Spacer(Modifier.height(3.dp))
-                Text(subtitle, color = Color.White.copy(alpha = .92f), fontSize = 12.sp, lineHeight = 17.sp)
-            }
-            Box(Modifier.size(30.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.ArrowForward, null, tint = color, modifier = Modifier.size(18.dp))
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    title,
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp,
+                    maxLines = 1
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    subtitle,
+                    color = Color.White.copy(alpha = 0.92f),
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    maxLines = 2
+                )
             }
         }
     }
