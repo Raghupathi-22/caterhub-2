@@ -399,27 +399,35 @@ private fun CateringPlanAndLocationStep(
     OutlinedTextField(
         value = draft.address,
         onValueChange = { value -> viewModel.updateDraft { it.copy(address = value) } },
-        label = { Text("Event address") },
+        label = { Text("Event address", color = TextDark) },
+        placeholder = { Text("Enter full event address", color = Muted) },
         minLines = 2,
-        modifier = Modifier.fillMaxWidth()
+        singleLine = false,
+        modifier = Modifier.fillMaxWidth(),
+        textStyle = androidx.compose.ui.text.TextStyle(color = TextDark)
     )
     OutlinedTextField(
         value = draft.area,
         onValueChange = { value -> viewModel.updateDraft { it.copy(area = value) } },
-        label = { Text("Area / locality") },
-        modifier = Modifier.fillMaxWidth()
+        label = { Text("Area / locality", color = TextDark) },
+        placeholder = { Text("Enter area / locality", color = Muted) },
+        modifier = Modifier.fillMaxWidth(),
+        textStyle = androidx.compose.ui.text.TextStyle(color = TextDark)
     )
     OutlinedTextField(
         value = draft.city,
         onValueChange = { value -> viewModel.updateDraft { it.copy(city = value) } },
-        label = { Text("City") },
-        modifier = Modifier.fillMaxWidth()
+        label = { Text("City", color = TextDark) },
+        modifier = Modifier.fillMaxWidth(),
+        textStyle = androidx.compose.ui.text.TextStyle(color = TextDark)
     )
     OutlinedTextField(
         value = draft.landmark,
         onValueChange = { value -> viewModel.updateDraft { it.copy(landmark = value) } },
-        label = { Text("Landmark (optional)") },
-        modifier = Modifier.fillMaxWidth()
+        label = { Text("Landmark (optional)", color = TextDark) },
+        placeholder = { Text("Optional landmark", color = Muted) },
+        modifier = Modifier.fillMaxWidth(),
+        textStyle = androidx.compose.ui.text.TextStyle(color = TextDark)
     )
 }
 

@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -39,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import com.daily.cetaring.data.remote.dto.UserDTO
 import com.daily.cetaring.presentation.components.CaterHubErrorState
 import com.daily.cetaring.presentation.components.CaterHubLoadingState
@@ -55,7 +58,6 @@ fun CustomerProfileScreen(
     viewModel: CustomerProfileViewModel,
     onBackClick: () -> Unit,
     onBookingsClick: () -> Unit,
-    onNotificationsClick: () -> Unit,
     onHelpClick: () -> Unit,
     onLoggedOut: () -> Unit
 ) {
@@ -64,6 +66,7 @@ fun CustomerProfileScreen(
     LaunchedEffect(uiState) { if (uiState is CustomerProfileUiState.LoggedOut) onLoggedOut() }
 
     Scaffold(
+        containerColor = Color(0xFFFFFCF5),
         topBar = {
             TopAppBar(
                 title = { Text("Profile") },
@@ -81,7 +84,6 @@ fun CustomerProfileScreen(
                 saved = state.saved,
                 onSave = viewModel::saveProfile,
                 onBookingsClick = onBookingsClick,
-                onNotificationsClick = onNotificationsClick,
                 onHelpClick = onHelpClick,
                 onLogout = { viewModel.logout() },
                 modifier = Modifier.padding(padding)
@@ -97,7 +99,6 @@ private fun ProfileContent(
     saved: Boolean,
     onSave: (String, String, String, String) -> Unit,
     onBookingsClick: () -> Unit,
-    onNotificationsClick: () -> Unit,
     onHelpClick: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
@@ -129,7 +130,9 @@ private fun ProfileContent(
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("Personal information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-                    TextButton(onClick = { editMode = !editMode }) { Text(if (editMode) "Cancel" else "Edit") }
+                    IconButton(onClick = { editMode = !editMode }) {
+                        Icon(if (editMode) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Edit, contentDescription = if (editMode) "Cancel edit" else "Edit profile", tint = MaterialTheme.colorScheme.primary)
+                    }
                 }
 
                 if (editMode) {
@@ -153,7 +156,6 @@ private fun ProfileContent(
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
                 CaterHubSecondaryButton("My bookings", onBookingsClick, Modifier.fillMaxWidth())
-                CaterHubSecondaryButton("Notifications", onNotificationsClick, Modifier.fillMaxWidth())
                 CaterHubSecondaryButton("Help & Support", onHelpClick, Modifier.fillMaxWidth())
                 CaterHubSecondaryButton("Logout", onLogout, Modifier.fillMaxWidth())
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

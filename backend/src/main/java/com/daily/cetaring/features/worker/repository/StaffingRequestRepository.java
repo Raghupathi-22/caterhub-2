@@ -14,6 +14,8 @@ import java.util.Optional;
 
 @Repository
 public interface StaffingRequestRepository extends JpaRepository<StaffingRequest, Long> {
+    List<StaffingRequest> findAllByOrderByCreatedAtDesc();
+
     List<StaffingRequest> findByStatusOrderByEventDateAscStartTimeAsc(StaffingRequest.StaffingStatus status);
 
     List<StaffingRequest> findByStatusAndWorkerTypeOrderByEventDateAscStartTimeAsc(

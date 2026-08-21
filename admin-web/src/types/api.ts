@@ -69,3 +69,35 @@ export interface EventCampaign {
   spent?: number
   status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED'
 }
+
+export interface ServiceRequest {
+  id: number
+  serviceType: string
+  eventType: string
+  eventDate: string
+  startTime: string
+  location: string
+  area: string
+  details?: string
+  totalAmount: number
+  status: string
+  createdAt?: string
+}
+
+export interface StaffingRequest {
+  id: number
+  eventType: string
+  workerType: string
+  eventDate: string
+  startTime: string
+  endTime: string
+  location: string
+  area: string
+  requiredWorkers: number
+  acceptedWorkers: number
+  remainingPositions: number
+  payment: number
+  additionalRequirements?: string
+  status: string
+  createdAt?: string
+}

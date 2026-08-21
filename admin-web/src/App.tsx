@@ -5,10 +5,11 @@ import { DashboardPage } from './pages/DashboardPage'
 import { OrdersPage } from './pages/OrdersPage'
 import { OffersPage } from './pages/OffersPage'
 import { EventsPage } from './pages/EventsPage'
+import { ServiceRequestsPage } from './pages/ServiceRequestsPage'
 import { useAuthStore } from './store/authStore'
 
 function normalizePath(pathname: string) {
-  if (pathname === '/orders' || pathname === '/offers' || pathname === '/events' || pathname === '/login') {
+  if (pathname === '/orders' || pathname === '/offers' || pathname === '/events' || pathname === '/service-requests' || pathname === '/login') {
     return pathname
   }
   return '/'
@@ -53,6 +54,8 @@ function App() {
         return <OffersPage />
       case '/events':
         return <EventsPage />
+      case '/service-requests':
+        return <ServiceRequestsPage />
       case '/login':
         return <LoginPage onLoginSuccess={() => navigate('/', true)} />
       default:

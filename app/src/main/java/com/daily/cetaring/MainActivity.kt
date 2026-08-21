@@ -226,7 +226,6 @@ class MainActivity : ComponentActivity() {
                             viewModel = customerProfileViewModel,
                             onBackClick = { navController.popBackStack() },
                             onBookingsClick = { navController.navigate(AppRoute.BOOKINGS) },
-                            onNotificationsClick = { },
                             onHelpClick = { navController.navigate(AppRoute.HELP_SUPPORT) },
                             onLoggedOut = {
                                 navController.navigate(AppRoute.AUTH_LANDING) {
@@ -251,14 +250,18 @@ class MainActivity : ComponentActivity() {
                     composable(AppRoute.STAFF_SERVICES) {
                         ServiceRequestScreen(
                             serviceType = "staff",
-                            onBackClick = { navController.popBackStack() }
+                            workerRepository = workerRepository,
+                            onBackClick = { navController.popBackStack() },
+                            onSubmitted = { navController.popBackStack() }
                         )
                     }
 
                     composable(AppRoute.EQUIPMENT_SERVICES) {
                         ServiceRequestScreen(
                             serviceType = "equipment",
-                            onBackClick = { navController.popBackStack() }
+                            workerRepository = workerRepository,
+                            onBackClick = { navController.popBackStack() },
+                            onSubmitted = { navController.popBackStack() }
                         )
                     }
 

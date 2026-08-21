@@ -1,5 +1,5 @@
 import { http } from './http'
-import type { Booking, DashboardSummary, EventCampaign, Offer } from '../types/api'
+import type { Booking, DashboardSummary, EventCampaign, Offer, ServiceRequest, StaffingRequest } from '../types/api'
 
 export interface OfferCreateRequest {
   businessId: number
@@ -63,6 +63,21 @@ export const adminApi = {
     const response = await http.patch<Offer>(`/admin/offers/${offerId}/active`, null, {
       params: { active },
     })
+    return response.data
+  },
+
+  getServiceRequests: async (): Promise<ServiceRequest[]> => {
+    const response = await http.get<ServiceRequest[]>('/admin/service-requests')
+    return response.data
+  },
+
+  updateStaffingRequestStatus: async (requestId: number, status: string): Promise<StaffingRequest> => {
+    const response = await http.patch<StaffingRequest>(`/admin/staffing-requests/${requestId}/status`, null, { params: { status } })
+    return response.data
+  },
+
+  getStaffingRequests: async (): Promise<StaffingRequest[]> => {
+    const response = await http.get<StaffingRequest[]>('/admin/staffing-requests')
     return response.data
   },
 

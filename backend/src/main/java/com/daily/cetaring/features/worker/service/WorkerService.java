@@ -358,7 +358,7 @@ public class WorkerService {
             .acceptedWorkers(0)
             .payment(request.getPayment())
             .additionalRequirements(trimToNull(request.getAdditionalRequirements()))
-            .status(StaffingRequest.StaffingStatus.OPEN)
+            .status(StaffingRequest.StaffingStatus.PENDING)
             .build();
         return mapStaffingJob(staffingRequestRepository.save(staffingRequest), false);
     }
