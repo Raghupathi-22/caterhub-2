@@ -9,24 +9,20 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 /**
- * Sends CaterHub OTPs through 2Factor's SMS OTP API only.
+ * CaterHub SMS-only OTP sender using 2Factor's current OTP SMS API.
  *
- * IMPORTANT:
- * - This implementation intentionally uses the SMS endpoint.
- * - It never calls the Voice/OBD API.
- * - It does not use the unified "auto" OTP channel, because that can fall
- *   back to Voice.
- *
- * The legacy SMS OTP endpoint is retained here because the deployed account
- * is currently returning HTTP 404 for the newer JSON /OTP/SEND endpoint.
+ * This class intentionally:
+ *  - requests channel=SMS explicitly;
+ *  - never calls the Voice/OBD API;
+ *  - never uses an automatic/fallback channel;
+ *  - uses the approved 2Factor/DLT template configured in Railway;
+ *  - never logs the OTP or API key.
  */
 @Component
 @ConditionalOnProperty(name = "otp.sms.enabled", havingValue = "true")
@@ -35,7 +31,7 @@ public class SmsOtpSender implements OtpSender {
 
     private final String baseUrl;
     private final String apiKey;
-    private final String senderId;
+    private final String otpTemplate;
     private final Duration timeout;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -43,12 +39,12 @@ public class SmsOtpSender implements OtpSender {
     public SmsOtpSender(
             @Value("${twofactor.base-url}") String baseUrl,
             @Value("${twofactor.api-key}") String apiKey,
-            @Value("${twofactor.sender-id:}") String senderId,
+            @Value("${twofactor.otp-template:}") String otpTemplate,
             @Value("${twofactor.timeout-seconds:10}") long timeoutSeconds
     ) {
         this.baseUrl = normalizeBaseUrl(requireConfiguration("TWOFACTOR_BASE_URL", baseUrl));
         this.apiKey = requireConfiguration("TWOFACTOR_API_KEY", apiKey);
-        this.senderId = senderId == null ? "" : senderId.trim();
+        this.otpTemplate = requireConfiguration("TWOFACTOR_OTP_TEMPLATE", otpTemplate);
         this.timeout = Duration.ofSeconds(timeoutSeconds);
         this.httpClient = HttpClient.newBuilder().connectTimeout(this.timeout).build();
         this.objectMapper = new ObjectMapper();
@@ -57,34 +53,25 @@ public class SmsOtpSender implements OtpSender {
     @Override
     public void sendOtp(String mobileNumber, String otp, String purpose) {
         String normalizedMobile = normalizeIndianMobile(mobileNumber);
-        String providerMobile = normalizedMobile.substring(1); // 919xxxxxxxxx
         String maskedMobile = maskMobile(normalizedMobile);
 
         try {
-            /*
-             * 2Factor SMS OTP endpoint:
-             *   /API/V1/{apiKey}/SMS/{mobile}/{otp}
-             *
-             * The optional sender ID is appended only when configured.
-             * There is deliberately no VOICE/OBD endpoint and no "auto"
-             * channel here.
-             */
-            StringBuilder url = new StringBuilder()
-                    .append(baseUrl)
-                    .append("/API/V1/")
-                    .append(urlEncode(apiKey))
-                    .append("/SMS/")
-                    .append(urlEncode(providerMobile))
-                    .append("/")
-                    .append(urlEncode(otp));
+            // 2Factor current OTP API: SMS channel is explicit.
+            // The template controls the approved DLT sender/header and message text.
+            String endpoint = baseUrl + "/API/V1/OTP/SEND";
 
-            if (!senderId.isBlank()) {
-                url.append("/").append(urlEncode(senderId));
-            }
+            String json = objectMapper.createObjectNode()
+                    .put("to", normalizedMobile)
+                    .put("channel", "SMS")
+                    .put("template_name", otpTemplate)
+                    .put("var1", otp)
+                    .toString();
 
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url.toString()))
+            HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
                     .timeout(timeout)
-                    .GET()
+                    .header("X-API-Key", apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
             HttpResponse<String> response =
@@ -93,15 +80,13 @@ public class SmsOtpSender implements OtpSender {
             if (response.statusCode() < 200
                     || response.statusCode() >= 300
                     || !isSuccessfulProviderResponse(response.body())) {
-
                 log.error(
-                        "2Factor SMS OTP delivery rejected for mobile {} with status {}, purpose {}, response {}",
+                        "2Factor SMS OTP rejected for mobile {} with status {}, purpose {}, response {}",
                         maskedMobile,
                         response.statusCode(),
                         purpose,
                         sanitizeProviderResponse(response.body())
                 );
-
                 throw new IllegalStateException("SMS provider rejected OTP delivery");
             }
 
@@ -114,13 +99,7 @@ public class SmsOtpSender implements OtpSender {
 
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            log.error(
-                    "2Factor SMS OTP delivery interrupted for mobile {} and purpose {}",
-                    maskedMobile,
-                    purpose
-            );
             throw new IllegalStateException("SMS provider request was interrupted", exception);
-
         } catch (IOException | IllegalArgumentException exception) {
             log.error(
                     "2Factor SMS OTP delivery failed for mobile {} and purpose {}",
@@ -140,20 +119,16 @@ public class SmsOtpSender implements OtpSender {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
 
-            JsonNode status = root.path("Status");
-            if (status.isMissingNode()) {
-                status = root.path("status");
-            }
-
+            JsonNode status = root.path("status");
             if (status.isTextual()) {
-                String value = status.asText();
-                return "Success".equalsIgnoreCase(value)
-                        || "sent".equalsIgnoreCase(value)
-                        || "success".equalsIgnoreCase(value);
+                return "sent".equalsIgnoreCase(status.asText())
+                        || "success".equalsIgnoreCase(status.asText())
+                        || "Success".equalsIgnoreCase(status.asText());
             }
 
-            JsonNode success = root.path("success");
-            return success.isBoolean() && success.asBoolean();
+            JsonNode legacyStatus = root.path("Status");
+            return legacyStatus.isTextual()
+                    && "Success".equalsIgnoreCase(legacyStatus.asText());
 
         } catch (IOException exception) {
             return false;
@@ -164,7 +139,6 @@ public class SmsOtpSender implements OtpSender {
         if (responseBody == null || responseBody.isBlank()) {
             return "<empty>";
         }
-
         String sanitized = responseBody.replace(apiKey, "[redacted]");
         return sanitized.length() > 500 ? sanitized.substring(0, 500) : sanitized;
     }
@@ -179,13 +153,11 @@ public class SmsOtpSender implements OtpSender {
 
     private static String normalizeIndianMobile(String mobileNumber) {
         String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
-
         if (!normalizedMobile.matches("^\\+91\\d{10}$")) {
             throw new IllegalArgumentException(
                     "2Factor SMS OTP delivery requires an Indian mobile number"
             );
         }
-
         return normalizedMobile;
     }
 
@@ -194,10 +166,6 @@ public class SmsOtpSender implements OtpSender {
             return "****";
         }
         return "******" + mobileNumber.substring(mobileNumber.length() - 4);
-    }
-
-    private static String urlEncode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private static String requireConfiguration(String variableName, String value) {

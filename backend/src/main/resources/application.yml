@@ -69,9 +69,9 @@ twofactor:
   api-key: ${TWOFACTOR_API_KEY:}
   base-url: ${TWOFACTOR_BASE_URL:https://2factor.in}
   timeout-seconds: ${TWOFACTOR_TIMEOUT_SECONDS:10}
-  # Optional approved 2Factor/DLT sender ID. Leave empty when the OTP account
-  # already has its sender/template configured server-side.
-  sender-id: ${TWOFACTOR_SENDER_ID:}
+  # Approved 2Factor/DLT OTP template. The template determines the approved
+  # sender/header and message content. The OTP is sent as var1.
+  otp-template: ${TWOFACTOR_OTP_TEMPLATE:${SMS_PROVIDER_TEMPLATE_ID:}}
 
 logging:
   level:
