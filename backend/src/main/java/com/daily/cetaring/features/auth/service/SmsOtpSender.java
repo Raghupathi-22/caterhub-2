@@ -17,14 +17,17 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 /**
- * CaterHub SMS OTP sender using 2Factor's Transactional SMS API.
+ * CaterHub SMS-only OTP sender using 2Factor Transactional SMS API.
  *
  * IMPORTANT:
- * - Uses the SMS/Transactional SMS API only.
- * - Does NOT call the Voice/OBD API.
- * - Does NOT use the old /API/V1/{key}/SMS/... fallback.
- * - Uses the approved DLT template and sender ID configured in Railway.
- * - Never logs the OTP or API key.
+ * 2Factor's Transactional SMS API is:
+ *   https://2factor.in/API/R1/?module=TRANS_SMS
+ *
+ * Parameters:
+ *   apikey, to, from, templatename, var1
+ *
+ * The approved DLT template is responsible for the final SMS content.
+ * This class never calls the Voice/OBD API and has no voice fallback.
  */
 @Component
 @ConditionalOnProperty(name = "otp.sms.enabled", havingValue = "true")
@@ -46,117 +49,88 @@ public class SmsOtpSender implements OtpSender {
             @Value("${twofactor.sender-id:}") String senderId,
             @Value("${twofactor.timeout-seconds:30}") long timeoutSeconds
     ) {
-        this.baseUrl = normalizeBaseUrl(
-                requireConfiguration("TWOFACTOR_BASE_URL", baseUrl)
-        );
+        this.baseUrl = normalizeBaseUrl(requireConfiguration("TWOFACTOR_BASE_URL", baseUrl));
         this.apiKey = requireConfiguration("TWOFACTOR_API_KEY", apiKey);
-        this.otpTemplate = requireConfiguration(
-                "TWOFACTOR_OTP_TEMPLATE", otpTemplate
-        );
-        this.senderId = requireConfiguration(
-                "TWOFACTOR_SENDER_ID", senderId
-        );
+        this.otpTemplate = requireConfiguration("TWOFACTOR_OTP_TEMPLATE", otpTemplate);
+        this.senderId = requireConfiguration("TWOFACTOR_SENDER_ID", senderId);
         this.timeout = Duration.ofSeconds(timeoutSeconds);
-
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(this.timeout)
-                .build();
-
+        this.httpClient = HttpClient.newBuilder().connectTimeout(this.timeout).build();
         this.objectMapper = new ObjectMapper();
     }
 
     @Override
     public void sendOtp(String mobileNumber, String otp, String purpose) {
         String normalizedMobile = normalizeIndianMobile(mobileNumber);
+        String providerMobile = normalizedMobile.substring(3); // 10 digits; R1 expects number without +91
         String maskedMobile = maskMobile(normalizedMobile);
 
         try {
-            /*
-             * 2Factor Transactional SMS API:
-             *
-             * https://2factor.in/API/R1/?module=TRANS_SMS
-             *   &apikey=API_KEY
-             *   &to=10_DIGIT_NUMBER
-             *   &from=CATRHB
-             *   &templatename=CaterHub%20OTP
-             *   &var1=123456
-             *
-             * We deliberately use this SMS endpoint.
-             * There is NO voice endpoint and NO fallback call.
-             */
-            String phoneWithoutCountryCode =
-                    normalizedMobile.substring(3); // +91XXXXXXXXXX -> XXXXXXXXXX
+            String endpoint = baseUrl + "/API/R1/";
 
-            String endpoint = baseUrl + "/API/R1/?module=TRANS_SMS"
+            String query =
+                    "module=TRANS_SMS"
                     + "&apikey=" + encode(apiKey)
-                    + "&to=" + encode(phoneWithoutCountryCode)
+                    + "&to=" + encode(providerMobile)
                     + "&from=" + encode(senderId)
                     + "&templatename=" + encode(otpTemplate)
                     + "&var1=" + encode(otp);
 
-            HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
+            HttpRequest request = HttpRequest.newBuilder(
+                            URI.create(endpoint + "?" + query))
                     .timeout(timeout)
-                    .header("Accept", "application/json")
+                    .header("Accept", "application/json,text/plain,*/*")
                     .GET()
                     .build();
 
             HttpResponse<String> response =
-                    httpClient.send(
-                            request,
-                            HttpResponse.BodyHandlers.ofString()
-                    );
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() < 200
-                    || response.statusCode() >= 300
-                    || !isSuccessfulProviderResponse(response.body())) {
+            String body = sanitizeProviderResponse(response.body());
 
-                log.error(
-                        "2Factor TRANSACTIONAL SMS OTP rejected for mobile {} with HTTP status {}, purpose {}, response {}",
+            if (response.statusCode() >= 200
+                    && response.statusCode() < 300
+                    && isSuccessfulProviderResponse(response.body())) {
+
+                log.info(
+                        "2Factor TRANSACTIONAL SMS OTP accepted for mobile {} with HTTP status {} and purpose {}. Provider response: {}",
                         maskedMobile,
                         response.statusCode(),
                         purpose,
-                        sanitizeProviderResponse(response.body())
+                        body
                 );
-
-                throw new IllegalStateException(
-                        "SMS provider rejected OTP delivery"
-                );
+                return;
             }
 
-            log.info(
-                    "2Factor TRANSACTIONAL SMS OTP accepted for mobile {} with HTTP status {} and purpose {}",
+            log.error(
+                    "2Factor TRANSACTIONAL SMS OTP was NOT accepted for mobile {}. HTTP status {}, purpose {}, provider response: {}",
                     maskedMobile,
                     response.statusCode(),
-                    purpose
+                    purpose,
+                    body
+            );
+
+            throw new IllegalStateException(
+                    "2Factor rejected SMS OTP: " + body
             );
 
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-
             log.error(
                     "2Factor SMS OTP request interrupted for mobile {} and purpose {}",
                     maskedMobile,
-                    purpose
-            );
-
-            throw new IllegalStateException(
-                    "SMS provider request was interrupted",
+                    purpose,
                     exception
             );
+            throw new IllegalStateException("SMS provider request was interrupted", exception);
 
         } catch (IOException | IllegalArgumentException exception) {
-
             log.error(
                     "2Factor SMS OTP delivery failed for mobile {} and purpose {}",
                     maskedMobile,
                     purpose,
                     exception
             );
-
-            throw new IllegalStateException(
-                    "SMS provider request failed",
-                    exception
-            );
+            throw new IllegalStateException("SMS provider request failed", exception);
         }
     }
 
@@ -168,16 +142,18 @@ public class SmsOtpSender implements OtpSender {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
 
+            // 2Factor commonly returns:
+            // {"Status":"Success","Details":"..."}
             JsonNode status = root.path("Status");
-            if (status.isTextual()
-                    && "Success".equalsIgnoreCase(status.asText())) {
+            if (status.isTextual() && "Success".equalsIgnoreCase(status.asText())) {
                 return true;
             }
 
-            JsonNode lowerStatus = root.path("status");
-            return lowerStatus.isTextual()
-                    && ("success".equalsIgnoreCase(lowerStatus.asText())
-                    || "sent".equalsIgnoreCase(lowerStatus.asText()));
+            // Also accept lowercase/current JSON response variants.
+            JsonNode lowercaseStatus = root.path("status");
+            return lowercaseStatus.isTextual()
+                    && ("success".equalsIgnoreCase(lowercaseStatus.asText())
+                    || "sent".equalsIgnoreCase(lowercaseStatus.asText()));
 
         } catch (IOException exception) {
             return false;
@@ -190,9 +166,8 @@ public class SmsOtpSender implements OtpSender {
         }
 
         String sanitized = responseBody.replace(apiKey, "[redacted]");
-
-        return sanitized.length() > 500
-                ? sanitized.substring(0, 500)
+        return sanitized.length() > 1000
+                ? sanitized.substring(0, 1000)
                 : sanitized;
     }
 
@@ -202,17 +177,14 @@ public class SmsOtpSender implements OtpSender {
 
     private static String normalizeBaseUrl(String value) {
         String trimmed = value.trim();
-
         while (trimmed.endsWith("/")) {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
         }
-
         return trimmed;
     }
 
     private static String normalizeIndianMobile(String mobileNumber) {
-        String normalizedMobile =
-                MobileNumberNormalizer.normalize(mobileNumber);
+        String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
 
         if (!normalizedMobile.matches("^\\+91\\d{10}$")) {
             throw new IllegalArgumentException(
@@ -227,22 +199,15 @@ public class SmsOtpSender implements OtpSender {
         if (mobileNumber.length() <= 4) {
             return "****";
         }
-
-        return "******"
-                + mobileNumber.substring(mobileNumber.length() - 4);
+        return "******" + mobileNumber.substring(mobileNumber.length() - 4);
     }
 
-    private static String requireConfiguration(
-            String variableName,
-            String value
-    ) {
+    private static String requireConfiguration(String variableName, String value) {
         if (value == null || value.isBlank()) {
             throw new IllegalStateException(
-                    variableName
-                            + " must be configured when OTP_SMS_ENABLED=true"
+                    variableName + " must be configured when OTP_SMS_ENABLED=true"
             );
         }
-
         return value.trim();
     }
 }
