@@ -100,8 +100,13 @@ public class SecurityConfiguration {
                                 "/favicon.ico"
                         ).permitAll()
 
-                        // Public APIs
-                        .requestMatchers("/health", "/health/live").permitAll()
+                        // Public APIs (context-path relative and absolute, for healthchecks)
+                        .requestMatchers(
+                                "/health",
+                                "/health/**",
+                                "/api/v1/health",
+                                "/api/v1/health/**"
+                        ).permitAll()
                         .requestMatchers("/auth/**").permitAll()
 
                         // Swagger
