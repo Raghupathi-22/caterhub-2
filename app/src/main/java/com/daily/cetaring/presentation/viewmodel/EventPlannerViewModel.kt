@@ -28,11 +28,7 @@ class EventPlannerViewModel(private val repository: EventRepository) : ViewModel
     private val _state = MutableStateFlow(EventPlannerUiState())
     val state: StateFlow<EventPlannerUiState> = _state.asStateFlow()
 
-    init {
-        loadTypes()
-    }
-
-    private fun loadTypes() {
+    fun loadTypes() {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
             runCatching { repository.eventTypes() }
