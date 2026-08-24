@@ -55,6 +55,10 @@ object ApiClient {
         retrofit.create(BookingApiService::class.java)
     }
 
+    val eventApiService: EventApiService by lazy {
+        retrofit.create(EventApiService::class.java)
+    }
+
     val userApiService: UserApiService by lazy {
         retrofit.create(UserApiService::class.java)
     }

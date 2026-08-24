@@ -1,10 +1,10 @@
-ALTER TABLE businesses ADD COLUMN min_capacity INT NULL;
-ALTER TABLE businesses ADD COLUMN max_capacity INT NULL;
-ALTER TABLE businesses ADD COLUMN service_radius_km INT NULL;
-ALTER TABLE businesses ADD COLUMN service_category VARCHAR(80) NULL;
-ALTER TABLE businesses ADD COLUMN price_per_unit DECIMAL(12,2) NULL;
-ALTER TABLE businesses ADD COLUMN veg_only BOOLEAN NULL;
-ALTER TABLE businesses ADD COLUMN completed_events INT NOT NULL DEFAULT 0;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS min_capacity INT NULL;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS max_capacity INT NULL;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS service_radius_km INT NULL;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS service_category VARCHAR(80) NULL;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS price_per_unit DECIMAL(12,2) NULL;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS veg_only BOOLEAN NULL;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS completed_events INT NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS business_service_offerings (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,

@@ -95,6 +95,7 @@ fun HomeScreen(
     onEventTypeClick: (String) -> Unit,
     onLogout: () -> Unit,
     onStaffBookingClick: () -> Unit = {},
+    onPlanEventClick: () -> Unit = {},
     onEquipmentClick: () -> Unit = {}
 ) {
     Scaffold(
@@ -125,6 +126,14 @@ fun HomeScreen(
             SearchSection()
 
             HeroSection(onBookCateringClick)
+
+            ServiceActionCard(
+                title = "Plan My Complete Event",
+                description = "Marriage • Engagement • Birthday • Pooja • Corporate & More",
+                icon = Icons.Filled.Celebration,
+                background = DarkMaroon,
+                onClick = onPlanEventClick
+            )
 
             ServiceActionCard(
                 title = "Book Catering Staff",

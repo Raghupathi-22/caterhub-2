@@ -23,6 +23,7 @@ import com.daily.cetaring.data.repository.AuthRepository
 import com.daily.cetaring.data.repository.BookingRepository
 import com.daily.cetaring.data.repository.UserRepository
 import com.daily.cetaring.data.repository.WorkerRepository
+import com.daily.cetaring.data.repository.EventRepository
 import com.daily.cetaring.presentation.screens.AuthLandingScreen
 import com.daily.cetaring.presentation.screens.BookingDetailsScreen
 import com.daily.cetaring.presentation.screens.BookingFlowScreen
@@ -38,12 +39,15 @@ import com.daily.cetaring.presentation.screens.WorkerJobDetailsScreen
 import com.daily.cetaring.presentation.screens.WorkerMyJobsScreen
 import com.daily.cetaring.presentation.screens.WorkerProfileScreen
 import com.daily.cetaring.presentation.screens.WorkerRegistrationScreen
+import com.daily.cetaring.presentation.screens.EventPlannerScreen
+import com.daily.cetaring.presentation.screens.EventDashboardScreen
 import com.daily.cetaring.presentation.viewmodel.AuthUiState
 import com.daily.cetaring.presentation.viewmodel.AuthViewModel
 import com.daily.cetaring.presentation.viewmodel.BookingViewModel
 import com.daily.cetaring.presentation.viewmodel.CustomerProfileViewModel
 import com.daily.cetaring.presentation.viewmodel.HomeViewModel
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
+import com.daily.cetaring.presentation.viewmodel.EventPlannerViewModel
 import com.daily.cetaring.ui.theme.CetaringTheme
 import kotlinx.coroutines.flow.combine
 import com.daily.cetaring.presentation.screens.ServiceRequestScreen
@@ -69,6 +73,8 @@ private object AppRoute {
     const val HELP_SUPPORT = "help_support"
     const val WORKER_ACCOUNT_REGISTER = "worker_account_register"
     const val WORKER_LOGIN = "worker_login"
+    const val EVENT_PLANNER = "event_planner"
+    const val EVENT_DASHBOARD = "event_dashboard/{eventId}"
 }
 
 class MainActivity : ComponentActivity() {
@@ -101,6 +107,8 @@ class MainActivity : ComponentActivity() {
         val bookingViewModel = BookingViewModel(bookingRepository, workerRepository)
         val homeViewModel = HomeViewModel(bookingRepository, authLocalDataSource)
         val workerViewModel = WorkerViewModel(workerRepository)
+        val eventRepository = EventRepository(ApiClient.eventApiService, authLocalDataSource)
+        val eventPlannerViewModel = EventPlannerViewModel(eventRepository)
         val customerProfileViewModel = CustomerProfileViewModel(userRepository, authRepository)
 
         setContent {
@@ -200,6 +208,7 @@ class MainActivity : ComponentActivity() {
                             onWorkerRegisterClick = { navController.navigate(AppRoute.WORKER_ONBOARDING) },
                             onStaffBookingClick = { navController.navigate(AppRoute.STAFF_SERVICES) },
                             onEquipmentClick = { navController.navigate(AppRoute.EQUIPMENT_SERVICES) },
+                            onPlanEventClick = { navController.navigate(AppRoute.EVENT_PLANNER) },
                             onBookingsClick = { navController.navigate(AppRoute.BOOKINGS) },
                             onBookingClick = { bookingId -> navController.navigate("booking_details/$bookingId") },
                             onNotificationsClick = { },
@@ -218,6 +227,30 @@ class MainActivity : ComponentActivity() {
                                     popUpTo(AppRoute.HOME) { inclusive = true }
                                 }
                             }
+                        )
+                    }
+
+                    composable(AppRoute.EVENT_PLANNER) {
+                        EventPlannerScreen(
+                            viewModel = eventPlannerViewModel,
+                            onBackClick = { navController.popBackStack() },
+                            onEventCreated = { eventId ->
+                                navController.navigate("event_dashboard/$eventId") {
+                                    popUpTo(AppRoute.EVENT_PLANNER) { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+
+                    composable(
+                        route = AppRoute.EVENT_DASHBOARD,
+                        arguments = listOf(navArgument("eventId") { type = NavType.LongType })
+                    ) { entry ->
+                        val eventId = entry.arguments?.getLong("eventId") ?: return@composable
+                        EventDashboardScreen(
+                            eventId = eventId,
+                            repository = eventRepository,
+                            onBackClick = { navController.popBackStack() }
                         )
                     }
 

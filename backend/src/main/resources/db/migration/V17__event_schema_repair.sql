@@ -1,0 +1,72 @@
+-- Safety repair for event marketplace tables.
+-- This migration is intentionally idempotent so an environment that previously
+-- recorded an event migration but missed the table can recover safely.
+
+CREATE TABLE IF NOT EXISTS events (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    event_code VARCHAR(50) NOT NULL UNIQUE,
+    customer_id BIGINT NOT NULL,
+    event_type VARCHAR(50) NOT NULL,
+    event_name VARCHAR(255) NOT NULL,
+    event_date DATE NOT NULL,
+    start_time TIME NULL,
+    end_time TIME NULL,
+    location VARCHAR(255) NOT NULL,
+    city VARCHAR(100) NULL,
+    area VARCHAR(100) NULL,
+    latitude DOUBLE NULL,
+    longitude DOUBLE NULL,
+    guest_count INT NOT NULL,
+    venue_setting VARCHAR(30) NULL,
+    food_preference VARCHAR(30) NULL,
+    food_style VARCHAR(100) NULL,
+    special_requirements TEXT NULL,
+    notes TEXT NULL,
+    estimated_budget DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    total_estimated_cost DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    total_booked_amount DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    remaining_budget DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    status VARCHAR(40) NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    INDEX idx_events_customer (customer_id),
+    INDEX idx_events_type (event_type),
+    INDEX idx_events_date (event_date),
+    INDEX idx_events_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS event_requirements (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    event_id BIGINT NOT NULL,
+    category VARCHAR(80) NOT NULL,
+    service_key VARCHAR(80) NOT NULL,
+    service_name VARCHAR(150) NOT NULL,
+    description VARCHAR(500) NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    unit VARCHAR(30) NOT NULL,
+    required_flag BOOLEAN NOT NULL DEFAULT FALSE,
+    estimated_budget DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    customer_budget DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    actual_booked_amount DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    status VARCHAR(40) NOT NULL,
+    vendor_id BIGINT NULL,
+    booking_id BIGINT NULL,
+    staffing_request_id BIGINT NULL,
+    notes TEXT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_event_req_event_repair FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    INDEX idx_event_req_event (event_id),
+    INDEX idx_event_req_status (status),
+    INDEX idx_event_req_service (service_key)
+);
+
+CREATE TABLE IF NOT EXISTS event_timeline (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    event_id BIGINT NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    detail VARCHAR(500) NULL,
+    occurred_at DATETIME NOT NULL,
+    CONSTRAINT fk_event_timeline_event_repair FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    INDEX idx_event_timeline_event (event_id)
+);
