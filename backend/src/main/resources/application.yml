@@ -12,9 +12,9 @@ spring:
           time_zone: Asia/Kolkata
     show-sql: false
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/caterhub?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://${MYSQLHOST:${DB_HOST:localhost}}:${MYSQLPORT:${DB_PORT:3306}}/${MYSQLDATABASE:${DB_NAME:caterhub}}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata}
+    username: ${SPRING_DATASOURCE_USERNAME:${MYSQLUSER:${DB_USER:root}}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${MYSQLPASSWORD:${DB_PASS:root}}}
     driver-class-name: com.mysql.cj.jdbc.Driver
   flyway:
     enabled: true
