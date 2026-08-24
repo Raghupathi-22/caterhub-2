@@ -64,10 +64,10 @@ otp:
       window-seconds: ${OTP_RATE_LIMIT_IP_WINDOW_SECONDS:3600}
       max-sends: ${OTP_RATE_LIMIT_IP_MAX_SENDS:20}
   sms:
-    enabled: ${OTP_SMS_ENABLED:true}
+    enabled: ${OTP_SMS_ENABLED:false}
   voice:
     # Enable voice-call OTP fallback if provider is configured and account supports it
-    enabled: ${OTP_VOICE_ENABLED:true}
+    enabled: ${OTP_VOICE_ENABLED:false}
     # Separate rate-limits for voice fallback
     rate-limit:
       window-seconds: ${OTP_VOICE_RATE_LIMIT_WINDOW_SECONDS:3600}
