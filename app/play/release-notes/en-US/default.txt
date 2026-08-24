@@ -1,3 +1,0 @@
-Cetaring release:
-- Stability and performance improvements
-- Booking and admin workflow enhancements

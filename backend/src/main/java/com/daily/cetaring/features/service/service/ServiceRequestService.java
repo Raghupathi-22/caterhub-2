@@ -24,6 +24,12 @@ public class ServiceRequestService {
             .totalAmount(r.totalAmount).status(ServiceRequest.Status.PENDING).build());
         return map(saved);
     }
-    @Transactional(readOnly=true) public List<ServiceRequestDtos.Response> all() { return repository.findAllByOrderByCreatedAtDesc().stream().map(this::map).toList(); }
+    @Transactional(readOnly=true)
+    public List<ServiceRequestDtos.Response> mine(String username) {
+        return repository.findByCreatedByUsernameOrderByCreatedAtDesc(username).stream().map(this::map).toList();
+    }
+
+    @Transactional(readOnly=true)
+    public List<ServiceRequestDtos.Response> all() { return repository.findAllByOrderByCreatedAtDesc().stream().map(this::map).toList(); }
     private ServiceRequestDtos.Response map(ServiceRequest s) { return ServiceRequestDtos.Response.builder().id(s.getId()).serviceType(s.getServiceType()).eventType(s.getEventType()).eventDate(s.getEventDate()).startTime(s.getStartTime()).location(s.getLocation()).area(s.getArea()).details(s.getDetails()).totalAmount(s.getTotalAmount()).status(s.getStatus()).createdAt(s.getCreatedAt()).build(); }
 }

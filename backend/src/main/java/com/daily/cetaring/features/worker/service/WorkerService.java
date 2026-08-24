@@ -358,9 +358,17 @@ public class WorkerService {
             .acceptedWorkers(0)
             .payment(request.getPayment())
             .additionalRequirements(trimToNull(request.getAdditionalRequirements()))
-            .status(StaffingRequest.StaffingStatus.OPEN)
+            .status(StaffingRequest.StaffingStatus.PENDING)
             .build();
         return mapStaffingJob(staffingRequestRepository.save(staffingRequest), false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkerDtos.StaffingJobResponse> getMyStaffingRequests(String username) {
+        return staffingRequestRepository.findByCreatedByUsernameOrderByCreatedAtDesc(username)
+            .stream()
+            .map(job -> mapStaffingJob(job, false))
+            .toList();
     }
 
     @Transactional(readOnly = true)

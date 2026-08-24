@@ -1,5 +1,7 @@
 package com.daily.cetaring.config.security;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -91,6 +93,16 @@ public class SecurityConfiguration {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .exceptionHandling(exceptions -> exceptions
+                        // An expired/missing JWT must be a 401 so the Android client
+                        // can refresh the access token. Keep real authorization
+                        // failures as 403.
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"code\":401,\"message\":\"Authentication required\"}");
+                        })
+                )
                 .authorizeHttpRequests(authz -> authz
 
                         // Public account deletion page
@@ -101,8 +113,8 @@ public class SecurityConfiguration {
                         ).permitAll()
 
                         // Public APIs
-                        .requestMatchers("/api/v1/health").permitAll()
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/health", "/health/live").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
 
                         // Swagger
                         .requestMatchers(
