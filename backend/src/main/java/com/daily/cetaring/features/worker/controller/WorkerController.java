@@ -193,7 +193,9 @@ public class WorkerController {
     }
 
     @PostMapping("/staffing-requests")
-    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    // Customers create staffing requests; this endpoint must not require a worker profile
+    // or a worker-specific role. The global security chain still requires authentication.
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<WorkerDtos.StaffingJobResponse> createStaffingRequest(
         Authentication authentication,
         @Valid @RequestBody WorkerDtos.CreateStaffingRequest request

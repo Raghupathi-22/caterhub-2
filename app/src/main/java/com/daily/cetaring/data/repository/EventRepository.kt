@@ -16,8 +16,8 @@ class EventRepository(
         return "Bearer $value"
     }
 
-    suspend fun eventTypes() = api.eventTypes(token())
-    suspend fun preview(request: Map<String, Any?>) = api.previewChecklist(token(), request)
+    suspend fun eventTypes() = api.eventTypes(null)
+    suspend fun preview(request: Map<String, Any?>) = api.previewChecklist(null, request)
     suspend fun create(request: CreateEventRequestDto) = api.createEvent(token(), request)
     suspend fun mine() = api.myEvents(token())
     suspend fun dashboard(id: Long) = api.dashboard(token(), id)

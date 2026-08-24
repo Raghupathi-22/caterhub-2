@@ -2,6 +2,9 @@
 
 package com.daily.cetaring.presentation.screens
 
+import android.app.DatePickerDialog
+import androidx.compose.ui.platform.LocalContext
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,6 +38,9 @@ import com.daily.cetaring.data.repository.WorkerRepository
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.LocalTime
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Calendar
 
 private val Cream = Color(0xFFFFFCF5)
 private val Maroon = Color(0xFF971B1E)
@@ -113,7 +119,28 @@ fun ServiceRequestScreen(
                     1 -> {
                         Text("Event details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = TextDark)
                         EventTypeField(eventType) { eventType = it }
-                        OutlinedTextField(eventDate, { eventDate = it }, label = { Text("Event date (YYYY-MM-DD)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), textStyle = LocalTextStyle.current.copy(color = TextDark))
+                        val context = LocalContext.current
+                        val calendar = Calendar.getInstance()
+                        OutlinedButton(
+                            onClick = {
+                                DatePickerDialog(
+                                    context,
+                                    { _, year, month, day ->
+                                        eventDate = LocalDate.of(year, month + 1, day)
+                                            .format(DateTimeFormatter.ISO_DATE)
+                                    },
+                                    calendar.get(Calendar.YEAR),
+                                    calendar.get(Calendar.MONTH),
+                                    calendar.get(Calendar.DAY_OF_MONTH)
+                                ).apply {
+                                    datePicker.minDate = System.currentTimeMillis()
+                                }.show()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text(if (eventDate.isBlank()) "Select event date" else eventDate)
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             OutlinedTextField(startTime, { startTime = it }, label = { Text("Start time") }, singleLine = true, modifier = Modifier.weight(1f), textStyle = LocalTextStyle.current.copy(color = TextDark))
                             if (staffMode) OutlinedTextField(endTime, { endTime = it }, label = { Text("End time") }, singleLine = true, modifier = Modifier.weight(1f), textStyle = LocalTextStyle.current.copy(color = TextDark))

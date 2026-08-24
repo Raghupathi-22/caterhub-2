@@ -46,14 +46,12 @@ public class BookingService {
     }
 
     public BookingDTO getBookingForUsername(Long bookingId, String username) {
-        BookingDTO booking = getBooking(bookingId);
         Long userId = userRepository.findByUsername(username)
             .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"))
             .getId();
-        if (!userId.equals(booking.getUserId())) {
-            throw new IllegalArgumentException("Booking not found");
-        }
-        return booking;
+        return bookingRepository.findByIdAndUserId(bookingId, userId)
+            .map(this::mapToDTO)
+            .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
     }
 
     public void cancelBookingForUsername(Long bookingId, String username) {

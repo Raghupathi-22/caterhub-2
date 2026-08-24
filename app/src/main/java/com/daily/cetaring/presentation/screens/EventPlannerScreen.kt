@@ -25,7 +25,6 @@ private val Maroon = Color(0xFF971B1E)
 private val Gold = Color(0xFFC58A16)
 private val Cream = Color(0xFFFFFCF5)
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventPlannerScreen(
     viewModel: EventPlannerViewModel,
@@ -46,10 +45,9 @@ fun EventPlannerScreen(
     var foodPreference by remember { mutableStateOf("") }
     var specialRequirements by remember { mutableStateOf("") }
 
-    // Load event types only when this screen is actually opened. The ViewModel is
-    // created from MainActivity before authentication is restored, so loading in
-    // its init block could run without an access token and permanently show
-    // "Please login again" until the app was restarted.
+    // Do not load the catalog from the ViewModel constructor. MainActivity creates
+    // ViewModels before Compose has restored the login session. Loading here avoids
+    // the old "Please login again"/403 state caused by that race.
     LaunchedEffect(Unit) {
         viewModel.loadTypes()
     }
@@ -80,10 +78,8 @@ fun EventPlannerScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(state.error!!, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                        if (step == 0) {
-                            OutlinedButton(onClick = { viewModel.loadTypes() }) {
-                                Text("Retry")
-                            }
+                        OutlinedButton(onClick = { viewModel.loadTypes() }) {
+                            Text("Retry")
                         }
                     }
                 }

@@ -48,6 +48,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
            "AND b.status = 'DELIVERED' AND DATE(b.createdAt) = :date")
     java.math.BigDecimal getRevenueByDate(@Param("businessId") Long businessId, @Param("date") LocalDate date);
 
+    Optional<Booking> findByIdAndUserId(Long bookingId, Long userId);
+
     boolean existsByIdAndBusinessId(Long bookingId, Long businessId);
 
     boolean existsByIdAndUserId(Long bookingId, Long userId);

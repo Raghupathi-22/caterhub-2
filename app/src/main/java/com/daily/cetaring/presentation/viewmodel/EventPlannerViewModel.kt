@@ -28,6 +28,7 @@ class EventPlannerViewModel(private val repository: EventRepository) : ViewModel
     private val _state = MutableStateFlow(EventPlannerUiState())
     val state: StateFlow<EventPlannerUiState> = _state.asStateFlow()
 
+    /** Load the event catalog when the screen is visible and the app session is ready. */
     fun loadTypes() {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)

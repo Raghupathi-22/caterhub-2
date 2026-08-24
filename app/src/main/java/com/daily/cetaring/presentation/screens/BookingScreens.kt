@@ -705,8 +705,12 @@ fun BookingSuccessScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // The submit API already returned the complete booking. Do not immediately
+    // call GET /bookings/{id}/me here: doing so created a false 403 on the success
+    // screen for valid newly-created bookings. The details screen can load it when
+    // the customer explicitly asks to view the booking.
     LaunchedEffect(bookingId) {
-        if (uiState !is BookingUiState.Submitted) {
+        if (uiState !is BookingUiState.Submitted && uiState !is BookingUiState.DetailsLoaded) {
             viewModel.loadBooking(bookingId)
         }
     }

@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -31,11 +32,13 @@ public class EventController {
     private final BusinessRepository businessRepository;
 
     @GetMapping("/types")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<List<EventDtos.EventTypeGroupResponse>> types() {
         return ResponseEntity.ok(eventService.eventTypes());
     }
 
     @PostMapping("/checklist/preview")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<List<ChecklistItemSpec>> preview(@Valid @RequestBody EventDtos.ChecklistPreviewRequest request) {
         return ResponseEntity.ok(eventService.preview(request));
     }
