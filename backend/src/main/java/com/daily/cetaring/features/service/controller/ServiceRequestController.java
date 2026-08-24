@@ -14,12 +14,8 @@ import java.util.List;
 public class ServiceRequestController {
     private final ServiceRequestService service;
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER','ROLE_ADMIN','ROLE_SUPER_ADMIN')")
     public ServiceRequestDtos.Response create(Authentication auth, @Valid @RequestBody ServiceRequestDtos.CreateRequest request) { return service.create(auth.getName(), request); }
-    @GetMapping("/me")
-    @PreAuthorize("isAuthenticated()")
-    public List<ServiceRequestDtos.Response> mine(Authentication auth) { return service.mine(auth.getName()); }
-
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_SUPER_ADMIN')")
     public List<ServiceRequestDtos.Response> all() { return service.all(); }
