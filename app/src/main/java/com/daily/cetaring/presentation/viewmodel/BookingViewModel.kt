@@ -8,6 +8,7 @@ import com.daily.cetaring.data.remote.dto.BookingValidationResult
 import com.daily.cetaring.data.remote.dto.BookingValidator
 import com.daily.cetaring.data.remote.dto.CreateMyBookingRequest
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
+import com.daily.cetaring.data.remote.dto.ServiceRequestResponse
 import com.daily.cetaring.data.repository.BookingRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +19,11 @@ import java.math.BigDecimal
 sealed class BookingUiState {
     data object Idle : BookingUiState()
     data object Loading : BookingUiState()
-    data class ListLoaded(val bookings: List<BookingResponse>) : BookingUiState()
+    data class ListLoaded(
+        val bookings: List<BookingResponse>,
+        val serviceRequests: List<ServiceRequestResponse> = emptyList(),
+        val staffingRequests: List<StaffingJobResponse> = emptyList()
+    ) : BookingUiState()
     data class DetailsLoaded(val booking: BookingResponse) : BookingUiState()
 
     data class Submitted(
@@ -108,8 +113,13 @@ class BookingViewModel(
         viewModelScope.launch {
             _uiState.value = BookingUiState.Loading
             try {
+                val bookings = bookingRepository.getMyBookings()
+                val serviceRequests = try { workerRepository.getMyServiceRequests() } catch (_: Exception) { emptyList() }
+                val staffingRequests = try { workerRepository.getMyStaffingRequests() } catch (_: Exception) { emptyList() }
                 _uiState.value = BookingUiState.ListLoaded(
-                    bookingRepository.getMyBookings()
+                    bookings = bookings,
+                    serviceRequests = serviceRequests,
+                    staffingRequests = staffingRequests
                 )
             } catch (exception: Exception) {
                 _uiState.value = BookingUiState.Error(

@@ -85,6 +85,16 @@ class WorkerRepository(
         executeNetworkCall { workerApiService.updateAvailability(bearerToken(), UpdateAvailabilityToggleRequest(available = available)) }
     }
 
+    suspend fun getMyServiceRequests(): List<ServiceRequestResponse> {
+        ensureBackendAvailable()
+        return executeNetworkCall { workerApiService.getMyServiceRequests(bearerToken()) }
+    }
+
+    suspend fun getMyStaffingRequests(): List<StaffingJobResponse> {
+        ensureBackendAvailable()
+        return executeNetworkCall { workerApiService.getMyStaffingRequests(bearerToken()) }
+    }
+
     suspend fun createServiceRequest(request: ServiceRequestRequest): ServiceRequestResponse {
         ensureBackendAvailable()
         return executeNetworkCall { workerApiService.createServiceRequest(bearerToken(), request) }

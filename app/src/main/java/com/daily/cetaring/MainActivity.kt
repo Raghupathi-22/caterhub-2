@@ -285,7 +285,10 @@ class MainActivity : ComponentActivity() {
                             serviceType = "staff",
                             workerRepository = workerRepository,
                             onBackClick = { navController.popBackStack() },
-                            onSubmitted = { navController.popBackStack() }
+                            onSubmitted = {
+                                navController.popBackStack()
+                                navController.navigate(AppRoute.BOOKINGS) { launchSingleTop = true }
+                            }
                         )
                     }
 
@@ -294,7 +297,10 @@ class MainActivity : ComponentActivity() {
                             serviceType = "equipment",
                             workerRepository = workerRepository,
                             onBackClick = { navController.popBackStack() },
-                            onSubmitted = { navController.popBackStack() }
+                            onSubmitted = {
+                                navController.popBackStack()
+                                navController.navigate(AppRoute.BOOKINGS) { launchSingleTop = true }
+                            }
                         )
                     }
 

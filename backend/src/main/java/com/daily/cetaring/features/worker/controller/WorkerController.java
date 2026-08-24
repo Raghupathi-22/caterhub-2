@@ -177,6 +177,12 @@ public class WorkerController {
         return workerService.acceptStaffingJob(jobId, authentication.getName());
     }
 
+    @GetMapping("/staffing-requests/me")
+    @PreAuthorize("isAuthenticated()")
+    public List<WorkerDtos.StaffingJobResponse> getMyStaffingRequests(Authentication authentication) {
+        return workerService.getMyStaffingRequests(authentication.getName());
+    }
+
     @GetMapping("/jobs/me")
     @PreAuthorize("hasAnyAuthority('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public List<WorkerDtos.WorkerJobResponse> getMyJobs(Authentication authentication) {
@@ -193,8 +199,6 @@ public class WorkerController {
     }
 
     @PostMapping("/staffing-requests")
-    // Customers create staffing requests; this endpoint must not require a worker profile
-    // or a worker-specific role. The global security chain still requires authentication.
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<WorkerDtos.StaffingJobResponse> createStaffingRequest(
         Authentication authentication,

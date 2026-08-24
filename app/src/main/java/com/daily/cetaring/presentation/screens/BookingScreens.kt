@@ -801,19 +801,43 @@ fun BookingHistoryScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    if (state.bookings.isEmpty()) {
+                    if (state.bookings.isEmpty() && state.serviceRequests.isEmpty() && state.staffingRequests.isEmpty()) {
                         CaterHubEmptyState(
                             "No bookings yet",
-                            "Book catering for your next event.",
+                            "Book catering, staff or decoration for your next event.",
                             actionText = "Book Catering",
                             onActionClick = onBookCateringClick
                         )
                     } else {
-                        state.bookings.forEach {
-                            CaterHubBookingCard(
-                                it,
-                                { onBookingClick(it.id) }
-                            )
+                        if (state.bookings.isNotEmpty()) {
+                            Text("Catering Bookings", fontWeight = FontWeight.ExtraBold, color = Maroon)
+                            state.bookings.forEach { booking ->
+                                CaterHubBookingCard(booking, { onBookingClick(booking.id) })
+                            }
+                        }
+                        if (state.staffingRequests.isNotEmpty()) {
+                            Text("Catering Staff Requests", fontWeight = FontWeight.ExtraBold, color = Maroon)
+                            state.staffingRequests.forEach { request ->
+                                CustomerServiceHistoryCard(
+                                    title = request.workerType.label,
+                                    subtitle = "${request.eventType} • ${request.eventDate} • ${request.startTime}-${request.endTime}",
+                                    location = "${request.location}, ${request.area}",
+                                    amount = "₹${request.payment} × ${request.requiredWorkers}",
+                                    status = request.status
+                                )
+                            }
+                        }
+                        if (state.serviceRequests.isNotEmpty()) {
+                            Text("Decoration & Equipment Requests", fontWeight = FontWeight.ExtraBold, color = Green)
+                            state.serviceRequests.forEach { request ->
+                                CustomerServiceHistoryCard(
+                                    title = request.serviceType,
+                                    subtitle = "${request.eventType} • ${request.eventDate} • ${request.startTime}",
+                                    location = "${request.location}, ${request.area}",
+                                    amount = "₹${request.totalAmount}",
+                                    status = request.status
+                                )
+                            }
                         }
                     }
                 }
@@ -860,6 +884,32 @@ fun BookingDetailsScreen(
                 }
 
             else -> Unit
+        }
+    }
+}
+
+@Composable
+private fun CustomerServiceHistoryCard(
+    title: String,
+    subtitle: String,
+    location: String,
+    amount: String,
+    status: String
+) {
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Border)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(title, fontWeight = FontWeight.ExtraBold, color = TextDark)
+                CaterHubStatusChip(status)
+            }
+            Text(subtitle, color = Muted)
+            Text(location, color = TextDark)
+            Text(amount, fontWeight = FontWeight.Bold, color = Maroon)
         }
     }
 }

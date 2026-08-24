@@ -79,6 +79,12 @@ interface WorkerApiService {
         @Body request: UpdateAvailabilityToggleRequest
     )
 
+    @GET("service-requests/me")
+    suspend fun getMyServiceRequests(@Header("Authorization") authorization: String): List<ServiceRequestResponse>
+
+    @GET("workers/staffing-requests/me")
+    suspend fun getMyStaffingRequests(@Header("Authorization") authorization: String): List<StaffingJobResponse>
+
     @POST("service-requests")
     suspend fun createServiceRequest(
         @Header("Authorization") authorization: String,

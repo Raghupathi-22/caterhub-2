@@ -1,5 +1,8 @@
 package com.daily.cetaring.data.remote
 
+import android.content.Context
+import com.daily.cetaring.data.local.AuthLocalDataSource
+
 import com.daily.cetaring.BuildConfig
 import com.daily.cetaring.config.AppConfig
 import okhttp3.OkHttpClient
@@ -9,6 +12,11 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
+    private var authLocalDataSource: AuthLocalDataSource? = null
+
+    fun initialize(context: Context) {
+        if (authLocalDataSource == null) authLocalDataSource = AuthLocalDataSource(context.applicationContext)
+    }
     private const val CONNECT_TIMEOUT_SECONDS = 10L
     private const val READ_TIMEOUT_SECONDS = 20L
     private const val WRITE_TIMEOUT_SECONDS = 20L
@@ -28,6 +36,7 @@ object ApiClient {
             .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .addInterceptor(RetryInterceptor(maxRetries = 1))
             .addInterceptor(loggingInterceptor)
+            .authenticator(AuthTokenAuthenticator(requireNotNull(authLocalDataSource) { "ApiClient.initialize(context) must be called first" }) )
             .build()
     }
 

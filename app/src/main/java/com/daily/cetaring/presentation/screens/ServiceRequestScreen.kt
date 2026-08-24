@@ -84,6 +84,7 @@ fun ServiceRequestScreen(
     var notes by remember { mutableStateOf("") }
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var showSuccess by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val fixedTotal = items.sumOf { item -> (selected[item.name] ?: 0) * item.price }
@@ -201,7 +202,7 @@ fun ServiceRequestScreen(
                                         }
                                         workerRepository.createServiceRequest(ServiceRequestRequest("EQUIPMENT", eventType, eventDate, startTime, location, area, "$details${if (notes.isBlank()) "" else "; Notes: $notes"}", BigDecimal(fixedTotal)))
                                     }
-                                    onSubmitted()
+                                    showSuccess = true
                                 } catch (e: Exception) { error = e.message ?: "Unable to submit request." }
                                 finally { submitting = false }
                             }
@@ -214,6 +215,20 @@ fun ServiceRequestScreen(
                 ) { Text(if (step == 2) "Submit Request" else "Continue", fontWeight = FontWeight.Bold) }
             }
         }
+    }
+
+    if (showSuccess) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Request submitted successfully") },
+            text = { Text(if (staffMode) "Your catering staff request has been recorded. You can see it now in My Bookings." else "Your decoration/equipment request has been recorded. You can see it now in My Bookings.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSuccess = false
+                    onSubmitted()
+                }) { Text("View My Bookings") }
+            }
+        )
     }
 }
 
