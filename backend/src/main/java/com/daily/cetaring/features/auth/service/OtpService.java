@@ -8,6 +8,7 @@ import com.daily.cetaring.shared.entity.User;
 import com.daily.cetaring.shared.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class OtpService {
     private final OtpSender otpSender;
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
+    private final ObjectProvider<VoiceOtpProvider> voiceOtpProviderProvider;
 
     @Value("${otp.dev.mode:false}")
     private boolean devMode;
@@ -51,6 +53,12 @@ public class OtpService {
 
     @Value("${otp.rate-limit.ip.max-sends:20}")
     private long ipRateLimitMaxSends;
+
+    @Value("${otp.voice.rate-limit.window-seconds:3600}")
+    private long voiceRateLimitWindowSeconds;
+
+    @Value("${otp.voice.rate-limit.max-calls:2}")
+    private long voiceRateLimitMaxCalls;
 
     public OtpSendResponse generateAndSendOtp(String mobileNumber, OtpPurpose purpose, String userType, String requesterIp) {
         String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
@@ -113,6 +121,69 @@ public class OtpService {
         return OtpSendResponse.builder()
                 .success(true)
                 .message("OTP sent successfully")
+                .expiresInSeconds(expirationSeconds)
+                .build();
+    }
+
+    /**
+     * Generate an OTP and request a voice-call fallback delivery. If no voice provider is configured,
+     * returns a controlled "VOICE_FALLBACK_UNAVAILABLE" response rather than throwing.
+     */
+    public OtpSendResponse generateAndSendVoiceOtp(String mobileNumber, OtpPurpose purpose, String userType, String requesterIp) {
+        VoiceOtpProvider voiceProvider = voiceOtpProviderProvider.getIfAvailable();
+        if (voiceProvider == null) {
+            return OtpSendResponse.builder()
+                    .success(false)
+                    .message("VOICE_FALLBACK_UNAVAILABLE")
+                    .expiresInSeconds(0)
+                    .build();
+        }
+
+        String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
+        String purposeValue = purpose.name();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime mobileRateLimitCutoff = now.minusSeconds(voiceRateLimitWindowSeconds);
+
+        validateLoginTarget(normalizedMobile, purpose, userType);
+
+        long voiceAttempts = otpRepository.countByMobileNumberAndPurposeAndCreatedAtAfter(
+                normalizedMobile,
+                purposeValue,
+                mobileRateLimitCutoff
+        );
+        if (voiceAttempts >= voiceRateLimitMaxCalls) {
+            throw new IllegalArgumentException("Too many voice OTP requests for this mobile number. Please try again later.");
+        }
+
+        String rawOtp;
+        if (devMode) {
+            rawOtp = devCode;
+            log.debug("Development OTP voice mode active for mobile {}", normalizedMobile);
+        } else {
+            SecureRandom random = new SecureRandom();
+            int otpNum = 100000 + random.nextInt(900000);
+            rawOtp = String.valueOf(otpNum);
+        }
+
+        OtpEntity otpEntity = OtpEntity.builder()
+                .mobileNumber(normalizedMobile)
+                .otpHash(passwordEncoder.encode(rawOtp))
+                .purpose(purposeValue)
+                .requesterIp(requesterIp)
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .expiresAt(now.plusSeconds(expirationSeconds))
+                .build();
+
+        otpRepository.save(otpEntity);
+
+        // Delegate to provider - provider must not log OTP or sensitive details
+        voiceProvider.sendVoiceOtp(normalizedMobile, rawOtp, purposeValue);
+
+        return OtpSendResponse.builder()
+                .success(true)
+                .message("Voice OTP requested")
                 .expiresInSeconds(expirationSeconds)
                 .build();
     }
