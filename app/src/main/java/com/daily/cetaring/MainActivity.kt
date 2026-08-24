@@ -79,7 +79,6 @@ class MainActivity : ComponentActivity() {
         val authLocalDataSource = AuthLocalDataSource(applicationContext)
         val authRepository = AuthRepository(
             apiService = ApiClient.authApiService,
-            healthApiService = ApiClient.healthApiService,
             localDataSource = authLocalDataSource
         )
         val bookingRepository = BookingRepository(

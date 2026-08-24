@@ -2,7 +2,6 @@ package com.daily.cetaring.data.repository
 
 import com.daily.cetaring.data.local.AuthLocalDataSource
 import com.daily.cetaring.data.remote.AuthApiService
-import com.daily.cetaring.data.remote.HealthApiService
 import com.daily.cetaring.data.remote.dto.AuthResponse
 import com.daily.cetaring.data.remote.dto.SendOtpRequest
 import com.daily.cetaring.data.remote.dto.SendOtpResponse
@@ -19,7 +18,6 @@ class ServerOfflineException(message: String = "Server is unavailable. Please tr
 
 class AuthRepository(
     private val apiService: AuthApiService,
-    private val healthApiService: HealthApiService,
     private val localDataSource: AuthLocalDataSource
 ) {
 
@@ -34,12 +32,15 @@ class AuthRepository(
     val rolesFlow: Flow<String?> = localDataSource.rolesFlow
 
     suspend fun sendOtp(request: SendOtpRequest): SendOtpResponse {
-        ensureBackendAvailable()
+        // OTP send is a public authentication operation. Do not call the protected
+        // health endpoint first: a health/auth failure must not be misreported as
+        // an expired user session.
         return executeNetworkCall { apiService.sendOtp(request) }
     }
 
     suspend fun verifyOtp(request: VerifyOtpRequest): AuthResponse {
-        ensureBackendAvailable()
+        // OTP verification is also public. Authentication starts only after the
+        // OTP has been verified successfully.
         val response = executeNetworkCall { apiService.verifyOtp(request) }
         saveAuthResponse(response)
         return response
@@ -67,19 +68,6 @@ class AuthRepository(
 
     suspend fun getAccessToken(): String? = accessTokenFlow.first()
     suspend fun getRefreshToken(): String? = refreshTokenFlow.first()
-
-    private suspend fun ensureBackendAvailable() {
-        try {
-            val health = executeNetworkCall { healthApiService.health() }
-            if (!health.isUp) {
-                throw ServerOfflineException()
-            }
-        } catch (exception: ServerOfflineException) {
-            throw exception
-        } catch (exception: Exception) {
-            throw mapNetworkException(exception)
-        }
-    }
 
     private suspend fun <T> executeNetworkCall(block: suspend () -> T): T {
         return try {
@@ -110,7 +98,10 @@ class AuthRepository(
             is IOException -> ServerOfflineException()
             is HttpException -> when (exception.code()) {
                 400 -> IllegalArgumentException(apiErrorMessage(exception) ?: "Please check your details and try again.")
-                401 -> IllegalArgumentException("Session expired or credentials are invalid. Please login again.")
+                401 -> IllegalArgumentException(
+                    apiErrorMessage(exception)
+                        ?: "The authentication service rejected this request. Please make sure the CaterHub server is updated and try again."
+                )
                 403 -> IllegalArgumentException("You do not have permission to perform this action.")
                 404 -> IllegalArgumentException("Requested service was not found. Please update the app or try again later.")
                 in 500..599 -> ServerOfflineException()

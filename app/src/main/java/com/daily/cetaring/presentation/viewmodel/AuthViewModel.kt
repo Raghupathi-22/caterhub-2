@@ -301,10 +301,10 @@ class AuthViewModel(
                 "Please check your mobile number and try again."
 
             message.contains(
-                "401",
+                "Authentication request was rejected",
                 ignoreCase = true
             ) ->
-                "Your session has expired. Please login again."
+                message
 
             message.contains(
                 "403",

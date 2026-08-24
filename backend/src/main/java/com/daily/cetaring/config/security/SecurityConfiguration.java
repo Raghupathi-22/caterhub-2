@@ -100,9 +100,11 @@ public class SecurityConfiguration {
                                 "/favicon.ico"
                         ).permitAll()
 
-                        // Public APIs
-                        .requestMatchers("/api/v1/health").permitAll()
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // Public APIs. Support both forms because Railway/reverse-proxy
+                        // deployments may strip or retain the /api/v1 prefix before
+                        // Spring Security evaluates the request.
+                        .requestMatchers("/health", "/api/v1/health").permitAll()
+                        .requestMatchers("/auth/**", "/api/v1/auth/**").permitAll()
 
                         // Swagger
                         .requestMatchers(
