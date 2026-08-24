@@ -72,6 +72,28 @@ public class Business {
     @Column(name = "total_reviews", nullable = false)
     private Integer totalReviews = 0;
 
+    @Column(name = "min_capacity")
+    private Integer minCapacity;
+
+    @Column(name = "max_capacity")
+    private Integer maxCapacity;
+
+    @Column(name = "service_radius_km")
+    private Integer serviceRadiusKm;
+
+    @Column(name = "service_category", length = 80)
+    private String serviceCategory;
+
+    @Column(name = "price_per_unit", precision = 12, scale = 2)
+    private BigDecimal pricePerUnit;
+
+    @Column(name = "veg_only")
+    private Boolean vegOnly;
+
+    @Column(name = "completed_events", nullable = false)
+    @Builder.Default
+    private Integer completedEvents = 0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
