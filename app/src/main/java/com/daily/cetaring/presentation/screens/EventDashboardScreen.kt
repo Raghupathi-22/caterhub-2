@@ -14,6 +14,7 @@ import com.daily.cetaring.data.remote.dto.EventDashboardDto
 import com.daily.cetaring.data.repository.EventRepository
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventDashboardScreen(
     eventId: Long,

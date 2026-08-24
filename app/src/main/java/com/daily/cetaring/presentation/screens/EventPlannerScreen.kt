@@ -25,6 +25,7 @@ private val Maroon = Color(0xFF971B1E)
 private val Gold = Color(0xFFC58A16)
 private val Cream = Color(0xFFFFFCF5)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventPlannerScreen(
     viewModel: EventPlannerViewModel,
