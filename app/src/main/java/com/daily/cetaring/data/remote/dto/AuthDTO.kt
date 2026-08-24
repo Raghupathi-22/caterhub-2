@@ -41,13 +41,16 @@ data class SendOtpRequest(
     @SerializedName("purpose")
     val purpose: String,
     @SerializedName("userType")
-    val userType: String? = null
+    val userType: String? = null,
+    @SerializedName("channel")
+    val channel: String? = null
 )
 
 data class SendOtpResponse(
     val success: Boolean,
     val message: String,
-    val expiresInSeconds: Long
+    val expiresInSeconds: Long,
+    val deliveryChannel: String? = null
 )
 
 data class VerifyOtpRequest(

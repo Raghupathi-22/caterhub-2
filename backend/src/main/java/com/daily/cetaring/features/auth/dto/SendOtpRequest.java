@@ -19,4 +19,7 @@ public class SendOtpRequest {
     private OtpPurpose purpose;
 
     private String userType;
+
+    /** AUTO (default), SMS, or VOICE. Voice does not need DLT. */
+    private String channel;
 }

@@ -23,7 +23,9 @@ sealed class OtpUiState {
     data object Sending : OtpUiState()
 
     data class Sent(
-        val resendCooldownSeconds: Int
+        val resendCooldownSeconds: Int,
+        val message: String = "OTP sent by SMS",
+        val deliveryChannel: String = "SMS"
     ) : OtpUiState()
 
     data object Verifying : OtpUiState()
@@ -64,7 +66,8 @@ class AuthViewModel(
     fun sendOtp(
         mobileNumber: String,
         purpose: String,
-        userType: String
+        userType: String,
+        channel: String? = null
     ) {
         viewModelScope.launch {
 
@@ -121,14 +124,23 @@ class AuthViewModel(
                 val request = SendOtpRequest(
                     cleanMobile,
                     cleanPurpose,
-                    cleanUserType
+                    cleanUserType,
+                    channel?.trim()?.uppercase()
                 )
 
-                authRepository.sendOtp(request)
+                val sendResponse = authRepository.sendOtp(request)
 
                 _otpUiState.value =
                     OtpUiState.Sent(
-                        resendCooldownSeconds = 60
+                        resendCooldownSeconds = 60,
+                        message = sendResponse.message.ifBlank {
+                            if (sendResponse.deliveryChannel.equals("VOICE", ignoreCase = true)) {
+                                "We are calling you with the OTP."
+                            } else {
+                                "OTP sent by SMS"
+                            }
+                        },
+                        deliveryChannel = sendResponse.deliveryChannel ?: "SMS"
                     )
 
             } catch (e: Exception) {

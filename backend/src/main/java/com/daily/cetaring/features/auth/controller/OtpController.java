@@ -34,7 +34,8 @@ public class OtpController {
                 request.getMobileNumber(),
                 request.getPurpose(),
                 request.getUserType(),
-                extractClientIp(servletRequest)
+                extractClientIp(servletRequest),
+                request.getChannel()
         );
         return ResponseEntity.ok(response);
     }

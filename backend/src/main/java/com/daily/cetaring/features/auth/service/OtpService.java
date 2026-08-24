@@ -53,6 +53,16 @@ public class OtpService {
     private long ipRateLimitMaxSends;
 
     public OtpSendResponse generateAndSendOtp(String mobileNumber, OtpPurpose purpose, String userType, String requesterIp) {
+        return generateAndSendOtp(mobileNumber, purpose, userType, requesterIp, null);
+    }
+
+    public OtpSendResponse generateAndSendOtp(
+            String mobileNumber,
+            OtpPurpose purpose,
+            String userType,
+            String requesterIp,
+            String channel
+    ) {
         String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
         String purposeValue = purpose.name();
         LocalDateTime now = LocalDateTime.now();
@@ -62,10 +72,11 @@ public class OtpService {
 
         validateLoginTarget(normalizedMobile, purpose, userType);
 
+        boolean voiceOnly = channel != null && "VOICE".equalsIgnoreCase(channel.trim());
         Optional<OtpEntity> lastOtpOpt = otpRepository.findTopByMobileNumberAndPurposeOrderByCreatedAtDesc(normalizedMobile, purposeValue);
         if (lastOtpOpt.isPresent()) {
             OtpEntity lastOtp = lastOtpOpt.get();
-            if (lastOtp.getCreatedAt().isAfter(cooldownCutoff)) {
+            if (lastOtp.getCreatedAt().isAfter(cooldownCutoff) && !voiceOnly) {
                 throw new IllegalArgumentException("Please wait before requesting another OTP");
             }
         }
@@ -109,11 +120,12 @@ public class OtpService {
 
         otpRepository.save(otpEntity);
 
-        otpSender.sendOtp(normalizedMobile, rawOtp, purposeValue);
+        OtpDeliveryResult delivery = otpSender.sendOtp(normalizedMobile, rawOtp, purposeValue, channel);
         return OtpSendResponse.builder()
                 .success(true)
-                .message("OTP sent successfully")
+                .message(delivery.getMessage())
                 .expiresInSeconds(expirationSeconds)
+                .deliveryChannel(delivery.getChannel())
                 .build();
     }
 

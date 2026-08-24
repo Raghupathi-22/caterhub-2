@@ -23,13 +23,14 @@ import java.time.Duration;
  * - Uses the SMS/Transactional SMS API only.
  * - Does NOT call the Voice/OBD API.
  * - Does NOT use the old /API/V1/{key}/SMS/... fallback.
- * - Uses the approved DLT template and sender ID configured in Railway.
+ * - Uses the approved DLT template and sender ID when they are configured.
+ * - DLT is optional: without a template/sender, voice OTP is used instead.
  * - Never logs the OTP or API key.
  */
 @Component
 @ConditionalOnProperty(name = "otp.sms.enabled", havingValue = "true")
 @Slf4j
-public class SmsOtpSender implements OtpSender {
+public class SmsOtpSender implements SmsOtpGateway {
 
     private final String baseUrl;
     private final String apiKey;
@@ -47,15 +48,11 @@ public class SmsOtpSender implements OtpSender {
             @Value("${twofactor.timeout-seconds:30}") long timeoutSeconds
     ) {
         this.baseUrl = normalizeBaseUrl(
-                requireConfiguration("TWOFACTOR_BASE_URL", baseUrl)
+                baseUrl == null || baseUrl.isBlank() ? "https://2factor.in" : baseUrl
         );
-        this.apiKey = requireConfiguration("TWOFACTOR_API_KEY", apiKey);
-        this.otpTemplate = requireConfiguration(
-                "TWOFACTOR_OTP_TEMPLATE", otpTemplate
-        );
-        this.senderId = requireConfiguration(
-                "TWOFACTOR_SENDER_ID", senderId
-        );
+        this.apiKey = apiKey == null ? "" : apiKey.trim();
+        this.otpTemplate = otpTemplate == null ? "" : otpTemplate.trim();
+        this.senderId = senderId == null ? "" : senderId.trim();
         this.timeout = Duration.ofSeconds(timeoutSeconds);
 
         this.httpClient = HttpClient.newBuilder()
@@ -66,23 +63,27 @@ public class SmsOtpSender implements OtpSender {
     }
 
     @Override
-    public void sendOtp(String mobileNumber, String otp, String purpose) {
+    public boolean isDltConfigured() {
+        return !otpTemplate.isBlank() && !senderId.isBlank() && !apiKey.isBlank();
+    }
+
+    @Override
+    public void sendSms(String mobileNumber, String otp, String purpose) {
+        if (!isDltConfigured()) {
+            throw new IllegalStateException("SMS DLT template/sender is not configured");
+        }
+        if (apiKey.isBlank()) {
+            throw new IllegalStateException("TWOFACTOR_API_KEY must be configured for SMS OTP");
+        }
+
         String normalizedMobile = normalizeIndianMobile(mobileNumber);
         String maskedMobile = maskMobile(normalizedMobile);
 
         try {
             /*
-             * 2Factor Transactional SMS API:
+             * 2Factor Transactional SMS API (requires DLT template + sender):
              *
              * https://2factor.in/API/R1/?module=TRANS_SMS
-             *   &apikey=API_KEY
-             *   &to=10_DIGIT_NUMBER
-             *   &from=CATRHB
-             *   &templatename=CaterHub%20OTP
-             *   &var1=123456
-             *
-             * We deliberately use this SMS endpoint.
-             * There is NO voice endpoint and NO fallback call.
              */
             String phoneWithoutCountryCode =
                     normalizedMobile.substring(3); // +91XXXXXXXXXX -> XXXXXXXXXX
@@ -168,6 +169,10 @@ public class SmsOtpSender implements OtpSender {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
 
+            if (looksBlocked(responseBody)) {
+                return false;
+            }
+
             JsonNode status = root.path("Status");
             if (status.isTextual()
                     && "Success".equalsIgnoreCase(status.asText())) {
@@ -182,6 +187,14 @@ public class SmsOtpSender implements OtpSender {
         } catch (IOException exception) {
             return false;
         }
+    }
+
+    private static boolean looksBlocked(String responseBody) {
+        String lower = responseBody.toLowerCase();
+        return lower.contains("dnd")
+                || lower.contains("blocked")
+                || lower.contains("undeliver")
+                || lower.contains("not delivered");
     }
 
     private String sanitizeProviderResponse(String responseBody) {
@@ -232,17 +245,4 @@ public class SmsOtpSender implements OtpSender {
                 + mobileNumber.substring(mobileNumber.length() - 4);
     }
 
-    private static String requireConfiguration(
-            String variableName,
-            String value
-    ) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalStateException(
-                    variableName
-                            + " must be configured when OTP_SMS_ENABLED=true"
-            );
-        }
-
-        return value.trim();
-    }
 }

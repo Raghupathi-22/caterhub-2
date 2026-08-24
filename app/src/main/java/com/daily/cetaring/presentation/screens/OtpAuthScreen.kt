@@ -475,9 +475,10 @@ fun OtpAuthScreen(
                             modifier = Modifier.height(4.dp)
                         )
 
+                        val sentState = otpState as? OtpUiState.Sent
                         Text(
-                            text =
-                                "Enter the 6-digit code sent to\n+91 $normalizedMobile",
+                            text = sentState?.message?.takeIf { it.isNotBlank() }
+                                ?: "Enter the 6-digit code sent to\n+91 $normalizedMobile",
                             color = Muted,
                             fontSize = 13.sp,
                             lineHeight = 19.sp,
@@ -598,6 +599,33 @@ fun OtpAuthScreen(
                                         FontWeight.Bold
                                 )
                             }
+                        }
+
+                        TextButton(
+                            onClick = {
+                                viewModel.sendOtp(
+                                    mobileNumber = "+91$normalizedMobile",
+                                    purpose = purpose,
+                                    userType = userType,
+                                    channel = "VOICE"
+                                )
+                            },
+                            enabled = otpState !is OtpUiState.Sending
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Phone,
+                                contentDescription = null,
+                                tint = Maroon,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.size(5.dp))
+                            Text(
+                                text = "Didn't get SMS? Call me with OTP",
+                                color = Maroon,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center
+                            )
                         }
 
                         /*
