@@ -39,6 +39,19 @@ public class OtpController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/voice")
+    @Operation(summary = "Request Voice OTP", description = "Request a voice-call OTP fallback (if configured)")
+    public ResponseEntity<OtpSendResponse> requestVoiceOtp(@Valid @RequestBody SendOtpRequest request, HttpServletRequest servletRequest) {
+        log.info("Request Voice OTP for mobile: {} purpose: {}", request.getMobileNumber(), request.getPurpose());
+        OtpSendResponse response = otpService.generateAndSendVoiceOtp(
+                request.getMobileNumber(),
+                request.getPurpose(),
+                request.getUserType(),
+                extractClientIp(servletRequest)
+        );
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/verify")
     @Operation(summary = "Verify OTP", description = "Verify OTP and authenticate or register user")
     public ResponseEntity<AuthResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {

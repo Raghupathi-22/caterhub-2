@@ -48,6 +48,7 @@ com\daily\cetaring\features\admin\entity\Coupon$DiscountType.class
 com\daily\cetaring\features\booking\repository\BookingItemRepository.class
 com\daily\cetaring\features\worker\repository\WorkerDocumentRepository.class
 com\daily\cetaring\features\auth\service\OtpService.class
+com\daily\cetaring\features\service\dto\ServiceRequestDtos$Response$ResponseBuilder.class
 com\daily\cetaring\features\worker\entity\WorkerDocument.class
 com\daily\cetaring\features\worker\repository\StaffingRequestRepository.class
 com\daily\cetaring\features\admin\entity\BusinessHours$BusinessHoursBuilder.class
@@ -61,10 +62,12 @@ com\daily\cetaring\features\worker\entity\WorkerAvailability$WorkerAvailabilityB
 com\daily\cetaring\features\analytics\entity\GeneratedReport$ReportStatus.class
 com\daily\cetaring\features\admin\entity\PromotionCampaign$CampaignStatus.class
 com\daily\cetaring\config\CorsConfiguration.class
+com\daily\cetaring\features\service\entity\ServiceRequest$ServiceRequestBuilder.class
 com\daily\cetaring\features\payment\entity\Refund$RefundMethod.class
 com\daily\cetaring\shared\dto\UpdateUserProfileRequest.class
 com\daily\cetaring\features\payment\entity\Payment$PaymentBuilder.class
 com\daily\cetaring\features\worker\repository\StaffingJobAcceptanceRepository.class
+com\daily\cetaring\features\service\entity\ServiceRequest$Status.class
 com\daily\cetaring\features\worker\repository\WorkerProfileRepository.class
 com\daily\cetaring\features\admin\repository\PromotionCampaignRepository.class
 com\daily\cetaring\features\menu\entity\MenuSchedule$MenuScheduleBuilder.class
@@ -88,6 +91,7 @@ com\daily\cetaring\features\worker\repository\JobAssignmentRepository.class
 com\daily\cetaring\features\notification\entity\NotificationCampaign$ChannelType.class
 com\daily\cetaring\features\admin\dto\OfferCreateRequest.class
 com\daily\cetaring\features\worker\dto\WorkerDtos$AvailabilityResponse.class
+com\daily\cetaring\features\service\dto\ServiceRequestDtos$Response.class
 com\daily\cetaring\features\worker\dto\WorkerDtos$StaffingJobResponse$StaffingJobResponseBuilder.class
 com\daily\cetaring\features\menu\entity\MenuTemplate.class
 com\daily\cetaring\features\auth\dto\OtpSendResponse.class
@@ -105,6 +109,7 @@ com\daily\cetaring\features\booking\dto\BookingDTO$BookingDTOBuilder.class
 com\daily\cetaring\features\notification\entity\FcmToken$FcmTokenBuilder.class
 com\daily\cetaring\features\worker\dto\WorkerDtos$StaffingJobResponse.class
 com\daily\cetaring\features\menu\entity\ItemCustomization.class
+com\daily\cetaring\features\service\dto\ServiceRequestDtos.class
 com\daily\cetaring\features\booking\entity\Booking$BookingBuilder.class
 com\daily\cetaring\features\payment\entity\WalletTransaction$WalletTransactionBuilder.class
 com\daily\cetaring\features\booking\dto\MenuItemDTO$MenuItemDTOBuilder.class
@@ -112,6 +117,7 @@ com\daily\cetaring\features\menu\entity\MenuSchedule$1.class
 com\daily\cetaring\features\admin\entity\AdminDashboard.class
 com\daily\cetaring\config\security\SecurityConfiguration.class
 com\daily\cetaring\features\worker\dto\WorkerDtos$CreateStaffingRequest$CreateStaffingRequestBuilder.class
+com\daily\cetaring\features\service\dto\ServiceRequestDtos$CreateRequest.class
 com\daily\cetaring\features\user\service\UserProfileService.class
 com\daily\cetaring\features\admin\entity\AdminDashboard$AdminDashboardBuilder.class
 com\daily\cetaring\features\worker\entity\StaffingRequest.class
@@ -134,6 +140,7 @@ com\daily\cetaring\features\booking\entity\Booking.class
 com\daily\cetaring\features\admin\entity\PromotionCampaign$PromotionCampaignBuilder.class
 com\daily\cetaring\shared\dto\UserDTO$UserDTOBuilder.class
 com\daily\cetaring\features\worker\entity\JobAssignment$AssignmentStatus.class
+com\daily\cetaring\features\service\repository\ServiceRequestRepository.class
 com\daily\cetaring\features\worker\dto\WorkerDtos$UpdateAvailabilityToggleRequest$UpdateAvailabilityToggleRequestBuilder.class
 com\daily\cetaring\features\worker\entity\WorkerAvailability.class
 com\daily\cetaring\features\notification\entity\Notification.class
@@ -158,6 +165,7 @@ com\daily\cetaring\features\analytics\entity\AnalyticsSnapshot.class
 com\daily\cetaring\features\auth\controller\OtpController.class
 com\daily\cetaring\features\notification\entity\NotificationPreference.class
 com\daily\cetaring\features\notification\entity\NotificationPreference$NotificationPreferenceBuilder.class
+com\daily\cetaring\features\service\controller\ServiceRequestController.class
 com\daily\cetaring\features\menu\entity\IngredientInventory.class
 com\daily\cetaring\features\admin\entity\BusinessHours.class
 com\daily\cetaring\features\worker\dto\WorkerDtos$DocumentResponse$DocumentResponseBuilder.class
@@ -192,6 +200,8 @@ com\daily\cetaring\features\admin\dto\EventCreateRequest$EventCreateRequestBuild
 com\daily\cetaring\features\booking\repository\BookingRepository.class
 com\daily\cetaring\features\admin\entity\DeliveryZone.class
 com\daily\cetaring\features\booking\dto\CreateMyBookingRequest$CreateMyBookingRequestBuilder.class
+com\daily\cetaring\features\service\entity\ServiceRequest.class
+com\daily\cetaring\features\service\service\ServiceRequestService.class
 com\daily\cetaring\features\admin\entity\DeliveryZone$DeliveryZoneBuilder.class
 com\daily\cetaring\features\booking\repository\MenuItemRepository.class
 com\daily\cetaring\features\legal\controller\PublicPageController.class

@@ -62,12 +62,16 @@ otp:
       window-seconds: ${OTP_RATE_LIMIT_IP_WINDOW_SECONDS:3600}
       max-sends: ${OTP_RATE_LIMIT_IP_MAX_SENDS:20}
   sms:
-    enabled: ${OTP_SMS_ENABLED:false}
+    # SMS only. Voice/OBD is never requested by CaterHub.
+    enabled: ${OTP_SMS_ENABLED:true}
 
 twofactor:
   api-key: ${TWOFACTOR_API_KEY:}
   base-url: ${TWOFACTOR_BASE_URL:https://2factor.in}
   timeout-seconds: ${TWOFACTOR_TIMEOUT_SECONDS:10}
+  # Approved 2Factor/DLT OTP template. The template determines the approved
+  # sender/header and message content. The OTP is sent as var1.
+  otp-template: ${TWOFACTOR_OTP_TEMPLATE:${SMS_PROVIDER_TEMPLATE_ID:}}
 
 logging:
   level:
