@@ -9,6 +9,8 @@
 - Docker build now fails immediately if duplicate Flyway migration versions are present.
 - Docker build uses a clean Maven package.
 - Added `railway.json` to force Railway to use the backend Dockerfile and the `/api/v1/health/live` liveness check.
+- Spring Boot listens on Railway `$PORT` (`server.port=${PORT:${SERVER_PORT:8080}}`).
+- Flyway runs `repair()` then `migrate()` so a failed V12 / rewritten checksum cannot keep the process from binding.
 - OTP SMS/voice integrations remain disabled by default for local startup and can be enabled explicitly in Railway.
 
 ## Railway variables

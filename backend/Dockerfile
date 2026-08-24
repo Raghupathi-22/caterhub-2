@@ -17,4 +17,4 @@ COPY --from=build /workspace/target/cetaring-backend-*.jar /app/cetaring-backend
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/cetaring-backend.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/cetaring-backend.jar"]
