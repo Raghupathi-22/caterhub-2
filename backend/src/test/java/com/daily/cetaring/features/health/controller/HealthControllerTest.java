@@ -41,5 +41,18 @@ class HealthControllerTest {
         assertEquals("DOWN", response.getBody().getStatus());
         assertEquals("DISCONNECTED", response.getBody().getDatabase());
     }
-}
 
+    @Test
+    void liveReturnsUpWithoutCheckingDatabase() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        HealthController controller = new HealthController(jdbcTemplate);
+
+        ResponseEntity<HealthResponse> response = controller.live();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("UP", response.getBody().getStatus());
+        assertEquals("NOT_CHECKED", response.getBody().getDatabase());
+        assertNotNull(response.getBody().getTime());
+    }
+}

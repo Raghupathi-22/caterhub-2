@@ -8,7 +8,7 @@
 - Updated `backend/src.zip` so it contains the current source instead of an obsolete migration snapshot.
 - Docker build now fails immediately if duplicate Flyway migration versions are present.
 - Docker build uses a clean Maven package.
-- Added `railway.json` to force Railway to use the backend Dockerfile and the `/api/v1/health` health check.
+- Added `railway.json` to force Railway to use the backend Dockerfile and the `/api/v1/health/live` liveness check.
 - OTP SMS/voice integrations remain disabled by default for local startup and can be enabled explicitly in Railway.
 
 ## Railway variables
