@@ -101,7 +101,7 @@ public class SecurityConfiguration {
                         ).permitAll()
 
                         // Public APIs
-                        .requestMatchers("/health").permitAll()
+                        .requestMatchers("/health", "/health/live").permitAll()
                         .requestMatchers("/auth/**").permitAll()
 
                         // Swagger

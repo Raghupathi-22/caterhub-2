@@ -33,6 +33,17 @@ public class HealthController {
         return ResponseEntity.status(status).body(response);
     }
 
+    @GetMapping("/live")
+    public ResponseEntity<HealthResponse> live() {
+        HealthResponse response = HealthResponse.builder()
+            .status("UP")
+            .database("NOT_CHECKED")
+            .time(LocalDateTime.now())
+            .build();
+
+        return ResponseEntity.ok(response);
+    }
+
     private boolean isDatabaseConnected() {
         try {
             Integer result = jdbcTemplate.queryForObject("SELECT 1", Integer.class);
@@ -43,4 +54,3 @@ public class HealthController {
         }
     }
 }
-
