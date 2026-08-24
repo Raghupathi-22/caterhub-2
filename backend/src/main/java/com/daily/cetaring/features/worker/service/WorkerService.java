@@ -340,8 +340,18 @@ public class WorkerService {
     }
 
     public WorkerDtos.StaffingJobResponse createStaffingRequestForUsername(String username, WorkerDtos.CreateStaffingRequest request) {
-        if (!request.getStartTime().isBefore(request.getEndTime())) {
+        if (request.getEventDate() == null || request.getEventDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("Event date must be today or a future date");
+        }
+        if (request.getStartTime() == null || request.getEndTime() == null
+            || !request.getStartTime().isBefore(request.getEndTime())) {
             throw new IllegalArgumentException("Start time must be before end time");
+        }
+        if (request.getRequiredWorkers() == null || request.getRequiredWorkers() < 1) {
+            throw new IllegalArgumentException("Required workers must be at least 1");
+        }
+        if (request.getPayment() == null || request.getPayment().signum() <= 0) {
+            throw new IllegalArgumentException("Payment must be greater than 0");
         }
         User creator = userRepository.findByUsername(username)
             .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
@@ -358,7 +368,7 @@ public class WorkerService {
             .acceptedWorkers(0)
             .payment(request.getPayment())
             .additionalRequirements(trimToNull(request.getAdditionalRequirements()))
-            .status(StaffingRequest.StaffingStatus.PENDING)
+            .status(StaffingRequest.StaffingStatus.OPEN)
             .build();
         return mapStaffingJob(staffingRequestRepository.save(staffingRequest), false);
     }
