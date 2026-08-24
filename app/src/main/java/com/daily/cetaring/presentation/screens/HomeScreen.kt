@@ -94,6 +94,7 @@ fun HomeScreen(
     onGuestSizeClick: (Int) -> Unit,
     onEventTypeClick: (String) -> Unit,
     onLogout: () -> Unit,
+    onPlanEventClick: () -> Unit = {},
     onStaffBookingClick: () -> Unit = {},
     onEquipmentClick: () -> Unit = {}
 ) {
@@ -125,6 +126,14 @@ fun HomeScreen(
             SearchSection()
 
             HeroSection(onBookCateringClick)
+
+            ServiceActionCard(
+                title = "Plan My Complete Event",
+                description = "Marriage • Engagement • Pooja • Birthday • Venue • Food • Staff • More",
+                icon = Icons.Filled.Celebration,
+                background = Gold,
+                onClick = onPlanEventClick
+            )
 
             ServiceActionCard(
                 title = "Book Catering Staff",

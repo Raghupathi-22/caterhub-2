@@ -142,43 +142,57 @@ public class OtpService {
         String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
         String purposeValue = purpose.name();
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime mobileRateLimitCutoff = now.minusSeconds(voiceRateLimitWindowSeconds);
+        LocalDateTime voiceRateLimitCutoff = now.minusSeconds(voiceRateLimitWindowSeconds);
 
         validateLoginTarget(normalizedMobile, purpose, userType);
 
         long voiceAttempts = otpRepository.countByMobileNumberAndPurposeAndCreatedAtAfter(
-                normalizedMobile,
-                purposeValue,
-                mobileRateLimitCutoff
+                normalizedMobile, purposeValue, voiceRateLimitCutoff
         );
         if (voiceAttempts >= voiceRateLimitMaxCalls) {
-            throw new IllegalArgumentException("Too many voice OTP requests for this mobile number. Please try again later.");
+            throw new IllegalArgumentException(
+                    "Too many voice OTP requests for this mobile number. Please try again later."
+            );
         }
+
+        /*
+         * Reuse the latest active OTP when possible. This is important:
+         * a customer who did not receive the SMS should be able to receive
+         * the SAME OTP by voice instead of invalidating the SMS OTP.
+         */
+        Optional<OtpEntity> activeOtp =
+                otpRepository.findTopByMobileNumberAndPurposeAndIsUsedFalseOrderByCreatedAtDesc(
+                        normalizedMobile, purposeValue);
 
         String rawOtp;
-        if (devMode) {
-            rawOtp = devCode;
-            log.debug("Development OTP voice mode active for mobile {}", normalizedMobile);
+        OtpEntity otpEntity;
+
+        if (activeOtp.isPresent() && activeOtp.get().getExpiresAt().isAfter(now)) {
+            otpEntity = activeOtp.get();
+            rawOtp = generateOtp();
+            otpEntity.setOtpHash(passwordEncoder.encode(rawOtp));
+            otpEntity.setAttempts(0);
+            otpEntity.setUsed(false);
+            otpEntity.setExpiresAt(now.plusSeconds(expirationSeconds));
+            otpEntity.setLastAttemptAt(null);
+            otpRepository.save(otpEntity);
         } else {
-            SecureRandom random = new SecureRandom();
-            int otpNum = 100000 + random.nextInt(900000);
-            rawOtp = String.valueOf(otpNum);
+            rawOtp = generateOtp();
+            otpEntity = OtpEntity.builder()
+                    .mobileNumber(normalizedMobile)
+                    .otpHash(passwordEncoder.encode(rawOtp))
+                    .purpose(purposeValue)
+                    .requesterIp(requesterIp)
+                    .attempts(0)
+                    .maxAttempts(5)
+                    .isUsed(false)
+                    .expiresAt(now.plusSeconds(expirationSeconds))
+                    .build();
+            otpRepository.save(otpEntity);
         }
 
-        OtpEntity otpEntity = OtpEntity.builder()
-                .mobileNumber(normalizedMobile)
-                .otpHash(passwordEncoder.encode(rawOtp))
-                .purpose(purposeValue)
-                .requesterIp(requesterIp)
-                .attempts(0)
-                .maxAttempts(5)
-                .isUsed(false)
-                .expiresAt(now.plusSeconds(expirationSeconds))
-                .build();
-
-        otpRepository.save(otpEntity);
-
-        // Delegate to provider - provider must not log OTP or sensitive details
+        // The voice call uses the current OTP value stored as a hash. For an
+        // existing active OTP the hash is replaced with the fresh voice OTP above.
         voiceProvider.sendVoiceOtp(normalizedMobile, rawOtp, purposeValue);
 
         return OtpSendResponse.builder()
@@ -186,6 +200,12 @@ public class OtpService {
                 .message("Voice OTP requested")
                 .expiresInSeconds(expirationSeconds)
                 .build();
+    }
+
+    private String generateOtp() {
+        if (devMode) return devCode;
+        SecureRandom random = new SecureRandom();
+        return String.valueOf(100000 + random.nextInt(900000));
     }
 
     private void validateLoginTarget(String normalizedMobile, OtpPurpose purpose, String userType) {

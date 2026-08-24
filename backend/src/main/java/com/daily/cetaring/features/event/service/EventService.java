@@ -71,7 +71,12 @@ public class EventService {
     }
 
     public EventDtos.Response getEvent(Long id) {
-        Event e = eventRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Event not found"));
+        User user = currentUser();
+        Event e = eventRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found"));
+        if (e.getCreatedBy() == null || !e.getCreatedBy().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("You do not have access to this event");
+        }
         return mapToResponse(e);
     }
 
@@ -88,7 +93,12 @@ public class EventService {
     }
 
     public EventDtos.WorkspaceResponse getWorkspace(Long eventId) {
-        Event e = eventRepository.findById(eventId).orElseThrow(() -> new IllegalArgumentException("Event not found"));
+        User user = currentUser();
+        Event e = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found"));
+        if (e.getCreatedBy() == null || !e.getCreatedBy().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("You do not have access to this event");
+        }
         List<EventRequirement> requirements = eventRequirementRepository.findByEventId(eventId);
 
         BigDecimal totalPlanned = requirements.stream()
@@ -139,6 +149,17 @@ public class EventService {
                 .build();
     }
 
+    private User currentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication() != null
+                ? SecurityContextHolder.getContext().getAuthentication().getName()
+                : null;
+        if (username == null || username.equals("anonymousUser")) {
+            throw new IllegalArgumentException("Authentication required");
+        }
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
+    }
+
     private String generateEventCode() {
         // Simple sequential-ish code using timestamp; replace with DB-sequence for production
         long ts = System.currentTimeMillis() % 1000000;
@@ -148,22 +169,73 @@ public class EventService {
 
     private List<EventRequirement> generateChecklistForType(Event event, EventType type) {
         List<EventRequirement> list = new ArrayList<>();
-        if (type == EventType.MARRIAGE) {
-            list.add(buildRequirement(event, "Venue", null));
-            list.add(buildRequirement(event, "Catering", null));
-            list.add(buildRequirement(event, "Decoration", null));
-            list.add(buildRequirement(event, "Photography", null));
-            list.add(buildRequirement(event, "Religious/Priest", null));
-            list.add(buildRequirement(event, "Workers", null));
-            list.add(buildRequirement(event, "Transport", null));
-            list.add(buildRequirement(event, "Accommodation", null));
-            list.add(buildRequirement(event, "Invitations", null));
-        } else {
-            list.add(buildRequirement(event, "Venue", null));
-            list.add(buildRequirement(event, "Catering", null));
-            list.add(buildRequirement(event, "Decoration", null));
+
+        // Core services for every event.
+        add(list, event, "Venue");
+        add(list, event, "Catering");
+        add(list, event, "Decoration");
+
+        switch (type) {
+            case MARRIAGE -> {
+                add(list, event, "Catering Workforce");
+                add(list, event, "Priest / Purohit");
+                add(list, event, "Photography");
+                add(list, event, "Videography");
+                add(list, event, "Makeup");
+                add(list, event, "Mehendi");
+                add(list, event, "DJ / Music");
+                add(list, event, "Transport");
+                add(list, event, "Accommodation");
+                add(list, event, "Invitations");
+                add(list, event, "Flowers / Garlands");
+                add(list, event, "Cleaning");
+                add(list, event, "Other Custom Requirements");
+            }
+            case ENGAGEMENT -> {
+                add(list, event, "Photography");
+                add(list, event, "Makeup");
+                add(list, event, "Mehendi");
+                add(list, event, "DJ / Music");
+                add(list, event, "Flowers / Garlands");
+                add(list, event, "Transport");
+                add(list, event, "Invitations");
+                add(list, event, "Cleaning");
+            }
+            case POOJA -> {
+                add(list, event, "Priest / Purohit");
+                add(list, event, "Puja Materials");
+                add(list, event, "Flowers / Garlands");
+                add(list, event, "Photography");
+                add(list, event, "Cleaning");
+            }
+            case BIRTHDAY, BABY_FUNCTION, HOUSEWARMING, ANNIVERSARY -> {
+                add(list, event, "Photography");
+                add(list, event, "Entertainment");
+                add(list, event, "Transport");
+                add(list, event, "Invitations");
+                add(list, event, "Cleaning");
+            }
+            case CORPORATE, SCHOOL_COLLEGE -> {
+                add(list, event, "Event Staff");
+                add(list, event, "Audio / AV");
+                add(list, event, "Photography");
+                add(list, event, "Transport");
+                add(list, event, "Invitations");
+                add(list, event, "Cleaning");
+            }
+            case OTHER -> {
+                add(list, event, "Photography");
+                add(list, event, "Event Staff");
+                add(list, event, "Transport");
+                add(list, event, "Other Custom Requirements");
+            }
         }
+
         return list;
+    }
+
+    private void add(List<EventRequirement> list, Event event, String category) {
+        list.add(buildRequirement(event, category, null));
     }
 
     private EventRequirement buildRequirement(Event event, String category, BigDecimal planned) {

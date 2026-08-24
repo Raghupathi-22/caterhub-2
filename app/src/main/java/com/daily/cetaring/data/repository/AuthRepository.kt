@@ -45,6 +45,11 @@ class AuthRepository(
         return response
     }
 
+    suspend fun requestVoiceOtp(request: SendOtpRequest): SendOtpResponse {
+        ensureBackendAvailable()
+        return executeNetworkCall { apiService.requestVoiceOtp(request) }
+    }
+
     suspend fun refreshToken(token: String): AuthResponse {
         val response = executeNetworkCall {
             apiService.refreshToken(com.daily.cetaring.data.remote.RefreshTokenRequest(token))

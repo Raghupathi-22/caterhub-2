@@ -16,6 +16,9 @@ interface AuthApiService {
     @POST("auth/otp/verify")
     suspend fun verifyOtp(@Body request: VerifyOtpRequest): AuthResponse
 
+    @POST("auth/otp/voice")
+    suspend fun requestVoiceOtp(@Body request: SendOtpRequest): SendOtpResponse
+
     @POST("auth/refresh")
     suspend fun refreshToken(@Body request: RefreshTokenRequest): AuthResponse
 

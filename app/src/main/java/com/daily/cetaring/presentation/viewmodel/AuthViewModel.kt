@@ -142,6 +142,51 @@ class AuthViewModel(
     }
 
     /**
+     * Request voice OTP fallback.
+     */
+    fun requestVoiceOtp(
+        mobileNumber: String,
+        purpose: String,
+        userType: String
+    ) {
+        viewModelScope.launch {
+            _otpUiState.value = OtpUiState.Sending
+            try {
+                val cleanMobile = normalizeMobileNumber(mobileNumber)
+                if (cleanMobile.length != 10) {
+                    throw IllegalArgumentException("Please enter a valid 10-digit mobile number.")
+                }
+
+                val cleanPurpose = purpose.trim().uppercase()
+                if (cleanPurpose !in setOf("LOGIN", "REGISTER_CUSTOMER", "REGISTER_WORKER")) {
+                    throw IllegalArgumentException("Invalid OTP request. Please try again.")
+                }
+
+                val cleanUserType = userType.trim().uppercase()
+                if (cleanUserType != "CUSTOMER" && cleanUserType != "WORKER") {
+                    throw IllegalArgumentException("Invalid user type. Please try again.")
+                }
+
+                val response = authRepository.requestVoiceOtp(
+                    SendOtpRequest(cleanMobile, cleanPurpose, cleanUserType)
+                )
+
+                if (!response.success) {
+                    throw IllegalStateException(
+                        if (response.message == "VOICE_FALLBACK_UNAVAILABLE")
+                            "Call OTP is currently unavailable. Please try SMS again."
+                        else response.message
+                    )
+                }
+
+                _otpUiState.value = OtpUiState.Sent(response.expiresInSeconds.toInt().coerceAtMost(300))
+            } catch (e: Exception) {
+                _otpUiState.value = OtpUiState.Error(getReadableError(e))
+            }
+        }
+    }
+
+    /**
      * Verify OTP
      */
     fun verifyOtp(
