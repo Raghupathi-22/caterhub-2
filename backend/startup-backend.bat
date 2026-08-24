@@ -10,7 +10,9 @@ echo Cetaring Backend Startup Script
 echo ==========================================
 echo.
 
-REM Set Java home if not already set
+cd /d "%~dp0"
+
+REM Check if Java home if not already set
 if not defined JAVA_HOME (
     for /f "tokens=*" %%A in ('where java') do (
         set JAVA_HOME=%%A\..\..
@@ -45,7 +47,7 @@ java -jar target\cetaring-backend-1.0.0.jar ^
     --server.port=8080 ^
     --spring.datasource.url=jdbc:mysql://localhost:3306/caterhub?createDatabaseIfNotExist=true^&useSSL=false^&allowPublicKeyRetrieval=true^&serverTimezone=Asia/Kolkata ^
     --spring.datasource.username=root ^
-    --spring.datasource.password=root ^
+    --spring.datasource.****** ^
     --spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver ^
     --spring.flyway.enabled=true ^
     --logging.level.root=INFO ^
