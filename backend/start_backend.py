@@ -192,7 +192,7 @@ def start_application(backend_dir, port=8080, db_host="localhost", db_port=3306,
 def main():
     separator("CETARING BACKEND STARTUP SCRIPT")
 
-    backend_dir = Path("C:/app/application/git-catatering/backend")
+    backend_dir = Path(__file__).resolve().parent
     if not backend_dir.exists():
         log_error(f"Backend directory not found: {backend_dir}")
         sys.exit(1)

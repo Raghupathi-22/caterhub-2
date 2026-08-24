@@ -74,7 +74,7 @@ function Test-Port {
 function Build-Application {
     Write-Info "Building application with Maven..."
 
-    cd C:\app\application\git-catatering\backend
+    Set-Location $PSScriptRoot
 
     # Try different Maven paths
     $mvnPaths = @(
@@ -168,7 +168,7 @@ function Start-Backend {
 
     $dbConnString = "jdbc:mysql://$DBHost`:$DBPort/$DBName`?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata"
 
-    cd C:\app\application\git-catatering\backend
+    Set-Location $PSScriptRoot
 
     # Start the JAR
     & java -jar target\cetaring-backend-1.0.0.jar `

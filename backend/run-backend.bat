@@ -10,7 +10,7 @@ echo  Cetaring Backend - Quick Start
 echo ========================================
 echo.
 
-cd /d C:\app\application\git-catatering\backend
+cd /d "%~dp0"
 
 REM Check if Python is available (preferred)
 where python >nul 2>&1
