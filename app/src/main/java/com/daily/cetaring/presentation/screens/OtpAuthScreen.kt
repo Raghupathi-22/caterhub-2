@@ -601,6 +601,34 @@ fun OtpAuthScreen(
                         }
 
                         /*
+                         * VOICE OTP FALLBACK + RESEND
+                         */
+                        if (cooldown == 0) {
+                            TextButton(
+                                onClick = {
+                                    viewModel.requestVoiceOtp(
+                                        mobileNumber = "+91$normalizedMobile",
+                                        purpose = purpose,
+                                        userType = userType
+                                    )
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Phone,
+                                    contentDescription = null,
+                                    tint = Maroon,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.size(5.dp))
+                                Text(
+                                    text = "Call me with OTP",
+                                    color = Maroon,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        /*
                          * RESEND
                          */
                         if (cooldown == 0) {

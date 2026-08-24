@@ -30,6 +30,7 @@ import com.daily.cetaring.presentation.screens.BookingHistoryScreen
 import com.daily.cetaring.presentation.screens.BookingSuccessScreen
 import com.daily.cetaring.presentation.screens.CustomerProfileScreen
 import com.daily.cetaring.presentation.screens.HelpSupportScreen
+import com.daily.cetaring.presentation.screens.EventPlannerScreen
 import com.daily.cetaring.presentation.screens.HomeScreen
 import com.daily.cetaring.presentation.screens.OtpAuthScreen
 import com.daily.cetaring.presentation.screens.WorkerDashboardScreen
@@ -43,6 +44,7 @@ import com.daily.cetaring.presentation.viewmodel.AuthViewModel
 import com.daily.cetaring.presentation.viewmodel.BookingViewModel
 import com.daily.cetaring.presentation.viewmodel.CustomerProfileViewModel
 import com.daily.cetaring.presentation.viewmodel.HomeViewModel
+import com.daily.cetaring.presentation.viewmodel.EventViewModel
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 import com.daily.cetaring.ui.theme.CetaringTheme
 import kotlinx.coroutines.flow.combine
@@ -67,6 +69,7 @@ private object AppRoute {
     const val WORKER_MY_JOBS = "worker_my_jobs"
     const val WORKER_PROFILE = "worker_profile"
     const val HELP_SUPPORT = "help_support"
+    const val EVENT_PLANNER = "event_planner"
     const val WORKER_ACCOUNT_REGISTER = "worker_account_register"
     const val WORKER_LOGIN = "worker_login"
 }
@@ -102,6 +105,11 @@ class MainActivity : ComponentActivity() {
         val homeViewModel = HomeViewModel(bookingRepository, authLocalDataSource)
         val workerViewModel = WorkerViewModel(workerRepository)
         val customerProfileViewModel = CustomerProfileViewModel(userRepository, authRepository)
+        val eventRepository = com.daily.cetaring.data.repository.EventRepository(
+            api = ApiClient.eventApiService,
+            auth = authLocalDataSource
+        )
+        val eventViewModel = EventViewModel(eventRepository)
 
         setContent {
             CetaringTheme {
@@ -197,6 +205,9 @@ class MainActivity : ComponentActivity() {
                                 bookingViewModel.startNewBooking()
                                 navController.navigate(AppRoute.BOOKING_FLOW)
                             },
+                            onPlanEventClick = {
+                                navController.navigate(AppRoute.EVENT_PLANNER)
+                            },
                             onWorkerRegisterClick = { navController.navigate(AppRoute.WORKER_ONBOARDING) },
                             onStaffBookingClick = { navController.navigate(AppRoute.STAFF_SERVICES) },
                             onEquipmentClick = { navController.navigate(AppRoute.EQUIPMENT_SERVICES) },
@@ -218,6 +229,13 @@ class MainActivity : ComponentActivity() {
                                     popUpTo(AppRoute.HOME) { inclusive = true }
                                 }
                             }
+                        )
+                    }
+
+                    composable(AppRoute.EVENT_PLANNER) {
+                        EventPlannerScreen(
+                            viewModel = eventViewModel,
+                            onBack = { navController.popBackStack() }
                         )
                     }
 

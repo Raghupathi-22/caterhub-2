@@ -24,6 +24,8 @@ spring:
     fail-on-missing-locations: true
 
 server:
+  servlet:
+    context-path: /api/v1
   port: ${SERVER_PORT:8080}
 
 cors:
@@ -65,13 +67,14 @@ otp:
     enabled: ${OTP_SMS_ENABLED:true}
   voice:
     # Enable voice-call OTP fallback if provider is configured and account supports it
-    enabled: ${OTP_VOICE_ENABLED:false}
+    enabled: ${OTP_VOICE_ENABLED:true}
     # Separate rate-limits for voice fallback
     rate-limit:
       window-seconds: ${OTP_VOICE_RATE_LIMIT_WINDOW_SECONDS:3600}
       max-calls: ${OTP_VOICE_RATE_LIMIT_MAX_CALLS:2}
 
 twofactor:
+  voice-base-url: ${TWOFACTOR_VOICE_BASE_URL:https://2factor.in}
   api-key: ${TWOFACTOR_API_KEY:}
   base-url: ${TWOFACTOR_BASE_URL:https://2factor.in}
   timeout-seconds: ${TWOFACTOR_TIMEOUT_SECONDS:30}
