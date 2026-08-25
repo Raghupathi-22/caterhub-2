@@ -262,15 +262,24 @@ private fun HomeWorkWithUs(onWorkerRegisterClick: () -> Unit) {
         border = BorderStroke(1.dp, Border)
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Work with CaterHub", color = Red, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-            Text("Join as a service professional", color = Ink)
-            ActionButton("JOIN CATERHUB", Green, onWorkerRegisterClick)
+            Text("Join CaterHub", color = Red, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+            Text("Work with us and earn with your skills", color = Green, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Join as a catering professional, decorator, DJ, singer, photographer, beauty professional or other event service provider.",
+                color = Ink
+            )
+            ActionButton("Join CaterHub \u2192", Green, onWorkerRegisterClick, showTrailingArrow = false)
         }
     }
 }
 
 @Composable
-private fun ActionButton(text: String, color: Color, onClick: () -> Unit) {
+private fun ActionButton(
+    text: String,
+    color: Color,
+    onClick: () -> Unit,
+    showTrailingArrow: Boolean = true
+) {
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
@@ -282,8 +291,10 @@ private fun ActionButton(text: String, color: Color, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text, color = Color.White, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(8.dp))
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color.White, modifier = Modifier.size(18.dp))
+            if (showTrailingArrow) {
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color.White, modifier = Modifier.size(18.dp))
+            }
         }
     }
 }
@@ -321,4 +332,3 @@ private fun HomeBottomBar(
         NavigationBarItem(selected = false, onClick = onProfileClick, icon = { Icon(Icons.Filled.AccountCircle, "Profile") }, label = { Text("Profile") })
     }
 }
-

@@ -152,7 +152,7 @@ public class WorkerProfile {
     private User user;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "worker_type", nullable = false, length = 40)
+    @Column(name = "worker_type", nullable = false, length = 64)
     private WorkerType workerType;
 
     @Enumerated(EnumType.STRING)

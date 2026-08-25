@@ -62,7 +62,7 @@ public class JobAssignment {
     private User assignedBy;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "worker_type", nullable = false, length = 30)
+    @Column(name = "worker_type", nullable = false, length = 64)
     private WorkerProfile.WorkerType workerType;
 
     @Enumerated(EnumType.STRING)
@@ -114,4 +114,3 @@ public class JobAssignment {
         updatedAt = LocalDateTime.now();
     }
 }
-

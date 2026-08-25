@@ -40,7 +40,7 @@ public class StaffingRequest {
     private String eventType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "worker_type", nullable = false, length = 30)
+    @Column(name = "worker_type", nullable = false, length = 64)
     private WorkerProfile.WorkerType workerType;
 
     @Column(name = "event_date", nullable = false)
@@ -94,4 +94,3 @@ public class StaffingRequest {
         updatedAt = LocalDateTime.now();
     }
 }
-
