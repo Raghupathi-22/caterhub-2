@@ -56,14 +56,6 @@ private object AppRoute {
     const val BOOKING_FLOW = "booking_flow"
     const val STAFF_SERVICES = "staff_services"
     const val EQUIPMENT_SERVICES = "equipment_services"
-    const val DECORATION_SERVICES = "decoration_services"
-    const val ENTERTAINMENT_SERVICES = "entertainment_services"
-    const val BEAUTY_SERVICES = "beauty_services"
-    const val PHOTOGRAPHY_SERVICES = "photography_services"
-    const val RELIGIOUS_SERVICES = "religious_services"
-    const val TRANSPORT_SERVICES = "transport_services"
-    const val INVITATIONS_SERVICES = "invitations_services"
-    const val EVENT_SUPPORT_SERVICES = "event_support_services"
     const val BOOKINGS = "bookings"
     const val BOOKING_SUCCESS = "booking_success/{bookingId}"
     const val BOOKING_DETAILS = "booking_details/{bookingId}"
@@ -85,6 +77,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val authLocalDataSource = AuthLocalDataSource(applicationContext)
+        // Configure the shared HTTP client before any Retrofit service is created.
+        // This enables automatic access-token refresh for all protected APIs.
+        ApiClient.initializeAuth(authLocalDataSource)
         val authRepository = AuthRepository(
             apiService = ApiClient.authApiService,
             localDataSource = authLocalDataSource
@@ -206,15 +201,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onWorkerRegisterClick = { navController.navigate(AppRoute.WORKER_ONBOARDING) },
                             onStaffBookingClick = { navController.navigate(AppRoute.STAFF_SERVICES) },
-                            onEquipmentClick = { navController.navigate(AppRoute.DECORATION_SERVICES) },
-                            onDecorationClick = { navController.navigate(AppRoute.DECORATION_SERVICES) },
-                            onEntertainmentClick = { navController.navigate(AppRoute.ENTERTAINMENT_SERVICES) },
-                            onBeautyClick = { navController.navigate(AppRoute.BEAUTY_SERVICES) },
-                            onPhotographyClick = { navController.navigate(AppRoute.PHOTOGRAPHY_SERVICES) },
-                            onReligiousClick = { navController.navigate(AppRoute.RELIGIOUS_SERVICES) },
-                            onTransportClick = { navController.navigate(AppRoute.TRANSPORT_SERVICES) },
-                            onInvitationsClick = { navController.navigate(AppRoute.INVITATIONS_SERVICES) },
-                            onEventSupportClick = { navController.navigate(AppRoute.EVENT_SUPPORT_SERVICES) },
+                            onEquipmentClick = { navController.navigate(AppRoute.EQUIPMENT_SERVICES) },
                             onBookingsClick = { navController.navigate(AppRoute.BOOKINGS) },
                             onBookingClick = { bookingId -> navController.navigate("booking_details/$bookingId") },
                             onNotificationsClick = { },
@@ -273,43 +260,11 @@ class MainActivity : ComponentActivity() {
 
                     composable(AppRoute.EQUIPMENT_SERVICES) {
                         ServiceRequestScreen(
-                            serviceType = "decoration",
+                            serviceType = "equipment",
                             workerRepository = workerRepository,
                             onBackClick = { navController.popBackStack() },
                             onSubmitted = { navController.popBackStack() }
                         )
-                    }
-
-                    composable(AppRoute.DECORATION_SERVICES) {
-                        ServiceRequestScreen("decoration", workerRepository, { navController.popBackStack() }, { navController.popBackStack() })
-                    }
-
-                    composable(AppRoute.ENTERTAINMENT_SERVICES) {
-                        ServiceRequestScreen("entertainment", workerRepository, { navController.popBackStack() }, { navController.popBackStack() })
-                    }
-
-                    composable(AppRoute.BEAUTY_SERVICES) {
-                        ServiceRequestScreen("beauty", workerRepository, { navController.popBackStack() }, { navController.popBackStack() })
-                    }
-
-                    composable(AppRoute.PHOTOGRAPHY_SERVICES) {
-                        ServiceRequestScreen("photography", workerRepository, { navController.popBackStack() }, { navController.popBackStack() })
-                    }
-
-                    composable(AppRoute.RELIGIOUS_SERVICES) {
-                        ServiceRequestScreen("religious", workerRepository, { navController.popBackStack() }, { navController.popBackStack() })
-                    }
-
-                    composable(AppRoute.TRANSPORT_SERVICES) {
-                        ServiceRequestScreen("transport", workerRepository, { navController.popBackStack() }, { navController.popBackStack() })
-                    }
-
-                    composable(AppRoute.INVITATIONS_SERVICES) {
-                        ServiceRequestScreen("invitations", workerRepository, { navController.popBackStack() }, { navController.popBackStack() })
-                    }
-
-                    composable(AppRoute.EVENT_SUPPORT_SERVICES) {
-                        ServiceRequestScreen("support", workerRepository, { navController.popBackStack() }, { navController.popBackStack() })
                     }
 
                     composable(AppRoute.BOOKINGS) {
