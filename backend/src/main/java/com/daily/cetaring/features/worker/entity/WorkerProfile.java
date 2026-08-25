@@ -1,6 +1,6 @@
 package com.daily.cetaring.features.worker.entity;
 
-import com.daily.cetaring.features.user.entity.User;
+import com.daily.cetaring.shared.entity.User;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
