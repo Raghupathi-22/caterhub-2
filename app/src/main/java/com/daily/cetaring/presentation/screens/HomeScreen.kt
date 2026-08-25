@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.CheckCircle
@@ -95,7 +96,15 @@ fun HomeScreen(
     onEventTypeClick: (String) -> Unit,
     onLogout: () -> Unit,
     onStaffBookingClick: () -> Unit = {},
-    onEquipmentClick: () -> Unit = {}
+    onEquipmentClick: () -> Unit = {},
+    onDecorationClick: () -> Unit = onEquipmentClick,
+    onEntertainmentClick: () -> Unit = {},
+    onBeautyClick: () -> Unit = {},
+    onPhotographyClick: () -> Unit = {},
+    onReligiousClick: () -> Unit = {},
+    onTransportClick: () -> Unit = {},
+    onInvitationsClick: () -> Unit = {},
+    onEventSupportClick: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = Cream,
@@ -126,20 +135,16 @@ fun HomeScreen(
 
             HeroSection(onBookCateringClick)
 
-            ServiceActionCard(
-                title = "Book Catering Staff",
-                description = "Chef • Catering Boys • Catering Girls • Helpers • Cleaning Staff",
-                icon = Icons.Filled.Groups,
-                background = Maroon,
-                onClick = onStaffBookingClick
-            )
-
-            ServiceActionCard(
-                title = "Event Decorations & Equipment",
-                description = "Chairs • Tables • Decorations • Stage • Lighting & More",
-                icon = Icons.Filled.Celebration,
-                background = Green,
-                onClick = onEquipmentClick
+            ServiceCategoriesSection(
+                onStaffBookingClick = onStaffBookingClick,
+                onDecorationClick = onDecorationClick,
+                onEntertainmentClick = onEntertainmentClick,
+                onBeautyClick = onBeautyClick,
+                onPhotographyClick = onPhotographyClick,
+                onReligiousClick = onReligiousClick,
+                onTransportClick = onTransportClick,
+                onInvitationsClick = onInvitationsClick,
+                onEventSupportClick = onEventSupportClick
             )
 
             OffersSection()
@@ -310,13 +315,13 @@ private fun HeroSection(onBookCateringClick: () -> Unit) {
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                "Choose your event, guests and catering plan. We take care of the rest.",
+                "Choose your event, guests and food package. We take care of the catering.",
                 color = TextDark,
                 style = MaterialTheme.typography.bodyLarge,
                 lineHeight = 24.sp
             )
             PrimaryButton(
-                "Start Booking",
+                "Book Catering & Food",
                 Maroon,
                 onBookCateringClick
             )
@@ -398,6 +403,92 @@ private fun ServiceActionCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ServiceCategoriesSection(
+    onStaffBookingClick: () -> Unit,
+    onDecorationClick: () -> Unit,
+    onEntertainmentClick: () -> Unit,
+    onBeautyClick: () -> Unit,
+    onPhotographyClick: () -> Unit,
+    onReligiousClick: () -> Unit,
+    onTransportClick: () -> Unit,
+    onInvitationsClick: () -> Unit,
+    onEventSupportClick: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeader("Book Event Services", Icons.Filled.Celebration)
+        Text(
+            "Choose exactly what you need for your event. Each category has its own booking flow.",
+            color = Muted,
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        ServiceActionCard(
+            title = "Catering Staff",
+            description = "Chef • Serving Boys & Girls • Helpers • Cleaning • Supervisor",
+            icon = Icons.Filled.Groups,
+            background = Maroon,
+            onClick = onStaffBookingClick
+        )
+        ServiceActionCard(
+            title = "Decoration & Event Setup",
+            description = "Chairs • Tables • Stage • Flowers • Lighting • Tent • Mandap",
+            icon = Icons.Filled.Celebration,
+            background = Green,
+            onClick = onDecorationClick
+        )
+        ServiceActionCard(
+            title = "Entertainment",
+            description = "DJ • Band/Melam • Singers • Dance • Anchor • Magic Show • Audio",
+            icon = Icons.Filled.Star,
+            background = Maroon,
+            onClick = onEntertainmentClick
+        )
+        ServiceActionCard(
+            title = "Beauty & Personal Care",
+            description = "Bridal Makeup • Party Makeup • Mehendi • Hair • Saree Draping",
+            icon = Icons.Filled.Star,
+            background = Green,
+            onClick = onBeautyClick
+        )
+        ServiceActionCard(
+            title = "Photography & Media",
+            description = "Candid Photography • Videography • Albums • Live Streaming",
+            icon = Icons.Filled.Celebration,
+            background = Maroon,
+            onClick = onPhotographyClick
+        )
+        ServiceActionCard(
+            title = "Religious & Ceremony",
+            description = "Pujari • Pooja Samagri • Havan/Homam • Vedic Ceremony Support",
+            icon = Icons.Filled.Cake,
+            background = Gold,
+            onClick = onReligiousClick
+        )
+        ServiceActionCard(
+            title = "Transport & Guest Travel",
+            description = "Guest Pickup/Drop • Cars • Bus/Tempo • Airport Pickup • Drivers",
+            icon = Icons.Filled.LocationOn,
+            background = Maroon,
+            onClick = onTransportClick
+        )
+        ServiceActionCard(
+            title = "Invitations & Printing",
+            description = "Digital Invites • Printed Cards • Banners • Signage • Gift Tags",
+            icon = Icons.Filled.Celebration,
+            background = Green,
+            onClick = onInvitationsClick
+        )
+        ServiceActionCard(
+            title = "Event Support",
+            description = "Security • Guest Assistance • Valet • Power Backup • Equipment",
+            icon = Icons.Filled.Work,
+            background = Green,
+            onClick = onEventSupportClick
+        )
     }
 }
 

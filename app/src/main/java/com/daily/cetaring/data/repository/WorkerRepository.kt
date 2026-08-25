@@ -86,12 +86,12 @@ class WorkerRepository(
     }
 
     suspend fun createServiceRequest(request: ServiceRequestRequest): ServiceRequestResponse {
-        ensureBackendAvailable()
+        // Authentication is already supplied with the request. Do not call the public
+        // health endpoint first; a health-check failure must never block a valid booking.
         return executeNetworkCall { workerApiService.createServiceRequest(bearerToken(), request) }
     }
 
     suspend fun createStaffingRequest(request: CreateStaffingRequest): StaffingJobResponse {
-        ensureBackendAvailable()
         return executeNetworkCall { workerApiService.createStaffingRequest(bearerToken(), request) }
     }
 

@@ -193,7 +193,7 @@ public class WorkerController {
     }
 
     @PostMapping("/staffing-requests")
-    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<WorkerDtos.StaffingJobResponse> createStaffingRequest(
         Authentication authentication,
         @Valid @RequestBody WorkerDtos.CreateStaffingRequest request

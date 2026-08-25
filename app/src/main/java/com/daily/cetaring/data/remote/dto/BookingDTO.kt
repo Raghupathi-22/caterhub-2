@@ -96,13 +96,19 @@ data class StaffingRequirement(
 object BookingOptions {
     val eventTypes = listOf(
         "Wedding",
+        "Reception",
         "Birthday",
         "Engagement",
+        "Anniversary",
         "Housewarming",
-        "Corporate",
         "Baby Shower",
         "Naming Ceremony",
+        "Corporate Event",
+        "School / College Event",
         "Festival",
+        "Religious Ceremony",
+        "Farewell",
+        "Get Together",
         "Other"
     )
 

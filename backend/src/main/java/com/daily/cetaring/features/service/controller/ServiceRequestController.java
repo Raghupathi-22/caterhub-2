@@ -14,7 +14,7 @@ import java.util.List;
 public class ServiceRequestController {
     private final ServiceRequestService service;
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER','ROLE_ADMIN','ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER','ROLE_WORKER','ROLE_ADMIN','ROLE_SUPER_ADMIN')")
     public ServiceRequestDtos.Response create(Authentication auth, @Valid @RequestBody ServiceRequestDtos.CreateRequest request) { return service.create(auth.getName(), request); }
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_SUPER_ADMIN')")
