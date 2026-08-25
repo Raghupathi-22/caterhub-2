@@ -37,7 +37,12 @@ import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
 import java.time.format.DateTimeFormatter
 
 private val Cream = Color(0xFFFFFCF5)
@@ -206,8 +211,8 @@ fun ServiceRequestScreen(
     var step by remember { mutableIntStateOf(0) }
     var eventType by remember { mutableStateOf("Birthday") }
     var eventDate by remember { mutableStateOf("") }
-    var startTime by remember { mutableStateOf("09:00") }
-    var endTime by remember { mutableStateOf("11:00") }
+    var startTime by remember { mutableStateOf("") }
+    var endTime by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     var area by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
@@ -261,35 +266,24 @@ fun ServiceRequestScreen(
                         Text("Event details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = TextDark)
                         EventTypeField(eventType) { eventType = it }
 
-                        OutlinedTextField(
-                            value = eventDate,
-                            onValueChange = {},
-                            label = { Text("Event date") },
-                            placeholder = { Text("Choose from calendar") },
-                            readOnly = true,
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true },
-                            textStyle = LocalTextStyle.current.copy(color = TextDark)
+                        PickerField(
+                            label = "Date",
+                            value = eventDate.ifBlank { "Select date" },
+                            onClick = { showDatePicker = true }
                         )
 
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedTextField(
-                                value = startTime,
-                                onValueChange = {},
-                                label = { Text("Start time") },
-                                readOnly = true,
-                                singleLine = true,
-                                modifier = Modifier.weight(1f).clickable { showStartPicker = true },
-                                textStyle = LocalTextStyle.current.copy(color = TextDark)
+                            PickerField(
+                                label = "Start time",
+                                value = startTime.ifBlank { "Select time" },
+                                onClick = { showStartPicker = true },
+                                modifier = Modifier.weight(1f)
                             )
-                            OutlinedTextField(
-                                value = endTime,
-                                onValueChange = {},
-                                label = { Text("End time") },
-                                readOnly = true,
-                                singleLine = true,
-                                modifier = Modifier.weight(1f).clickable { showEndPicker = true },
-                                textStyle = LocalTextStyle.current.copy(color = TextDark)
+                            PickerField(
+                                label = "End time",
+                                value = endTime.ifBlank { "Select time" },
+                                onClick = { showEndPicker = true },
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
@@ -334,9 +328,12 @@ fun ServiceRequestScreen(
                             error = when {
                                 !hasSelection -> "Please select at least one service."
                                 step == 1 && eventDate.isBlank() -> "Please choose the event date."
+                                step == 1 && startTime.isBlank() -> "Please choose the start time."
+                                step == 1 && endTime.isBlank() -> "Please choose the end time."
                                 step == 1 && location.isBlank() -> "Please enter event address."
                                 step == 1 && area.isBlank() -> "Please enter area/locality."
                                 step == 1 && !isValidTimeRange(startTime, endTime) -> "End time must be after start time."
+                                step == 1 && !isFutureDateTime(eventDate, startTime) -> "Please select a future event date and time."
                                 else -> null
                             }
                             if (error == null) step++
@@ -389,20 +386,33 @@ fun ServiceRequestScreen(
     }
 
     if (showDatePicker) {
-        val today = LocalDate.now(ZoneOffset.UTC)
+        val today = remember {
+            Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        }
         val state = rememberDatePickerState(
             initialSelectedDateMillis = eventDate.toLocalDateOrNull()?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli(),
             selectableDates = object : SelectableDates {
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= today
+                override fun isSelectableYear(year: Int): Boolean = year >= Calendar.getInstance().get(Calendar.YEAR)
             }
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    state.selectedDateMillis?.let { eventDate = java.time.Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().format(DateFormatter) }
+                    state.selectedDateMillis?.let { millis ->
+                        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).apply {
+                            timeZone = TimeZone.getTimeZone("UTC")
+                        }
+                        eventDate = formatter.format(millis)
+                    }
                     showDatePicker = false
-                }) { Text("OK", color = category.color) }
+                }) { Text("Confirm", color = category.color) }
             },
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
         ) { DatePicker(state = state) }
@@ -427,6 +437,27 @@ fun ServiceRequestScreen(
     }
 }
 
+
+@Composable
+private fun PickerField(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(17.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Border)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, color = Green, fontWeight = FontWeight.Bold)
+            Text(value, color = TextDark, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
 @Composable
 private fun TimePickerDialog(initial: LocalTime, onDismiss: () -> Unit, onConfirm: (LocalTime) -> Unit, accent: Color) {
     val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
@@ -443,6 +474,12 @@ private fun isValidTimeRange(start: String, end: String): Boolean {
     val s = start.toLocalTimeOrNull() ?: return false
     val e = end.toLocalTimeOrNull() ?: return false
     return e.isAfter(s)
+}
+
+private fun isFutureDateTime(date: String, time: String): Boolean {
+    val selectedDate = date.toLocalDateOrNull() ?: return false
+    val selectedTime = time.toLocalTimeOrNull() ?: return false
+    return LocalDateTime.of(selectedDate, selectedTime).isAfter(LocalDateTime.now())
 }
 
 private fun String.toLocalDateOrNull(): LocalDate? = runCatching { LocalDate.parse(this, DateFormatter) }.getOrNull()
