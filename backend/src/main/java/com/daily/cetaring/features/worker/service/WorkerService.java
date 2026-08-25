@@ -20,6 +20,7 @@ import com.daily.cetaring.shared.entity.User;
 import com.daily.cetaring.shared.repository.RoleRepository;
 import com.daily.cetaring.shared.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -371,6 +372,17 @@ public class WorkerService {
         } catch (IllegalArgumentException ignored) {
             // Customers/admins may browse staff requirements from non-worker contexts.
         }
+        if (profile != null && profile.getStatus() != WorkerProfile.WorkerStatus.ACTIVE) {
+            return List.of();
+        }
+        if (profile != null) {
+            WorkerAvailability latestAvailability = workerAvailabilityRepository
+                .findTopByWorkerProfileIdOrderByCreatedAtDesc(profile.getId())
+                .orElse(null);
+            if (latestAvailability != null && latestAvailability.getStatus() != WorkerAvailability.AvailabilityStatus.AVAILABLE) {
+                return List.of();
+            }
+        }
         WorkerProfile.WorkerType effectiveRole = role != null ? role : (profile == null ? null : profile.getWorkerType());
         Long workerProfileId = profile == null ? null : profile.getId();
         List<StaffingRequest> jobs = effectiveRole == null
@@ -399,16 +411,28 @@ public class WorkerService {
         Long profileId = profile == null ? null : profile.getId();
         StaffingRequest job = staffingRequestRepository.findById(jobId)
             .orElseThrow(() -> new IllegalArgumentException("Job not found"));
+        if (profile != null && profile.getWorkerType() != null && job.getWorkerType() != profile.getWorkerType()) {
+            throw new AccessDeniedException("You can only access jobs matching your role.");
+        }
         return mapStaffingJob(job, profileId != null && staffingJobAcceptanceRepository.existsByStaffingRequestIdAndWorkerProfileId(jobId, profileId));
     }
 
     public WorkerDtos.AcceptStaffingJobResponse acceptStaffingJob(Long jobId, String username) {
         WorkerProfile profile = getProfileEntityByUsername(username);
         if (profile.getStatus() != WorkerProfile.WorkerStatus.ACTIVE) {
-            throw new IllegalArgumentException("Worker profile must be approved before accepting jobs");
+            throw new AccessDeniedException("Worker profile must be approved before accepting jobs.");
+        }
+        WorkerAvailability latestAvailability = workerAvailabilityRepository
+            .findTopByWorkerProfileIdOrderByCreatedAtDesc(profile.getId())
+            .orElse(null);
+        if (latestAvailability != null && latestAvailability.getStatus() != WorkerAvailability.AvailabilityStatus.AVAILABLE) {
+            throw new AccessDeniedException("Enable availability before accepting jobs.");
         }
         StaffingRequest job = staffingRequestRepository.findByIdForUpdate(jobId)
             .orElseThrow(() -> new IllegalArgumentException("Job not found"));
+        if (job.getWorkerType() != profile.getWorkerType()) {
+            throw new AccessDeniedException("You are not authorized to accept this role.");
+        }
         if (job.getStatus() != StaffingRequest.StaffingStatus.OPEN || job.getAcceptedWorkers() >= job.getRequiredWorkers()) {
             throw new IllegalArgumentException("All positions have been filled");
         }

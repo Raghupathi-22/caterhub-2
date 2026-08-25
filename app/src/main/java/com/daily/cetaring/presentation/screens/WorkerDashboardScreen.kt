@@ -103,17 +103,19 @@ fun WorkerDashboardScreen(
                         Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Text("YOUR SERVICE", color = Color.White.copy(.75f), fontWeight = FontWeight.Bold)
+                                    Text("SERVICE", color = Color.White.copy(.75f), fontWeight = FontWeight.Bold)
                                     Text(d.profile.workerType.label, style = MaterialTheme.typography.headlineSmall,
                                         fontWeight = FontWeight.ExtraBold, color = Color.White)
+                                    Text("Category", color = Color.White.copy(.75f), fontWeight = FontWeight.Bold)
                                     Text(ServiceCatalog.categoryForWorkerType(d.profile.workerType)?.title ?: d.profile.workerType.category, color = Color.White.copy(.9f))
                                 }
                                 CaterHubStatusChip(d.profile.status.label)
                             }
+                            Text("Verification: ${d.profile.status.label}", color = Color.White, fontWeight = FontWeight.Bold)
                             Text("Profile ${d.profileCompletionPercent}% complete", color = Color.White, fontWeight = FontWeight.Bold)
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Text("Available for bookings", color = Color.White, fontWeight = FontWeight.Bold)
+                                    Text("Available for work", color = Color.White, fontWeight = FontWeight.Bold)
                                     Text(if (d.availableForWork) "Customers can be matched to you" else "Turn on when you are ready", color = Color.White.copy(.8f))
                                 }
                                 Switch(checked = d.availableForWork, onCheckedChange = viewModel::updateAvailability)
@@ -122,13 +124,19 @@ fun WorkerDashboardScreen(
                         }
                     }
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Stat("Available", d.nearbyOpportunities.size.toString(), PaleGold, Gold, Modifier.weight(1f))
-                        Stat("My Jobs", d.myJobs.size.toString(), PaleGreen, Green, Modifier.weight(1f))
-                        Stat("Completed", d.myJobs.count { it.status == "COMPLETED" }.toString(), PaleRed, Red, Modifier.weight(1f))
+                    val earnings = d.myJobs.filter { it.status == "COMPLETED" }.sumOf { it.payment.toInt() }
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Stat("Available Jobs", d.nearbyOpportunities.size.toString(), PaleGold, Gold, Modifier.weight(1f))
+                            Stat("My Jobs", d.myJobs.size.toString(), PaleGreen, Green, Modifier.weight(1f))
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Stat("Completed", d.myJobs.count { it.status == "COMPLETED" }.toString(), PaleRed, Red, Modifier.weight(1f))
+                            Stat("Earnings", "₹$earnings", PaleGreen, Green, Modifier.weight(1f))
+                        }
                     }
 
-                    CaterHubSectionHeader("Nearby opportunities", "View All", onFindJobsClick)
+                    CaterHubSectionHeader("Jobs for You", "View All", onFindJobsClick)
                     if (d.nearbyOpportunities.isEmpty()) {
                         CaterHubEmptyState(
                             title = "No matching bookings right now",
@@ -145,7 +153,17 @@ fun WorkerDashboardScreen(
                         }
                     }
 
-                    CaterHubSectionHeader("My Bookings", "View All", onMyJobsClick)
+                    CaterHubSectionHeader("Upcoming Jobs")
+                    val upcomingJobs = d.myJobs.filter { it.status == "ACCEPTED" || it.status == "OFFERED" }.take(3)
+                    if (upcomingJobs.isEmpty()) {
+                        CaterHubEmptyState("No upcoming jobs", "Accepted upcoming jobs will appear here.")
+                    } else {
+                        upcomingJobs.forEach {
+                            BookingMiniCard(it.eventType, it.workerType.label, it.area, it.eventDate, it.startTime, it.status)
+                        }
+                    }
+
+                    CaterHubSectionHeader("My Jobs", "View All", onMyJobsClick)
                     if (d.myJobs.isEmpty()) {
                         CaterHubEmptyState("No bookings yet", "Accepted service bookings will appear here.")
                     } else {

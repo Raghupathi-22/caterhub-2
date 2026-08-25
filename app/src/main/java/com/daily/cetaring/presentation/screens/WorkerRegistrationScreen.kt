@@ -207,7 +207,7 @@ fun WorkerRegistrationScreen(
 @Composable
 private fun CategoryStep(selectedCategoryId: String, onChange: (String) -> Unit) {
     CreamCard("Choose your service", "Select the category you provide professionally.") {
-        ServiceCatalog.categories.forEach { category ->
+        ServiceCatalog.categories.filter { it.id != "other-event-services" }.forEach { category ->
             val selected = category.id == selectedCategoryId
             OutlinedButton(
                 onClick = { onChange(category.id) },

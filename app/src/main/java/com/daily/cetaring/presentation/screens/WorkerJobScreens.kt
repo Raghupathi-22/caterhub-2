@@ -1,7 +1,9 @@
 package com.daily.cetaring.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,14 +20,22 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,6 +60,10 @@ import com.daily.cetaring.presentation.components.CaterHubStatusChip
 import com.daily.cetaring.presentation.components.SummaryRow
 import com.daily.cetaring.presentation.viewmodel.WorkerUiState
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
 
 private val Cream = Color(0xFFFFFBF3)
 private val Red = Color(0xFFA61920)
@@ -77,6 +91,11 @@ private fun WorkerTopBar(title: String, onBackClick: () -> Unit) {
 fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobClick: (Long) -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     var search by remember { mutableStateOf("") }
+    var categoryId by remember { mutableStateOf<String?>(null) }
+    var roleId by remember { mutableStateOf<String?>(null) }
+    var areaFilter by remember { mutableStateOf("") }
+    var selectedDate by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { viewModel.loadAvailableJobs() }
 
     Scaffold(containerColor = Cream, topBar = { WorkerTopBar("Available Bookings", onBackClick) }) { padding ->
@@ -101,16 +120,45 @@ fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobC
                     leadingIcon = { Icon(Icons.Filled.Work, null, tint = Red) },
                     modifier = Modifier.fillMaxWidth()
                 )
+                RoleCategoryFilter(
+                    selectedCategoryId = categoryId,
+                    selectedRoleId = roleId,
+                    onCategoryChange = {
+                        categoryId = it
+                        if (it == null || ServiceCatalog.roles.firstOrNull { role -> role.id == roleId }?.categoryId != it) {
+                            roleId = null
+                        }
+                    },
+                    onRoleChange = { roleId = it }
+                )
+                OutlinedTextField(
+                    value = areaFilter,
+                    onValueChange = { areaFilter = it },
+                    label = { Text("Area") },
+                    leadingIcon = { Icon(Icons.Filled.LocationOn, null, tint = Green) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                    Text(if (selectedDate.isBlank()) "Filter by date" else "Date: $selectedDate")
+                }
                 CaterHubPrimaryButton("Search Bookings", { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }, Modifier.fillMaxWidth())
-                if (state.jobs.isEmpty()) {
+                val filteredJobs = state.jobs.filter { job ->
+                    val role = ServiceCatalog.roles.firstOrNull { it.workerType == job.workerType }
+                    val matchesCategory = categoryId == null || role?.categoryId == categoryId
+                    val matchesRole = roleId == null || role?.id == roleId
+                    val matchesArea = areaFilter.isBlank() || job.area.contains(areaFilter, ignoreCase = true)
+                    val matchesDate = selectedDate.isBlank() || job.eventDate == selectedDate
+                    matchesCategory && matchesRole && matchesArea && matchesDate
+                }
+                if (filteredJobs.isEmpty()) {
                     CaterHubEmptyState(
                         title = "No bookings available",
-                        message = "Try another area or check again later.",
+                        message = "Try changing category, role, area or date filters.",
                         actionText = "Refresh",
                         onActionClick = { viewModel.loadAvailableJobs() }
                     )
                 } else {
-                    state.jobs.forEach { job ->
+                    filteredJobs.forEach { job ->
                         WorkerStaffingJobCard(
                             job = job,
                             onClick = { onJobClick(job.id) }
@@ -120,6 +168,39 @@ fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobC
             }
             else -> Unit
         }
+    }
+
+    if (showDatePicker) {
+        val today = remember {
+            Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        }
+        val state = rememberDatePickerState(
+            initialSelectedDateMillis = selectedDate.toDateMillisOrNull(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= today
+                override fun isSelectableYear(year: Int): Boolean = year >= Calendar.getInstance().get(Calendar.YEAR)
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let { millis ->
+                        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).apply {
+                            timeZone = TimeZone.getDefault()
+                        }
+                        selectedDate = formatter.format(millis)
+                    }
+                    showDatePicker = false
+                }) { Text("Confirm", color = Red) }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = state) }
     }
 }
 
@@ -186,6 +267,61 @@ private fun Detail(label: String, value: String, icon: androidx.compose.ui.graph
         }
     }
 }
+
+@Composable
+private fun RoleCategoryFilter(
+    selectedCategoryId: String?,
+    selectedRoleId: String?,
+    onCategoryChange: (String?) -> Unit,
+    onRoleChange: (String?) -> Unit
+) {
+    var categoryExpanded by remember { mutableStateOf(false) }
+    var roleExpanded by remember { mutableStateOf(false) }
+    val roles = ServiceCatalog.roles.filter {
+        it.workerType != null && (selectedCategoryId == null || it.categoryId == selectedCategoryId)
+    }
+    Box {
+        OutlinedTextField(
+            value = ServiceCatalog.category(selectedCategoryId.orEmpty())?.title ?: "All Categories",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Category") },
+            modifier = Modifier.fillMaxWidth().clickable { categoryExpanded = true }
+        )
+        DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
+            DropdownMenuItem(text = { Text("All Categories") }, onClick = { onCategoryChange(null); categoryExpanded = false })
+            ServiceCatalog.categories.filter { it.id != "other-event-services" }.forEach { category ->
+                DropdownMenuItem(text = { Text(category.title) }, onClick = {
+                    onCategoryChange(category.id)
+                    categoryExpanded = false
+                })
+            }
+        }
+    }
+    Box {
+        OutlinedTextField(
+            value = ServiceCatalog.roles.firstOrNull { it.id == selectedRoleId }?.title ?: "All Roles",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Role") },
+            modifier = Modifier.fillMaxWidth().clickable { roleExpanded = true }
+        )
+        DropdownMenu(expanded = roleExpanded, onDismissRequest = { roleExpanded = false }) {
+            DropdownMenuItem(text = { Text("All Roles") }, onClick = { onRoleChange(null); roleExpanded = false })
+            roles.forEach { role ->
+                DropdownMenuItem(text = { Text(role.title) }, onClick = {
+                    onRoleChange(role.id)
+                    roleExpanded = false
+                })
+            }
+        }
+    }
+}
+
+private fun String.toDateMillisOrNull(): Long? = runCatching {
+    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).apply { timeZone = TimeZone.getDefault() }
+    formatter.parse(this)?.time
+}.getOrNull()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -270,12 +406,16 @@ private fun ProfileContent(profile: WorkerProfileResponse, onLogout: () -> Unit,
                     CaterHubStatusChip(profile.status.label)
                 }
                 androidx.compose.material3.HorizontalDivider(color = Border)
+                ProfileRow("Verification status", profile.status.label)
+                ProfileRow("Service category", ServiceCatalog.categoryForWorkerType(profile.workerType)?.title ?: profile.workerType.category)
                 ProfileRow("Service role", profile.workerType.label)
                 ProfileRow("Experience", "${profile.experienceYears} years")
                 ProfileRow("Skills", profile.skills.orEmpty().ifBlank { "Not added" })
                 ProfileRow("Languages", profile.languages.orEmpty().ifBlank { "Not added" })
                 ProfileRow("Preferred areas", profile.preferredAreas.orEmpty().ifBlank { "Not added" })
-                ProfileRow("Rating", "${profile.rating} (${profile.totalRatings} reviews)")
+                ProfileRow("Availability", "Manage from worker dashboard")
+                ProfileRow("Rating", "${profile.rating}")
+                ProfileRow("Reviews", "${profile.totalRatings}")
             }
         }
 

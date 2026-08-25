@@ -78,6 +78,8 @@ import com.daily.cetaring.presentation.components.CaterHubLoadingState
 import com.daily.cetaring.presentation.components.CaterHubPrimaryButton
 import com.daily.cetaring.presentation.components.CaterHubSecondaryButton
 import com.daily.cetaring.presentation.components.CaterHubStatusChip
+import com.daily.cetaring.presentation.components.ReviewLineItem
+import com.daily.cetaring.presentation.components.ReviewRequestCard
 import com.daily.cetaring.presentation.components.SummaryRow
 import com.daily.cetaring.presentation.components.formatDateTime
 import com.daily.cetaring.presentation.viewmodel.BookingUiState
@@ -90,7 +92,6 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.layout.ColumnScope
 
 private val Cream = Color(0xFFFFFCF5)
 private val Maroon = Color(0xFF971B1E)
@@ -689,34 +690,30 @@ private fun ReviewStep(draft: BookingDraft, onEdit: (Int) -> Unit) {
         }
     }
 
-    ReviewCard {
-        SummaryRow("Event", draft.eventType)
-        SummaryRow("Guests", "${draft.guestCount ?: 0} guests")
-        SummaryRow("Catering", "Full Catering • ${draft.cateringPlan}")
-        SummaryRow("Date", draft.eventDate)
-        SummaryRow("Time", draft.eventTime)
-        SummaryRow("Location", draft.deliveryAddress())
-        SummaryRow(
-            "Food requirements",
-            draft.foodRequirements.ifBlank { "Standard plan menu" }
-        )
-    }
-}
-
-@Composable
-private fun ReviewCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Border)
-    ) {
-        Column(
-            Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(13.dp),
-            content = content
-        )
-    }
+    ReviewRequestCard(
+        eventType = draft.eventType,
+        eventDate = formatBookingDate(draft.eventDate),
+        timeRange = formatBookingReviewTimeRange(draft.eventTime),
+        location = draft.deliveryAddress(),
+        services = listOf(
+            ReviewLineItem(
+                title = "Catering Plan",
+                subtitle = "Full Catering • ${draft.cateringPlan}",
+                amountText = null
+            ),
+            ReviewLineItem(
+                title = "Guest Count",
+                subtitle = "${draft.guestCount ?: 0} guests",
+                amountText = null
+            ),
+            ReviewLineItem(
+                title = "Food requirements",
+                subtitle = draft.foodRequirements.ifBlank { "Standard plan menu" },
+                amountText = null
+            )
+        ),
+        totalLabel = "To be quoted"
+    )
 }
 
 @Composable
@@ -963,3 +960,8 @@ private fun formatBookingDate(raw: String): String =
 private fun formatBookingTime(raw: String): String =
     runCatching { LocalTime.parse(raw, BookingTimeStorageFormatter).format(BookingTimeDisplayFormatter) }
         .getOrDefault(raw)
+
+private fun formatBookingReviewTimeRange(raw: String): String {
+    val display = formatBookingTime(raw)
+    return if (display.isBlank() || display == raw && raw.isBlank()) "Time to be confirmed" else display
+}

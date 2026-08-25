@@ -34,6 +34,8 @@ import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
 import com.daily.cetaring.data.remote.dto.WorkerType
 import com.daily.cetaring.data.repository.WorkerRepository
 import com.daily.cetaring.domain.catalog.ServiceCatalog
+import com.daily.cetaring.presentation.components.ReviewLineItem
+import com.daily.cetaring.presentation.components.ReviewRequestCard
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -56,6 +58,7 @@ private val Border = Color(0xFFE4D9C6)
 private val DateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val TimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 private val DateDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+private val DateReviewFormatter = DateTimeFormatter.ofPattern("dd MMMM yyyy")
 private val TimeDisplayFormatter = DateTimeFormatter.ofPattern("h:mm a")
 
 private data class ServiceItem(
@@ -113,6 +116,19 @@ private fun roleIcon(categoryId: String, roleId: String) = when {
     else -> Icons.Filled.Star
 }
 
+private fun categoryIcon(categoryId: String) = when (categoryId) {
+    "catering-food" -> Icons.Filled.Restaurant
+    "decoration" -> Icons.Filled.Celebration
+    "entertainment" -> Icons.Filled.Star
+    "beauty" -> Icons.Filled.Star
+    "photography-video" -> Icons.Filled.Cake
+    "religious-ceremony" -> Icons.Filled.Cake
+    "event-support" -> Icons.Filled.Groups
+    "rentals" -> Icons.Filled.Celebration
+    "transport-logistics" -> Icons.Filled.LocationOn
+    else -> Icons.Filled.Star
+}
+
 @Composable
 fun ServiceRequestScreen(
     serviceType: String,
@@ -140,6 +156,15 @@ fun ServiceRequestScreen(
 
     val fixedTotal = items.sumOf { item -> (selected[item.id] ?: 0) * item.price }
     val hasSelection = selected.values.any { it > 0 }
+    val hasQuoteServices = items.any { (selected[it.id] ?: 0) > 0 && it.quoteOnly }
+    val detailsComplete = hasSelection &&
+        eventDate.isNotBlank() &&
+        startTime.isNotBlank() &&
+        endTime.isNotBlank() &&
+        location.isNotBlank() &&
+        area.isNotBlank() &&
+        isValidTimeRange(startTime, endTime) &&
+        isFutureDateTime(eventDate, startTime)
 
     Scaffold(
         containerColor = Cream,
@@ -163,8 +188,7 @@ fun ServiceRequestScreen(
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when (step) {
                     0 -> {
-                        Text(category.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = TextDark)
-                        Text(category.subtitle, color = Muted)
+                        CategoryHeader(category = category)
                         items.forEach { item ->
                             val count = selected[item.id] ?: 0
                             ServiceItemCard(
@@ -208,31 +232,28 @@ fun ServiceRequestScreen(
                         OutlinedTextField(notes, { notes = it }, label = { Text("Additional instructions (optional)") }, minLines = 3, modifier = Modifier.fillMaxWidth(), textStyle = LocalTextStyle.current.copy(color = TextDark))
                     }
                     else -> {
-                        Text("Review your request", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = TextDark)
-                        ReviewBox(
-                            event = eventType,
-                            date = eventDate.takeIf { it.isNotBlank() }?.let(::displayDate).orEmpty(),
-                            start = startTime.takeIf { it.isNotBlank() }?.let(::displayTime).orEmpty(),
-                            end = endTime.takeIf { it.isNotBlank() }?.let(::displayTime).orEmpty(),
-                            location = location,
-                            area = area
-                        )
-                        items.filter { (selected[it.id] ?: 0) > 0 }.forEach { item ->
-                            val qty = selected[item.id] ?: 0
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(item.name, fontWeight = FontWeight.Bold, color = TextDark)
-                                    Text(if (item.quoteOnly) "$qty selected • Price: To be quoted" else "$qty × ₹${item.price}", color = Muted)
-                                }
-                                if (!item.quoteOnly) Text("₹${qty * item.price}", fontWeight = FontWeight.ExtraBold, color = category.color)
+                        val selectedItems = items.filter { (selected[it.id] ?: 0) > 0 }
+                        ReviewRequestCard(
+                            eventType = eventType,
+                            eventDate = eventDate.takeIf { it.isNotBlank() }?.let(::displayDateForReview).orEmpty(),
+                            timeRange = "${startTime.takeIf { it.isNotBlank() }?.let(::displayTime).orEmpty()} – ${endTime.takeIf { it.isNotBlank() }?.let(::displayTime).orEmpty()}",
+                            location = "$area, $location",
+                            services = selectedItems.map { item ->
+                                val qty = selected[item.id] ?: 0
+                                ReviewLineItem(
+                                    title = "${qty} × ${item.name}",
+                                    subtitle = if (item.quoteOnly) "To be quoted" else "₹${item.price} per ${if (item.workerType == null) "item" else "person"}",
+                                    amountText = if (item.quoteOnly) null else "₹${qty * item.price}"
+                                )
+                            },
+                            totalLabel = if (hasQuoteServices) {
+                                if (fixedTotal > 0) "₹$fixedTotal + To be quoted" else "To be quoted"
+                            } else {
+                                "₹$fixedTotal"
                             }
-                        }
-                        Divider()
-                        if (items.any { (selected[it.id] ?: 0) > 0 && it.quoteOnly }) {
-                            Text(if (fixedTotal > 0) "Fixed total: ₹$fixedTotal + quote-based services" else "Total: To be quoted", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = TextDark)
-                            Text("CaterHub will contact you to confirm quote-based services.", color = Muted)
-                        } else {
-                            Text("Fixed total: ₹$fixedTotal", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = TextDark)
+                        )
+                        if (hasQuoteServices) {
+                            Text("Quote-based services will be confirmed after request review.", color = Muted)
                         }
                         error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) }
                     }
@@ -300,7 +321,7 @@ fun ServiceRequestScreen(
                             }
                         }
                     },
-                    enabled = !submitting,
+                    enabled = !submitting && (step != 0 || hasSelection) && (step != 1 || detailsComplete),
                     modifier = Modifier.weight(1f).height(54.dp),
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = category.color)
@@ -415,8 +436,37 @@ private fun String.toLocalDateOrNull(): LocalDate? = runCatching { LocalDate.par
 private fun String.toLocalTimeOrNull(): LocalTime? = runCatching { LocalTime.parse(this, TimeFormatter) }.getOrNull()
 private fun displayDate(value: String): String =
     value.toLocalDateOrNull()?.format(DateDisplayFormatter) ?: value
+private fun displayDateForReview(value: String): String =
+    value.toLocalDateOrNull()?.format(DateReviewFormatter) ?: value
 private fun displayTime(value: String): String =
     value.toLocalTimeOrNull()?.format(TimeDisplayFormatter) ?: value
+
+@Composable
+private fun CategoryHeader(category: ServiceCategory) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Border)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = category.color.copy(alpha = 0.12f))
+            ) {
+                Icon(categoryIcon(category.id), null, tint = category.color, modifier = Modifier.padding(12.dp))
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(category.title.removePrefix("Book "), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = TextDark)
+                Text("Choose the services you need", color = Muted)
+            }
+        }
+    }
+}
 
 @Composable
 private fun ServiceItemCard(item: ServiceItem, count: Int, onMinus: () -> Unit, onPlus: () -> Unit, onCount: (Int) -> Unit) {
@@ -490,16 +540,5 @@ private fun SectionLabel(text: String) {
         Icon(Icons.Filled.LocationOn, null, tint = Gold, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(7.dp))
         Text(text, fontWeight = FontWeight.ExtraBold, color = TextDark)
-    }
-}
-
-@Composable
-private fun ReviewBox(event: String, date: String, start: String, end: String, location: String, area: String) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Border)) {
-        Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            Text(event, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-            Text("$date • $start - $end", color = Muted)
-            Text("$location, $area", color = TextDark)
-        }
     }
 }

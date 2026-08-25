@@ -28,6 +28,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -207,6 +208,59 @@ fun SummaryRow(label: String, value: String) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(label.uppercase(Locale.ROOT), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         Text(value.ifBlank { "Not provided" }, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+data class ReviewLineItem(
+    val title: String,
+    val subtitle: String,
+    val amountText: String? = null
+)
+
+@Composable
+fun ReviewRequestCard(
+    eventType: String,
+    eventDate: String,
+    timeRange: String,
+    location: String,
+    services: List<ReviewLineItem>,
+    totalLabel: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE4D9C6))
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Review your request", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+            SummaryRow("Event", eventType)
+            SummaryRow("Date", eventDate)
+            SummaryRow("Time", timeRange)
+            SummaryRow("Location", location)
+            Text("SERVICES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            if (services.isEmpty()) {
+                Text("No services selected", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                services.forEach { item ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text(item.title, fontWeight = FontWeight.Bold)
+                            Text(item.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (item.amountText != null) {
+                            Text(item.amountText, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                }
+            }
+            HorizontalDivider(color = Color(0xFFE4D9C6))
+            SummaryRow("Total", totalLabel)
+        }
     }
 }
 
