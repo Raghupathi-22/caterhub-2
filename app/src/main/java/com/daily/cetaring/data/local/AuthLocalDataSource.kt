@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "auth_prefs")
 
@@ -59,6 +60,18 @@ class AuthLocalDataSource(private val context: Context) {
 
     val rolesFlow: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.ROLES]
+    }
+
+    suspend fun getAccessToken(): String? {
+        return context.dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.ACCESS_TOKEN]
+        }.first()
+    }
+
+    suspend fun getRefreshToken(): String? {
+        return context.dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.REFRESH_TOKEN]
+        }.first()
     }
 
     suspend fun saveTokens(accessToken: String, refreshToken: String) {
