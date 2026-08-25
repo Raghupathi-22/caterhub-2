@@ -49,15 +49,30 @@ fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobC
     val uiState by viewModel.uiState.collectAsState()
     var search by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { viewModel.loadAvailableJobs() }
-    Scaffold(topBar = { WorkerTopBar("Available Catering Jobs", onBackClick) }) { padding ->
+
+    Scaffold(topBar = { WorkerTopBar("Available Jobs", onBackClick) }) { padding ->
         when (val state = uiState) {
-            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading catering jobs...")
-            is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) { CaterHubErrorState(message = state.message, onRetry = { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }) }
-            is WorkerUiState.JobsLoaded -> Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                OutlinedTextField(search, { search = it }, label = { Text("Search area, event or location") }, modifier = Modifier.fillMaxWidth())
-                CaterHubPrimaryButton("Search Jobs", { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }, Modifier.fillMaxWidth())
-                if (state.jobs.isEmpty()) CaterHubEmptyState("No catering jobs available right now", "Try another area or refresh jobs.", actionText = "Refresh Jobs", onActionClick = { viewModel.loadAvailableJobs() })
-                state.jobs.forEach { WorkerStaffingJobCard(it, onClick = { onJobClick(it.id) }) }
+            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Finding suitable jobs...")
+            is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
+                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadAvailableJobs(search = search.ifBlank { null }) })
+            }
+            is WorkerUiState.JobsLoaded -> Column(
+                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text("Jobs matched to your role and area", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+                OutlinedTextField(
+                    search,
+                    { search = it },
+                    label = { Text("Search area, event or service") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                CaterHubPrimaryButton("Search", { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }, Modifier.fillMaxWidth())
+                if (state.jobs.isEmpty()) {
+                    CaterHubEmptyState("No suitable jobs available", "Try another area or check again later.", actionText = "Refresh", onActionClick = { viewModel.loadAvailableJobs() })
+                } else {
+                    state.jobs.forEach { WorkerStaffingJobCard(it, onClick = { onJobClick(it.id) }) }
+                }
             }
             else -> Unit
         }
@@ -70,10 +85,13 @@ fun WorkerJobDetailsScreen(viewModel: WorkerViewModel, jobId: Long, onBackClick:
     val uiState by viewModel.uiState.collectAsState()
     LaunchedEffect(jobId) { viewModel.loadJob(jobId) }
     LaunchedEffect(uiState) { if (uiState is WorkerUiState.JobAccepted) onAccepted() }
+
     Scaffold(topBar = { WorkerTopBar("Job Details", onBackClick) }) { padding ->
         when (val state = uiState) {
             WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading job details...")
-            is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) { CaterHubErrorState(message = state.message, onRetry = { viewModel.loadJob(jobId) }) }
+            is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
+                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadJob(jobId) })
+            }
             is WorkerUiState.JobDetailsLoaded -> JobDetailsContent(state.job, onAccept = { viewModel.acceptJob(state.job.id) }, modifier = Modifier.padding(padding))
             is WorkerUiState.JobAccepted -> JobDetailsContent(state.job, acceptedMessage = state.message, onAccept = null, modifier = Modifier.padding(padding))
             else -> Unit
@@ -85,20 +103,30 @@ fun WorkerJobDetailsScreen(viewModel: WorkerViewModel, jobId: Long, onBackClick:
 private fun JobDetailsContent(job: StaffingJobResponse, acceptedMessage: String? = null, onAccept: (() -> Unit)?, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (acceptedMessage != null) Text(acceptedMessage, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        Card(shape = RoundedCornerShape(24.dp)) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(job.eventType, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold); CaterHubStatusChip(job.status) }
-                SummaryRow("Role required", job.workerType.label)
+        Card(shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(1.dp)) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(Modifier.weight(1f)) {
+                        Text(job.eventType, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                        Text(job.workerType.label, color = MaterialTheme.colorScheme.primary)
+                    }
+                    CaterHubStatusChip(job.status)
+                }
                 SummaryRow("Date", job.eventDate)
                 SummaryRow("Time", "${job.startTime} – ${job.endTime}")
                 SummaryRow("Location", "${job.location}, ${job.area}")
                 SummaryRow("Payment", "₹${job.payment}")
                 SummaryRow("Positions", "${job.acceptedWorkers} / ${job.requiredWorkers} filled · ${job.remainingPositions} remaining")
-                SummaryRow("Additional requirements", job.additionalRequirements.orEmpty())
+                SummaryRow("Requirements", job.additionalRequirements.orEmpty().ifBlank { "No additional requirements" })
             }
         }
         val canAccept = job.remainingPositions > 0 && job.alreadyAccepted != true && onAccept != null
-        CaterHubPrimaryButton(if (job.remainingPositions <= 0) "All positions have been filled" else "Accept Job", onClick = { onAccept?.invoke() }, enabled = canAccept, modifier = Modifier.fillMaxWidth())
+        CaterHubPrimaryButton(
+            if (job.remainingPositions <= 0) "All positions are filled" else "Accept Job",
+            onClick = { onAccept?.invoke() },
+            enabled = canAccept,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -109,9 +137,14 @@ fun WorkerMyJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit) {
     LaunchedEffect(Unit) { viewModel.loadMyJobs() }
     Scaffold(topBar = { WorkerTopBar("My Jobs", onBackClick) }) { padding ->
         when (val state = uiState) {
-            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading my jobs...")
-            is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) { CaterHubErrorState(message = state.message, onRetry = { viewModel.loadMyJobs() }) }
-            is WorkerUiState.MyJobsLoaded -> Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading your jobs...")
+            is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
+                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadMyJobs() })
+            }
+            is WorkerUiState.MyJobsLoaded -> Column(
+                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 if (state.jobs.isEmpty()) CaterHubEmptyState("No accepted jobs", "Accepted jobs will appear here.")
                 state.jobs.forEach { WorkerMyJobCard(it) }
             }
@@ -122,10 +155,15 @@ fun WorkerMyJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit) {
 
 @Composable
 private fun WorkerMyJobCard(job: WorkerJobResponse) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(2.dp)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(job.eventType, fontWeight = FontWeight.ExtraBold); CaterHubStatusChip(job.status) }
-            Text(job.workerType.label, fontWeight = FontWeight.SemiBold)
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), elevation = CardDefaults.cardElevation(1.dp)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column(Modifier.weight(1f)) {
+                    Text(job.eventType, fontWeight = FontWeight.ExtraBold)
+                    Text(job.workerType.label, color = MaterialTheme.colorScheme.primary)
+                }
+                CaterHubStatusChip(job.status)
+            }
             Text("${job.area} · ${job.eventDate} · ${job.startTime}–${job.endTime}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("₹${job.payment}", fontWeight = FontWeight.Bold)
         }
@@ -134,55 +172,69 @@ private fun WorkerMyJobCard(job: WorkerJobResponse) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkerProfileScreen(
-    viewModel: WorkerViewModel,
-    onBackClick: () -> Unit,
-    onLogoutClick: () -> Unit
-) {
+fun WorkerProfileScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onLogoutClick: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     LaunchedEffect(Unit) { viewModel.loadProfile() }
-    Scaffold(topBar = { WorkerTopBar("Worker Profile", onBackClick) }) { padding ->
+
+    Scaffold(topBar = { WorkerTopBar("Professional Profile", onBackClick) }) { padding ->
         when (val state = uiState) {
-            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading worker profile...")
-            is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) { CaterHubErrorState(message = state.message, onRetry = { viewModel.loadProfile() }) }
-            is WorkerUiState.ProfileLoaded -> WorkerProfileContent(
-                profile = state.profile,
-                onLogoutClick = onLogoutClick,
-                modifier = Modifier.padding(padding)
-            )
+            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading your profile...")
+            is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
+                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadProfile() })
+            }
+            is WorkerUiState.ProfileLoaded -> WorkerProfileContent(state.profile, onLogoutClick, Modifier.padding(padding))
             else -> Unit
         }
     }
 }
 
 @Composable
-private fun WorkerProfileContent(
-    profile: WorkerProfileResponse,
-    onLogoutClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Card(shape = RoundedCornerShape(24.dp)) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(profile.fullName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold); CaterHubStatusChip(profile.status.label) }
-                SummaryRow("Worker role", profile.workerType.label)
+private fun WorkerProfileContent(profile: WorkerProfileResponse, onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Card(
+            Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(Modifier.weight(1f)) {
+                        Text(profile.fullName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+                        Text(profile.workerType.category, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                    CaterHubStatusChip(profile.status.label)
+                }
+                SummaryRow("Service role", profile.workerType.label)
                 SummaryRow("Experience", "${profile.experienceYears} years")
-                SummaryRow("Skills", profile.skills.orEmpty())
-                SummaryRow("Languages", profile.languages.orEmpty())
-                SummaryRow("Preferred areas", profile.preferredAreas.orEmpty())
-                SummaryRow("Rating", "${profile.rating} (${profile.totalRatings})")
+                SummaryRow("Skills", profile.skills.orEmpty().ifBlank { "Not added" })
+                SummaryRow("Languages", profile.languages.orEmpty().ifBlank { "Not added" })
+                SummaryRow("Preferred areas", profile.preferredAreas.orEmpty().ifBlank { "Not added" })
+                SummaryRow("Rating", "${profile.rating} (${profile.totalRatings} reviews)")
             }
         }
-        CaterHubPrimaryButton(
-            text = "Logout",
-            onClick = onLogoutClick,
-            modifier = Modifier.fillMaxWidth()
-        )
+
+        Text("Profile visibility", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+            Text(
+                "Your profile becomes bookable for this service after CaterHub admin verification.",
+                Modifier.padding(18.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        CaterHubPrimaryButton("Logout", onLogoutClick, Modifier.fillMaxWidth())
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WorkerTopBar(title: String, onBackClick: () -> Unit) {
-    TopAppBar(title = { Text(title) }, navigationIcon = { IconButton(onClick = onBackClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } })
+    TopAppBar(
+        title = { Text(title, fontWeight = FontWeight.Bold) },
+        navigationIcon = {
+            androidx.compose.material3.IconButton(onClick = onBackClick) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+        }
+    )
 }

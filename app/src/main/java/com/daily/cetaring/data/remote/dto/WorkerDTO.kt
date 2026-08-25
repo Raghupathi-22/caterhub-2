@@ -3,14 +3,54 @@ package com.daily.cetaring.data.remote.dto
 import com.google.gson.annotations.SerializedName
 import java.math.BigDecimal
 
-enum class WorkerType(val label: String) {
-    CHEF("Chef"),
-    ASSISTANT_CHEF("Assistant Chef"),
-    SERVING_BOY("Serving Staff"),
-    SERVING_GIRL("Serving Staff"),
-    CLEANER("Cleaner"),
-    KITCHEN_HELPER("Kitchen Helper"),
-    SUPERVISOR("Event Supervisor")
+/**
+ * All service-provider roles supported by CaterHub.
+ * The enum names must match backend WorkerProfile.WorkerType values.
+ */
+enum class WorkerType(val label: String, val category: String) {
+    CHEF("Chef", "Catering & Food"),
+    ASSISTANT_CHEF("Assistant Chef", "Catering & Food"),
+    SERVING_BOY("Serving Staff", "Catering & Food"),
+    SERVING_GIRL("Serving Staff", "Catering & Food"),
+    CLEANER("Cleaning Staff", "Catering & Food"),
+    KITCHEN_HELPER("Kitchen Helper", "Catering & Food"),
+    SUPERVISOR("Event Supervisor", "Event Support"),
+
+    PUJARI("Pujari / Priest", "Religious & Ceremony"),
+
+    PHOTOGRAPHER("Photographer", "Photography & Media"),
+    VIDEOGRAPHER("Videographer", "Photography & Media"),
+    LIVE_STREAMER("Live Event Streamer", "Photography & Media"),
+
+    DJ("DJ", "Entertainment"),
+    BAND_MELAM("Band / Melam", "Entertainment"),
+    SINGER("Singer", "Entertainment"),
+    DANCER("Dance Performer", "Entertainment"),
+    ANCHOR_EMCEE("Anchor / Emcee", "Entertainment"),
+    MAGICIAN("Magician", "Entertainment"),
+    KIDS_ENTERTAINER("Kids Entertainer", "Entertainment"),
+
+    MAKEUP_ARTIST("Makeup Artist", "Beauty & Personal Care"),
+    BRIDAL_MAKEUP_ARTIST("Bridal Makeup Artist", "Beauty & Personal Care"),
+    MEHENDI_ARTIST("Mehendi Artist", "Beauty & Personal Care"),
+    HAIR_STYLIST("Hair Stylist", "Beauty & Personal Care"),
+    SAREE_DRAPER("Saree Draping Specialist", "Beauty & Personal Care"),
+    NAIL_ARTIST("Nail Artist", "Beauty & Personal Care"),
+
+    EVENT_DECORATOR("Event Decorator", "Decoration & Event Setup"),
+    FLOWER_DECORATOR("Flower Decorator", "Decoration & Event Setup"),
+    LIGHTING_TECHNICIAN("Lighting Technician", "Decoration & Event Setup"),
+    SOUND_TECHNICIAN("Sound Technician", "Decoration & Event Setup"),
+    STAGE_TENT_SPECIALIST("Stage / Tent Specialist", "Decoration & Event Setup"),
+
+    SECURITY_GUARD("Security Staff", "Event Support"),
+    VALET_DRIVER("Valet / Driver", "Transport & Guest Travel"),
+    EVENT_COORDINATOR("Event Coordinator", "Event Support");
+
+    companion object {
+        fun displayRoles(): List<WorkerType> =
+            entries.distinctBy { it.label }
+    }
 }
 
 enum class WorkerStatus(val label: String) {
@@ -38,13 +78,10 @@ data class ServiceRequestResponse(
 )
 
 data class CreateWorkerProfileRequest(
-    @SerializedName("workerType")
-    val workerType: WorkerType,
-    @SerializedName("experienceYears")
-    val experienceYears: Int,
+    @SerializedName("workerType") val workerType: WorkerType,
+    @SerializedName("experienceYears") val experienceYears: Int,
     val skills: String?,
-    @SerializedName("preferredAreas")
-    val preferredAreas: String?,
+    @SerializedName("preferredAreas") val preferredAreas: String?,
     val languages: String?,
     val bio: String?
 )
@@ -162,7 +199,8 @@ data class UpdateAvailabilityToggleRequest(
 )
 
 object WorkerOnboardingValidator {
-    fun validateRole(workerType: WorkerType?): String? = if (workerType == null) "Please select a worker role." else null
+    fun validateRole(workerType: WorkerType?): String? =
+        if (workerType == null) "Please select a service role." else null
 
     fun validateExperience(experienceYears: Int?): String? = when {
         experienceYears == null -> "Please enter experience in years."
@@ -171,5 +209,6 @@ object WorkerOnboardingValidator {
         else -> null
     }
 
-    fun validateRequired(value: String, field: String): String? = if (value.isBlank()) "Please enter $field." else null
+    fun validateRequired(value: String, field: String): String? =
+        if (value.isBlank()) "Please enter $field." else null
 }

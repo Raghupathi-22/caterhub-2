@@ -1,41 +1,12 @@
 package com.daily.cetaring.features.worker.entity;
 
-import com.daily.cetaring.shared.entity.User;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.ForeignKey;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.daily.cetaring.features.user.entity.User;
+import jakarta.persistence.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "worker_profiles", indexes = {
-    @Index(name = "idx_worker_profiles_user_id", columnList = "user_id"),
-    @Index(name = "idx_worker_profiles_worker_type", columnList = "worker_type"),
-    @Index(name = "idx_worker_profiles_status", columnList = "status"),
-    @Index(name = "idx_worker_profiles_deleted_at", columnList = "deleted_at")
-})
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Table(name = "worker_profiles")
 public class WorkerProfile {
 
     public enum WorkerType {
@@ -45,7 +16,38 @@ public class WorkerProfile {
         SERVING_GIRL,
         CLEANER,
         KITCHEN_HELPER,
-        SUPERVISOR
+        SUPERVISOR,
+
+        PUJARI,
+
+        PHOTOGRAPHER,
+        VIDEOGRAPHER,
+        LIVE_STREAMER,
+
+        DJ,
+        BAND_MELAM,
+        SINGER,
+        DANCER,
+        ANCHOR_EMCEE,
+        MAGICIAN,
+        KIDS_ENTERTAINER,
+
+        MAKEUP_ARTIST,
+        BRIDAL_MAKEUP_ARTIST,
+        MEHENDI_ARTIST,
+        HAIR_STYLIST,
+        SAREE_DRAPER,
+        NAIL_ARTIST,
+
+        EVENT_DECORATOR,
+        FLOWER_DECORATOR,
+        LIGHTING_TECHNICIAN,
+        SOUND_TECHNICIAN,
+        STAGE_TENT_SPECIALIST,
+
+        SECURITY_GUARD,
+        VALET_DRIVER,
+        EVENT_COORDINATOR
     }
 
     public enum WorkerStatus {
@@ -64,7 +66,7 @@ public class WorkerProfile {
     private User user;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "worker_type", nullable = false, length = 30)
+    @Column(name = "worker_type", nullable = false, length = 40)
     private WorkerType workerType;
 
     @Enumerated(EnumType.STRING)
@@ -86,52 +88,64 @@ public class WorkerProfile {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
-    @Column(nullable = false, precision = 3, scale = 2)
-    private BigDecimal rating;
+    @Column(nullable = false)
+    private Double rating = 0.0;
 
     @Column(name = "total_ratings", nullable = false)
-    private Integer totalRatings;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "approved_by", foreignKey = @ForeignKey(name = "fk_worker_profiles_approved_by"))
-    private User approvedBy;
+    private Integer totalRatings = 0;
 
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
-    @Column(name = "rejection_reason", length = 500)
-    private String rejectionReason;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+    public WorkerProfile() {
+    }
+
+    public Long getId() { return id; }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+    public WorkerType getWorkerType() { return workerType; }
+    public void setWorkerType(WorkerType workerType) { this.workerType = workerType; }
+    public WorkerStatus getStatus() { return status; }
+    public void setStatus(WorkerStatus status) { this.status = status; }
+    public Integer getExperienceYears() { return experienceYears; }
+    public void setExperienceYears(Integer experienceYears) { this.experienceYears = experienceYears; }
+    public String getSkills() { return skills; }
+    public void setSkills(String skills) { this.skills = skills; }
+    public String getPreferredAreas() { return preferredAreas; }
+    public void setPreferredAreas(String preferredAreas) { this.preferredAreas = preferredAreas; }
+    public String getLanguages() { return languages; }
+    public void setLanguages(String languages) { this.languages = languages; }
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
+    public Double getRating() { return rating; }
+    public void setRating(Double rating) { this.rating = rating; }
+    public Integer getTotalRatings() { return totalRatings; }
+    public void setTotalRatings(Integer totalRatings) { this.totalRatings = totalRatings; }
+    public LocalDateTime getApprovedAt() { return approvedAt; }
+    public void setApprovedAt(LocalDateTime approvedAt) { this.approvedAt = approvedAt; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     @PrePersist
-    protected void onCreate() {
+    void onCreate() {
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
         updatedAt = now;
-        if (status == null) {
-            status = WorkerStatus.PENDING_VERIFICATION;
-        }
-        if (experienceYears == null) {
-            experienceYears = 0;
-        }
-        if (rating == null) {
-            rating = BigDecimal.ZERO;
-        }
-        if (totalRatings == null) {
-            totalRatings = 0;
-        }
+        if (rating == null) rating = 0.0;
+        if (totalRatings == null) totalRatings = 0;
+        if (status == null) status = WorkerStatus.PENDING_VERIFICATION;
     }
 
     @PreUpdate
-    protected void onUpdate() {
+    void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
 }
