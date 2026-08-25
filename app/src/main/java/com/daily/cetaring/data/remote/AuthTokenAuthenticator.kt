@@ -37,16 +37,18 @@ class AuthTokenAuthenticator(
         if (responseCount(response) >= 2) return null
 
         val path = response.request.url.encodedPath
-        if (path.endsWith("/auth/refresh") ||
+        if (
+            path.endsWith("/auth/refresh") ||
             path.endsWith("/auth/otp/send") ||
-            path.endsWith("/auth/otp/verify")) {
+            path.endsWith("/auth/otp/verify")
+        ) {
             return null
         }
 
         val failedAuthorization = response.request.header("Authorization")
+        if (failedAuthorization.isNullOrBlank()) return null
 
         synchronized(refreshLock) {
-            // Another request may have refreshed the token while this request was waiting.
             val currentToken = runBlocking { authLocalDataSource.getAccessToken() }
             if (!currentToken.isNullOrBlank()) {
                 val currentAuthorization = "Bearer $currentToken"
@@ -86,8 +88,6 @@ class AuthTokenAuthenticator(
                     .build()
             } catch (exception: Exception) {
                 if (exception is HttpException && exception.code() in 400..403) {
-                    // The refresh token is no longer usable. Clear the stale session so
-                    // the next protected request cannot repeatedly retry a dead token.
                     runBlocking { authLocalDataSource.clearAll() }
                 }
                 null
@@ -105,3 +105,4 @@ class AuthTokenAuthenticator(
         return count
     }
 }
+

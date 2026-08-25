@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
+import com.daily.cetaring.domain.catalog.ServiceCatalog
 import com.daily.cetaring.presentation.components.CaterHubEmptyState
 import com.daily.cetaring.presentation.components.CaterHubErrorState
 import com.daily.cetaring.presentation.components.CaterHubLoadingState
@@ -82,7 +83,7 @@ fun WorkerDashboardScreen(
         when (val state = uiState) {
             WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading your dashboard...")
             is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(state.message) { viewModel.loadDashboard() }
+                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadDashboard() })
             }
             is WorkerUiState.DashboardLoaded -> {
                 val d = state.dashboard
@@ -105,7 +106,7 @@ fun WorkerDashboardScreen(
                                     Text("YOUR SERVICE", color = Color.White.copy(.75f), fontWeight = FontWeight.Bold)
                                     Text(d.profile.workerType.label, style = MaterialTheme.typography.headlineSmall,
                                         fontWeight = FontWeight.ExtraBold, color = Color.White)
-                                    Text(d.profile.workerType.category, color = Color.White.copy(.9f))
+                                    Text(ServiceCatalog.categoryForWorkerType(d.profile.workerType)?.title ?: d.profile.workerType.category, color = Color.White.copy(.9f))
                                 }
                                 CaterHubStatusChip(d.profile.status.label)
                             }
@@ -129,10 +130,19 @@ fun WorkerDashboardScreen(
 
                     CaterHubSectionHeader("Nearby opportunities", "View All", onFindJobsClick)
                     if (d.nearbyOpportunities.isEmpty()) {
-                        CaterHubEmptyState("No matching bookings right now", "Refresh or update your preferred areas.",
-                            "Refresh") { viewModel.loadDashboard() }
+                        CaterHubEmptyState(
+                            title = "No matching bookings right now",
+                            message = "Refresh or update your preferred areas.",
+                            actionText = "Refresh",
+                            onActionClick = { viewModel.loadDashboard() }
+                        )
                     } else {
-                        d.nearbyOpportunities.take(5).forEach { WorkerStaffingJobCard(it) { onJobClick(it.id) } }
+                        d.nearbyOpportunities.take(5).forEach { job ->
+                            WorkerStaffingJobCard(
+                                job = job,
+                                onClick = { onJobClick(job.id) }
+                            )
+                        }
                     }
 
                     CaterHubSectionHeader("My Bookings", "View All", onMyJobsClick)

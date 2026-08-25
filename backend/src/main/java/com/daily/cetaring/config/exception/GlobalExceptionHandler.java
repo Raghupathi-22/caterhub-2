@@ -52,7 +52,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ApiResponse<Map<String, String>> response = ApiResponse.<Map<String, String>>builder()
                 .code(HttpStatus.FORBIDDEN.value())
                 .message("Access denied")
-                .data(Map.of("error", "You do not have permission to access this resource"))
+                .data(Map.of("error", "You don't have permission to perform this action."))
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
@@ -102,4 +102,3 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }
-

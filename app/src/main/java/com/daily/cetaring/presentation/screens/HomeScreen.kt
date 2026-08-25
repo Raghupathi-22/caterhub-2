@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.sp
 import com.daily.cetaring.R
+import com.daily.cetaring.domain.catalog.ServiceCatalog
 import com.daily.cetaring.presentation.viewmodel.HomeViewModel
 
 private val Cream = Color(0xFFFFFCF5)
@@ -87,6 +88,7 @@ private val Border = Color(0xFFE4D9C6)
 fun HomeScreen(
     viewModel: HomeViewModel,
     onBookCateringClick: () -> Unit,
+    onServiceCategoryClick: (String) -> Unit,
     onWorkerRegisterClick: () -> Unit,
     onBookingsClick: () -> Unit,
     onBookingClick: (Long) -> Unit,
@@ -94,17 +96,7 @@ fun HomeScreen(
     onProfileClick: () -> Unit,
     onGuestSizeClick: (Int) -> Unit,
     onEventTypeClick: (String) -> Unit,
-    onLogout: () -> Unit,
-    onStaffBookingClick: () -> Unit = {},
-    onEquipmentClick: () -> Unit = {},
-    onDecorationClick: () -> Unit = onEquipmentClick,
-    onEntertainmentClick: () -> Unit = {},
-    onBeautyClick: () -> Unit = {},
-    onPhotographyClick: () -> Unit = {},
-    onReligiousClick: () -> Unit = {},
-    onTransportClick: () -> Unit = {},
-    onInvitationsClick: () -> Unit = {},
-    onEventSupportClick: () -> Unit = {}
+    onLogout: () -> Unit
 ) {
     Scaffold(
         containerColor = Cream,
@@ -136,15 +128,7 @@ fun HomeScreen(
             HeroSection(onBookCateringClick)
 
             ServiceCategoriesSection(
-                onStaffBookingClick = onStaffBookingClick,
-                onDecorationClick = onDecorationClick,
-                onEntertainmentClick = onEntertainmentClick,
-                onBeautyClick = onBeautyClick,
-                onPhotographyClick = onPhotographyClick,
-                onReligiousClick = onReligiousClick,
-                onTransportClick = onTransportClick,
-                onInvitationsClick = onInvitationsClick,
-                onEventSupportClick = onEventSupportClick
+                onCategoryClick = onServiceCategoryClick
             )
 
             OffersSection()
@@ -408,15 +392,7 @@ private fun ServiceActionCard(
 
 @Composable
 private fun ServiceCategoriesSection(
-    onStaffBookingClick: () -> Unit,
-    onDecorationClick: () -> Unit,
-    onEntertainmentClick: () -> Unit,
-    onBeautyClick: () -> Unit,
-    onPhotographyClick: () -> Unit,
-    onReligiousClick: () -> Unit,
-    onTransportClick: () -> Unit,
-    onInvitationsClick: () -> Unit,
-    onEventSupportClick: () -> Unit
+    onCategoryClick: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeader("Book Event Services", Icons.Filled.Celebration)
@@ -425,71 +401,29 @@ private fun ServiceCategoriesSection(
             color = Muted,
             style = MaterialTheme.typography.bodyMedium
         )
-
-        ServiceActionCard(
-            title = "Catering Staff",
-            description = "Chef • Serving Boys & Girls • Helpers • Cleaning • Supervisor",
-            icon = Icons.Filled.Groups,
-            background = Maroon,
-            onClick = onStaffBookingClick
-        )
-        ServiceActionCard(
-            title = "Decoration & Event Setup",
-            description = "Chairs • Tables • Stage • Flowers • Lighting • Tent • Mandap",
-            icon = Icons.Filled.Celebration,
-            background = Green,
-            onClick = onDecorationClick
-        )
-        ServiceActionCard(
-            title = "Entertainment",
-            description = "DJ • Band/Melam • Singers • Dance • Anchor • Magic Show • Audio",
-            icon = Icons.Filled.Star,
-            background = Maroon,
-            onClick = onEntertainmentClick
-        )
-        ServiceActionCard(
-            title = "Beauty & Personal Care",
-            description = "Bridal Makeup • Party Makeup • Mehendi • Hair • Saree Draping",
-            icon = Icons.Filled.Star,
-            background = Green,
-            onClick = onBeautyClick
-        )
-        ServiceActionCard(
-            title = "Photography & Media",
-            description = "Candid Photography • Videography • Albums • Live Streaming",
-            icon = Icons.Filled.Celebration,
-            background = Maroon,
-            onClick = onPhotographyClick
-        )
-        ServiceActionCard(
-            title = "Religious & Ceremony",
-            description = "Pujari • Pooja Samagri • Havan/Homam • Vedic Ceremony Support",
-            icon = Icons.Filled.Cake,
-            background = Gold,
-            onClick = onReligiousClick
-        )
-        ServiceActionCard(
-            title = "Transport & Guest Travel",
-            description = "Guest Pickup/Drop • Cars • Bus/Tempo • Airport Pickup • Drivers",
-            icon = Icons.Filled.LocationOn,
-            background = Maroon,
-            onClick = onTransportClick
-        )
-        ServiceActionCard(
-            title = "Invitations & Printing",
-            description = "Digital Invites • Printed Cards • Banners • Signage • Gift Tags",
-            icon = Icons.Filled.Celebration,
-            background = Green,
-            onClick = onInvitationsClick
-        )
-        ServiceActionCard(
-            title = "Event Support",
-            description = "Security • Guest Assistance • Valet • Power Backup • Equipment",
-            icon = Icons.Filled.Work,
-            background = Green,
-            onClick = onEventSupportClick
-        )
+        ServiceCatalog.categories.forEachIndexed { index, category ->
+            ServiceActionCard(
+                title = category.title,
+                description = category.subtitle,
+                icon = categoryIcon(category.id),
+                background = if (index % 2 == 0) Maroon else Green,
+                onClick = { onCategoryClick(category.id) }
+            )
+        }
     }
+}
+
+private fun categoryIcon(categoryId: String): ImageVector = when (categoryId) {
+    "catering-food" -> Icons.Filled.Restaurant
+    "decoration" -> Icons.Filled.Celebration
+    "entertainment" -> Icons.Filled.Star
+    "beauty" -> Icons.Filled.Star
+    "photography-video" -> Icons.Filled.Cake
+    "religious-ceremony" -> Icons.Filled.Verified
+    "event-support" -> Icons.Filled.Work
+    "rentals" -> Icons.Filled.Home
+    "transport-logistics" -> Icons.Filled.LocationOn
+    else -> Icons.Filled.Groups
 }
 
 @Composable

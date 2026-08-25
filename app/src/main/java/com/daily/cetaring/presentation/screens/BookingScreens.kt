@@ -83,6 +83,9 @@ import com.daily.cetaring.presentation.components.formatDateTime
 import com.daily.cetaring.presentation.viewmodel.BookingUiState
 import com.daily.cetaring.presentation.viewmodel.BookingViewModel
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
@@ -98,6 +101,10 @@ private val Muted = Color(0xFF6B625B)
 private val Border = Color(0xFFE4D9C6)
 private val SoftGold = Color(0xFFFFF3D6)
 private val SoftGreen = Color(0xFFEAF4E7)
+private val BookingDateStorageFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+private val BookingDateDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+private val BookingTimeStorageFormatter = DateTimeFormatter.ofPattern("HH:mm")
+private val BookingTimeDisplayFormatter = DateTimeFormatter.ofPattern("h:mm a")
 
 @Composable
 fun BookingFlowScreen(
@@ -510,6 +517,14 @@ private fun DateTimeStep(
     }
 
     val dateState = rememberDatePickerState(
+        initialSelectedDateMillis = draft.eventDate.takeIf { it.isNotBlank() }?.let {
+            runCatching {
+                LocalDate.parse(it, BookingDateStorageFormatter)
+                    .atStartOfDay(java.time.ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+            }.getOrNull()
+        },
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean =
                 utcTimeMillis >= today
@@ -518,7 +533,15 @@ private fun DateTimeStep(
                 year >= Calendar.getInstance().get(Calendar.YEAR)
         }
     )
-    val timeState = rememberTimePickerState(is24Hour = false)
+    val timeState = rememberTimePickerState(
+        initialHour = draft.eventTime.takeIf { it.isNotBlank() }?.let {
+            runCatching { LocalTime.parse(it, BookingTimeStorageFormatter).hour }.getOrNull()
+        } ?: 12,
+        initialMinute = draft.eventTime.takeIf { it.isNotBlank() }?.let {
+            runCatching { LocalTime.parse(it, BookingTimeStorageFormatter).minute }.getOrNull()
+        } ?: 0,
+        is24Hour = false
+    )
 
     Text(
         "When is your event?",
@@ -531,11 +554,11 @@ private fun DateTimeStep(
         color = Muted
     )
 
-    PickerField("Date", draft.eventDate.ifBlank { "Select date" }) {
+    PickerField("Date", draft.eventDate.takeIf { it.isNotBlank() }?.let(::formatBookingDate) ?: "Select date") {
         showDate = true
     }
 
-    PickerField("Time", draft.eventTime.ifBlank { "Select time" }) {
+    PickerField("Time", draft.eventTime.takeIf { it.isNotBlank() }?.let(::formatBookingTime) ?: "Select time") {
         showTime = true
     }
 
@@ -569,7 +592,7 @@ private fun DateTimeStep(
                             "yyyy-MM-dd",
                             Locale.ENGLISH
                         ).apply {
-                            timeZone = TimeZone.getTimeZone("UTC")
+                            timeZone = TimeZone.getDefault()
                         }
                         viewModel.updateDraft {
                             it.copy(eventDate = formatter.format(millis))
@@ -932,3 +955,11 @@ private fun BookingTopBar(
         }
     )
 }
+
+private fun formatBookingDate(raw: String): String =
+    runCatching { LocalDate.parse(raw, BookingDateStorageFormatter).format(BookingDateDisplayFormatter) }
+        .getOrDefault(raw)
+
+private fun formatBookingTime(raw: String): String =
+    runCatching { LocalTime.parse(raw, BookingTimeStorageFormatter).format(BookingTimeDisplayFormatter) }
+        .getOrDefault(raw)

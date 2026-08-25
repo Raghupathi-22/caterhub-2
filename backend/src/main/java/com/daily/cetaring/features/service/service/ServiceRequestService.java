@@ -1,5 +1,6 @@
 package com.daily.cetaring.features.service.service;
 
+import com.daily.cetaring.features.catalog.ServiceCatalog;
 import com.daily.cetaring.features.service.dto.ServiceRequestDtos;
 import com.daily.cetaring.features.service.entity.ServiceRequest;
 import com.daily.cetaring.features.service.repository.ServiceRequestRepository;
@@ -17,9 +18,13 @@ public class ServiceRequestService {
 
     @Transactional
     public ServiceRequestDtos.Response create(String username, ServiceRequestDtos.CreateRequest r) {
+        String normalizedServiceType = r.serviceType == null ? null : r.serviceType.trim().toUpperCase();
+        if (!ServiceCatalog.isSupportedServiceType(normalizedServiceType)) {
+            throw new IllegalArgumentException("Unsupported service category.");
+        }
         User user = userRepository.findByUsername(username).orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
         ServiceRequest saved = repository.save(ServiceRequest.builder().createdBy(user)
-            .serviceType(r.serviceType.trim()).eventType(r.eventType.trim()).eventDate(r.eventDate)
+            .serviceType(normalizedServiceType).eventType(r.eventType.trim()).eventDate(r.eventDate)
             .startTime(r.startTime).location(r.location.trim()).area(r.area.trim()).details(r.details)
             .totalAmount(r.totalAmount).status(ServiceRequest.Status.PENDING).build());
         return map(saved);

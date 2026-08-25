@@ -33,12 +33,13 @@ import com.daily.cetaring.data.remote.dto.CreateStaffingRequest
 import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
 import com.daily.cetaring.data.remote.dto.WorkerType
 import com.daily.cetaring.data.repository.WorkerRepository
+import com.daily.cetaring.domain.catalog.ServiceCatalog
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.LocalDateTime
-import java.time.ZoneOffset
+import java.time.ZoneId
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -54,8 +55,11 @@ private val Muted = Color(0xFF6B625B)
 private val Border = Color(0xFFE4D9C6)
 private val DateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val TimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+private val DateDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+private val TimeDisplayFormatter = DateTimeFormatter.ofPattern("h:mm a")
 
 private data class ServiceItem(
+    val id: String,
     val name: String,
     val price: Int,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -64,6 +68,7 @@ private data class ServiceItem(
 )
 
 private data class ServiceCategory(
+    val id: String,
     val title: String,
     val subtitle: String,
     val serviceType: String,
@@ -71,130 +76,41 @@ private data class ServiceCategory(
     val color: Color
 )
 
-private fun categoryFor(type: String): ServiceCategory = when (type.lowercase()) {
-    "staff" -> ServiceCategory(
-        "Book Catering Staff",
-        "Choose chefs, serving staff, helpers and cleaning staff.",
-        "STAFF",
-        listOf(
-            ServiceItem("Chef", 2000, Icons.Filled.Restaurant, WorkerType.CHEF),
-            ServiceItem("Catering Boys", 600, Icons.Filled.Groups, WorkerType.SERVING_BOY),
-            ServiceItem("Catering Girls", 1000, Icons.Filled.Groups, WorkerType.SERVING_GIRL),
-            ServiceItem("Kitchen Helpers", 600, Icons.Filled.Restaurant, WorkerType.KITCHEN_HELPER),
-            ServiceItem("Cleaning Staff", 800, Icons.Filled.CleaningServices, WorkerType.CLEANER),
-            ServiceItem("Event Supervisor", 1500, Icons.Filled.Groups, WorkerType.SUPERVISOR)
-        ), Maroon
+private fun categoryFor(type: String): ServiceCategory {
+    val category = ServiceCatalog.category(type) ?: ServiceCatalog.category("event-support")!!
+    val color = when (category.id) {
+        "decoration", "beauty", "event-support", "other-event-services" -> Green
+        "religious-ceremony" -> Gold
+        else -> Maroon
+    }
+    val items = ServiceCatalog.rolesForCategory(category.id).map { role ->
+        ServiceItem(
+            id = role.id,
+            name = role.title,
+            price = role.defaultUnitPrice ?: 0,
+            icon = roleIcon(category.id, role.id),
+            workerType = role.workerType,
+            quoteOnly = role.quoteOnly
+        )
+    }
+    return ServiceCategory(
+        id = category.id,
+        title = "Book ${category.title}",
+        subtitle = category.subtitle,
+        serviceType = category.serviceType,
+        items = items,
+        color = color
     )
-    "decoration" -> ServiceCategory(
-        "Book Decoration & Event Setup",
-        "Chairs, tables, stage, flowers, lighting, tent and complete event setup.",
-        "DECORATION",
-        listOf(
-            ServiceItem("Chairs", 50, Icons.Filled.Groups),
-            ServiceItem("Tables", 60, Icons.Filled.Restaurant),
-            ServiceItem("Stage & Decoration", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Flower Decoration", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Lighting", 0, Icons.Filled.Lightbulb, quoteOnly = true),
-            ServiceItem("Tent / Shamiana", 0, Icons.Filled.Celebration, quoteOnly = true),
-            ServiceItem("Mandap / Wedding Setup", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Backdrop & Balloon Decoration", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Sofa / Guest Seating", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Event Sound System", 0, Icons.Filled.Restaurant, quoteOnly = true)
-        ), Green
-    )
-    "entertainment" -> ServiceCategory(
-        "Book Entertainment",
-        "DJ, Band/Melam, singers, dancers, anchor and live entertainment.",
-        "ENTERTAINMENT",
-        listOf(
-            ServiceItem("DJ", 0, Icons.Filled.Star, quoteOnly = true),
-            ServiceItem("Band / Melam", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Live Singer", 0, Icons.Filled.Star, quoteOnly = true),
-            ServiceItem("Dance Performance", 0, Icons.Filled.Celebration, quoteOnly = true),
-            ServiceItem("Anchor / Emcee", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Traditional Folk Performance", 0, Icons.Filled.Celebration, quoteOnly = true),
-            ServiceItem("Magic Show", 0, Icons.Filled.Star, quoteOnly = true),
-            ServiceItem("Kids Entertainment", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Event Sound & Audio", 0, Icons.Filled.Restaurant, quoteOnly = true)
-        ), Maroon
-    )
-    "beauty" -> ServiceCategory(
-        "Book Beauty & Personal Care",
-        "Makeup, mehendi, hair styling, saree draping and grooming services.",
-        "BEAUTY_PERSONAL_CARE",
-        listOf(
-            ServiceItem("Bridal Makeup", 0, Icons.Filled.Star, quoteOnly = true),
-            ServiceItem("Party Makeup", 0, Icons.Filled.Star, quoteOnly = true),
-            ServiceItem("Groom Makeup", 0, Icons.Filled.Star, quoteOnly = true),
-            ServiceItem("Mehendi", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Hair Styling", 0, Icons.Filled.Star, quoteOnly = true),
-            ServiceItem("Saree Draping", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Nail Art", 0, Icons.Filled.Star, quoteOnly = true),
-            ServiceItem("Facial / Grooming", 0, Icons.Filled.Star, quoteOnly = true)
-        ), Green
-    )
-    "photography" -> ServiceCategory(
-        "Book Photography & Media",
-        "Photography, videography, candid coverage and complete event memories.",
-        "PHOTOGRAPHY_MEDIA",
-        listOf(
-            ServiceItem("Event Photography", 0, Icons.Filled.Celebration, quoteOnly = true),
-            ServiceItem("Candid Photography", 0, Icons.Filled.Celebration, quoteOnly = true),
-            ServiceItem("Videography", 0, Icons.Filled.Celebration, quoteOnly = true),
-            ServiceItem("Traditional Photo & Video", 0, Icons.Filled.Celebration, quoteOnly = true),
-            ServiceItem("Photo Album", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Live Event Streaming", 0, Icons.Filled.Restaurant, quoteOnly = true)
-        ), Maroon
-    )
-    "transport" -> ServiceCategory(
-        "Book Transport & Guest Travel",
-        "Cars, guest pickup/drop, event vehicles and travel support.",
-        "TRANSPORT",
-        listOf(
-            ServiceItem("Guest Pickup / Drop", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Event Car", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Guest Bus / Tempo", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Airport / Railway Pickup", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Driver Service", 0, Icons.Filled.Groups, quoteOnly = true)
-        ), Maroon
-    )
-    "invitations" -> ServiceCategory(
-        "Book Invitations & Printing",
-        "Digital invitations, printed cards, banners and event stationery.",
-        "INVITATIONS_PRINTING",
-        listOf(
-            ServiceItem("Digital Invitation", 0, Icons.Filled.Celebration, quoteOnly = true),
-            ServiceItem("Printed Invitation Cards", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Welcome Board / Banner", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Event Signage", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Return Gift Tags / Cards", 0, Icons.Filled.Cake, quoteOnly = true)
-        ), Green
-    )
-    "religious" -> ServiceCategory(
-        "Book Religious & Ceremony Services",
-        "Pujari, pooja setup and traditional ceremony support.",
-        "RELIGIOUS_CEREMONY",
-        listOf(
-            ServiceItem("Pujari / Priest", 0, Icons.Filled.Star, quoteOnly = true),
-            ServiceItem("Pooja Samagri", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Havan / Homam Setup", 0, Icons.Filled.Cake, quoteOnly = true),
-            ServiceItem("Priest Assistant", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Vedic Ceremony Support", 0, Icons.Filled.Star, quoteOnly = true)
-        ), Gold
-    )
-    else -> ServiceCategory(
-        "Book Event Support",
-        "Security, valet, guest support and other event services.",
-        "EVENT_SUPPORT",
-        listOf(
-            ServiceItem("Event Supervisor", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Security Staff", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Guest Assistance", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Valet / Parking Assistance", 0, Icons.Filled.Groups, quoteOnly = true),
-            ServiceItem("Generator / Power Backup", 0, Icons.Filled.Lightbulb, quoteOnly = true),
-            ServiceItem("Crockery & Serving Equipment", 0, Icons.Filled.Restaurant, quoteOnly = true)
-        ), Green
-    )
+}
+
+private fun roleIcon(categoryId: String, roleId: String) = when {
+    categoryId == "catering-food" -> Icons.Filled.Restaurant
+    categoryId == "decoration" && roleId.contains("lighting") -> Icons.Filled.Lightbulb
+    categoryId == "religious-ceremony" -> Icons.Filled.Cake
+    categoryId == "transport-logistics" -> Icons.Filled.LocationOn
+    roleId.contains("clean") -> Icons.Filled.CleaningServices
+    roleId.contains("staff") || roleId.contains("worker") || roleId.contains("helper") -> Icons.Filled.Groups
+    else -> Icons.Filled.Star
 }
 
 @Composable
@@ -205,7 +121,6 @@ fun ServiceRequestScreen(
     onSubmitted: () -> Unit = {}
 ) {
     val category = remember(serviceType) { categoryFor(serviceType) }
-    val staffMode = category.serviceType == "STAFF"
     val items = category.items
     val selected = remember(serviceType) { mutableStateMapOf<String, Int>() }
     var step by remember { mutableIntStateOf(0) }
@@ -223,7 +138,7 @@ fun ServiceRequestScreen(
     var showEndPicker by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    val fixedTotal = items.sumOf { item -> (selected[item.name] ?: 0) * item.price }
+    val fixedTotal = items.sumOf { item -> (selected[item.id] ?: 0) * item.price }
     val hasSelection = selected.values.any { it > 0 }
 
     Scaffold(
@@ -251,16 +166,16 @@ fun ServiceRequestScreen(
                         Text(category.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = TextDark)
                         Text(category.subtitle, color = Muted)
                         items.forEach { item ->
-                            val count = selected[item.name] ?: 0
+                            val count = selected[item.id] ?: 0
                             ServiceItemCard(
                                 item = item,
                                 count = count,
-                                onMinus = { selected[item.name] = (count - 1).coerceAtLeast(0) },
-                                onPlus = { selected[item.name] = (count + 1).coerceAtMost(5000) },
-                                onCount = { selected[item.name] = it.coerceIn(0, 5000) }
+                                onMinus = { selected[item.id] = (count - 1).coerceAtLeast(0) },
+                                onPlus = { selected[item.id] = (count + 1).coerceAtMost(5000) },
+                                onCount = { selected[item.id] = it.coerceIn(0, 5000) }
                             )
                         }
-                        if (hasSelection) TotalCard(fixedTotal, category.color, hasQuoteOnly = items.any { (selected[it.name] ?: 0) > 0 && it.quoteOnly })
+                        if (hasSelection) TotalCard(fixedTotal, category.color, hasQuoteOnly = items.any { (selected[it.id] ?: 0) > 0 && it.quoteOnly })
                     }
                     1 -> {
                         Text("Event details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = TextDark)
@@ -268,20 +183,20 @@ fun ServiceRequestScreen(
 
                         PickerField(
                             label = "Date",
-                            value = eventDate.ifBlank { "Select date" },
+                            value = eventDate.takeIf { it.isNotBlank() }?.let(::displayDate) ?: "Select date",
                             onClick = { showDatePicker = true }
                         )
 
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             PickerField(
                                 label = "Start time",
-                                value = startTime.ifBlank { "Select time" },
+                                value = startTime.takeIf { it.isNotBlank() }?.let(::displayTime) ?: "Select time",
                                 onClick = { showStartPicker = true },
                                 modifier = Modifier.weight(1f)
                             )
                             PickerField(
                                 label = "End time",
-                                value = endTime.ifBlank { "Select time" },
+                                value = endTime.takeIf { it.isNotBlank() }?.let(::displayTime) ?: "Select time",
                                 onClick = { showEndPicker = true },
                                 modifier = Modifier.weight(1f)
                             )
@@ -294,9 +209,16 @@ fun ServiceRequestScreen(
                     }
                     else -> {
                         Text("Review your request", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = TextDark)
-                        ReviewBox(eventType, eventDate, startTime, endTime, location, area)
-                        items.filter { (selected[it.name] ?: 0) > 0 }.forEach { item ->
-                            val qty = selected[item.name] ?: 0
+                        ReviewBox(
+                            event = eventType,
+                            date = eventDate.takeIf { it.isNotBlank() }?.let(::displayDate).orEmpty(),
+                            start = startTime.takeIf { it.isNotBlank() }?.let(::displayTime).orEmpty(),
+                            end = endTime.takeIf { it.isNotBlank() }?.let(::displayTime).orEmpty(),
+                            location = location,
+                            area = area
+                        )
+                        items.filter { (selected[it.id] ?: 0) > 0 }.forEach { item ->
+                            val qty = selected[item.id] ?: 0
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Column(Modifier.weight(1f)) {
                                     Text(item.name, fontWeight = FontWeight.Bold, color = TextDark)
@@ -306,7 +228,7 @@ fun ServiceRequestScreen(
                             }
                         }
                         Divider()
-                        if (items.any { (selected[it.name] ?: 0) > 0 && it.quoteOnly }) {
+                        if (items.any { (selected[it.id] ?: 0) > 0 && it.quoteOnly }) {
                             Text(if (fixedTotal > 0) "Fixed total: ₹$fixedTotal + quote-based services" else "Total: To be quoted", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = TextDark)
                             Text("CaterHub will contact you to confirm quote-based services.", color = Muted)
                         } else {
@@ -342,19 +264,23 @@ fun ServiceRequestScreen(
                                 submitting = true
                                 error = null
                                 try {
-                                    if (staffMode) {
-                                        items.filter { (selected[it.name] ?: 0) > 0 }.forEach { item ->
-                                            val qty = selected[item.name] ?: 0
-                                            workerRepository.createStaffingRequest(
-                                                CreateStaffingRequest(
-                                                    eventType, item.workerType!!, eventDate, startTime, endTime,
-                                                    location, area, qty, BigDecimal(item.price), notes.ifBlank { null }
-                                                )
+                                    val selectedItems = items.filter { (selected[it.id] ?: 0) > 0 }
+                                    val staffingItems = selectedItems.filter { it.workerType != null }
+                                    val serviceItems = selectedItems.filter { it.workerType == null }
+
+                                    staffingItems.forEach { item ->
+                                        val qty = selected[item.id] ?: 0
+                                        workerRepository.createStaffingRequest(
+                                            CreateStaffingRequest(
+                                                eventType, item.workerType!!, eventDate, startTime, endTime,
+                                                location, area, qty, BigDecimal(item.price.coerceAtLeast(1)), notes.ifBlank { null }
                                             )
-                                        }
-                                    } else {
-                                        val details = items.filter { (selected[it.name] ?: 0) > 0 }.joinToString("; ") { item ->
-                                            val qty = selected[item.name] ?: 0
+                                        )
+                                    }
+
+                                    if (serviceItems.isNotEmpty() || staffingItems.isEmpty()) {
+                                        val details = selectedItems.joinToString("; ") { item ->
+                                            val qty = selected[item.id] ?: 0
                                             if (item.quoteOnly) "${item.name}: selected x$qty (quote)" else "${item.name}: $qty x ₹${item.price}"
                                         }
                                         val fullDetails = "End time: $endTime; $details${if (notes.isBlank()) "" else "; Notes: $notes"}"
@@ -395,7 +321,10 @@ fun ServiceRequestScreen(
             }.timeInMillis
         }
         val state = rememberDatePickerState(
-            initialSelectedDateMillis = eventDate.toLocalDateOrNull()?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli(),
+            initialSelectedDateMillis = eventDate.toLocalDateOrNull()
+                ?.atStartOfDay(ZoneId.systemDefault())
+                ?.toInstant()
+                ?.toEpochMilli(),
             selectableDates = object : SelectableDates {
                 override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= today
                 override fun isSelectableYear(year: Int): Boolean = year >= Calendar.getInstance().get(Calendar.YEAR)
@@ -407,7 +336,7 @@ fun ServiceRequestScreen(
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { millis ->
                         val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).apply {
-                            timeZone = TimeZone.getTimeZone("UTC")
+                            timeZone = TimeZone.getDefault()
                         }
                         eventDate = formatter.format(millis)
                     }
@@ -420,7 +349,7 @@ fun ServiceRequestScreen(
 
     if (showStartPicker) {
         TimePickerDialog(
-            initial = startTime.toLocalTimeOrNull() ?: LocalTime.of(9, 0),
+            initial = startTime.toLocalTimeOrNull() ?: LocalTime.now().withSecond(0).withNano(0),
             onDismiss = { showStartPicker = false },
             onConfirm = { startTime = it.format(TimeFormatter); showStartPicker = false },
             accent = category.color
@@ -429,7 +358,7 @@ fun ServiceRequestScreen(
 
     if (showEndPicker) {
         TimePickerDialog(
-            initial = endTime.toLocalTimeOrNull() ?: LocalTime.of(11, 0),
+            initial = endTime.toLocalTimeOrNull() ?: LocalTime.now().plusHours(1).withSecond(0).withNano(0),
             onDismiss = { showEndPicker = false },
             onConfirm = { endTime = it.format(TimeFormatter); showEndPicker = false },
             accent = category.color
@@ -484,6 +413,10 @@ private fun isFutureDateTime(date: String, time: String): Boolean {
 
 private fun String.toLocalDateOrNull(): LocalDate? = runCatching { LocalDate.parse(this, DateFormatter) }.getOrNull()
 private fun String.toLocalTimeOrNull(): LocalTime? = runCatching { LocalTime.parse(this, TimeFormatter) }.getOrNull()
+private fun displayDate(value: String): String =
+    value.toLocalDateOrNull()?.format(DateDisplayFormatter) ?: value
+private fun displayTime(value: String): String =
+    value.toLocalTimeOrNull()?.format(TimeDisplayFormatter) ?: value
 
 @Composable
 private fun ServiceItemCard(item: ServiceItem, count: Int, onMinus: () -> Unit, onPlus: () -> Unit, onCount: (Int) -> Unit) {

@@ -56,13 +56,13 @@ public class WorkerController {
     }
 
     @GetMapping("/profiles/{profileId}")
-    @PreAuthorize("hasAnyAuthority('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public WorkerDtos.WorkerProfileResponse getProfile(@PathVariable Long profileId) {
         return workerService.getProfile(profileId);
     }
 
     @GetMapping("/profiles/by-user/{userId}")
-    @PreAuthorize("hasAnyAuthority('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public WorkerDtos.WorkerProfileResponse getProfileByUserId(@PathVariable Long userId) {
         return workerService.getProfileByUserId(userId);
     }
@@ -86,7 +86,7 @@ public class WorkerController {
     }
 
     @PostMapping("/profiles/{profileId}/availability")
-    @PreAuthorize("hasAnyAuthority('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<WorkerDtos.AvailabilityResponse> addAvailability(
         @PathVariable Long profileId,
         @Valid @RequestBody WorkerDtos.UpsertAvailabilityRequest request
@@ -95,7 +95,7 @@ public class WorkerController {
     }
 
     @GetMapping("/profiles/{profileId}/availability")
-    @PreAuthorize("hasAnyAuthority('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public List<WorkerDtos.AvailabilityResponse> getAvailability(
         @PathVariable Long profileId,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -105,7 +105,7 @@ public class WorkerController {
     }
 
     @PostMapping("/profiles/{profileId}/documents")
-    @PreAuthorize("hasAnyAuthority('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public ResponseEntity<WorkerDtos.DocumentResponse> addDocument(
         @PathVariable Long profileId,
         @Valid @RequestBody WorkerDtos.AddDocumentRequest request
@@ -114,7 +114,7 @@ public class WorkerController {
     }
 
     @GetMapping("/profiles/{profileId}/documents")
-    @PreAuthorize("hasAnyAuthority('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public List<WorkerDtos.DocumentResponse> getDocuments(@PathVariable Long profileId) {
         return workerService.getDocuments(profileId);
     }
@@ -137,7 +137,7 @@ public class WorkerController {
     }
 
     @GetMapping("/profiles/{profileId}/assignments")
-    @PreAuthorize("hasAnyAuthority('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public List<WorkerDtos.AssignmentResponse> getAssignmentsForWorker(@PathVariable Long profileId) {
         return workerService.getAssignmentsForWorker(profileId);
     }

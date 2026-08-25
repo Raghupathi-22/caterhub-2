@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
 import com.daily.cetaring.data.remote.dto.WorkerJobResponse
 import com.daily.cetaring.data.remote.dto.WorkerProfileResponse
+import com.daily.cetaring.domain.catalog.ServiceCatalog
 import com.daily.cetaring.presentation.components.CaterHubEmptyState
 import com.daily.cetaring.presentation.components.CaterHubErrorState
 import com.daily.cetaring.presentation.components.CaterHubLoadingState
@@ -82,7 +83,10 @@ fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobC
         when (val state = uiState) {
             WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Finding bookings...")
             is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(state.message) { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }
+                CaterHubErrorState(
+                    message = state.message,
+                    onRetry = { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }
+                )
             }
             is WorkerUiState.JobsLoaded -> Column(
                 Modifier.fillMaxSize().background(Cream).padding(padding)
@@ -99,11 +103,19 @@ fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobC
                 )
                 CaterHubPrimaryButton("Search Bookings", { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }, Modifier.fillMaxWidth())
                 if (state.jobs.isEmpty()) {
-                    CaterHubEmptyState("No bookings available", "Try another area or check again later.", "Refresh") {
-                        viewModel.loadAvailableJobs()
-                    }
+                    CaterHubEmptyState(
+                        title = "No bookings available",
+                        message = "Try another area or check again later.",
+                        actionText = "Refresh",
+                        onActionClick = { viewModel.loadAvailableJobs() }
+                    )
                 } else {
-                    state.jobs.forEach { WorkerStaffingJobCard(it) { onJobClick(it.id) } }
+                    state.jobs.forEach { job ->
+                        WorkerStaffingJobCard(
+                            job = job,
+                            onClick = { onJobClick(job.id) }
+                        )
+                    }
                 }
             }
             else -> Unit
@@ -122,7 +134,7 @@ fun WorkerJobDetailsScreen(viewModel: WorkerViewModel, jobId: Long, onBackClick:
         when (val state = uiState) {
             WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading booking...")
             is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(state.message) { viewModel.loadJob(jobId) }
+                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadJob(jobId) })
             }
             is WorkerUiState.JobDetailsLoaded -> JobDetails(state.job, null, { viewModel.acceptJob(state.job.id) }, Modifier.padding(padding))
             is WorkerUiState.JobAccepted -> JobDetails(state.job, state.message, null, Modifier.padding(padding))
@@ -184,7 +196,7 @@ fun WorkerMyJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit) {
         when (val state = uiState) {
             WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading your bookings...")
             is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(state.message) { viewModel.loadMyJobs() }
+                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadMyJobs() })
             }
             is WorkerUiState.MyJobsLoaded -> Column(
                 Modifier.fillMaxSize().background(Cream).padding(padding)
@@ -231,7 +243,7 @@ fun WorkerProfileScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onL
         when (val state = uiState) {
             WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading your profile...")
             is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(state.message) { viewModel.loadProfile() }
+                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadProfile() })
             }
             is WorkerUiState.ProfileLoaded -> ProfileContent(state.profile, onLogoutClick, Modifier.padding(padding))
             else -> Unit
@@ -253,7 +265,7 @@ private fun ProfileContent(profile: WorkerProfileResponse, onLogout: () -> Unit,
                     }
                     Column(Modifier.padding(start = 14.dp).weight(1f)) {
                         Text(profile.fullName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Ink)
-                        Text(profile.workerType.category, color = Green)
+                        Text(ServiceCatalog.categoryForWorkerType(profile.workerType)?.title ?: profile.workerType.category, color = Green)
                     }
                     CaterHubStatusChip(profile.status.label)
                 }

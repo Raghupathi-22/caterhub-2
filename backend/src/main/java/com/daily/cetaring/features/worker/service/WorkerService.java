@@ -457,11 +457,12 @@ public class WorkerService {
         if (requestedAvailable && profile.getStatus() != WorkerProfile.WorkerStatus.ACTIVE) {
             throw new IllegalArgumentException("Availability will be enabled after your profile is verified.");
         }
+        LocalTime now = LocalTime.now().withSecond(0).withNano(0);
         WorkerAvailability availability = WorkerAvailability.builder()
             .workerProfile(profile)
             .availableDate(LocalDate.now())
-            .startTime(LocalTime.of(9, 0))
-            .endTime(LocalTime.of(22, 0))
+            .startTime(now)
+            .endTime(now.plusHours(8))
             .status(requestedAvailable ? WorkerAvailability.AvailabilityStatus.AVAILABLE : WorkerAvailability.AvailabilityStatus.UNAVAILABLE)
             .notes(trimToNull(request.getNotes()))
             .build();

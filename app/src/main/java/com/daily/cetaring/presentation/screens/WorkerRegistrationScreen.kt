@@ -15,19 +15,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -51,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.daily.cetaring.data.remote.dto.CreateWorkerProfileRequest
 import com.daily.cetaring.data.remote.dto.WorkerType
+import com.daily.cetaring.domain.catalog.ServiceCatalog
 import com.daily.cetaring.presentation.viewmodel.WorkerUiState
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 
@@ -72,13 +68,21 @@ fun WorkerRegistrationScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var step by remember { mutableIntStateOf(0) }
-    var workerType by remember { mutableStateOf(WorkerType.CHEF) }
+    var selectedCategoryId by remember { mutableStateOf(ServiceCatalog.categories.first().id) }
+    var selectedRoleId by remember { mutableStateOf("") }
     var experience by remember { mutableStateOf("") }
     var skills by remember { mutableStateOf("") }
     var areas by remember { mutableStateOf("") }
     var languages by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
     var showSubmitted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedCategoryId) {
+        val roles = ServiceCatalog.rolesForCategory(selectedCategoryId).filter { it.workerType != null }
+        if (roles.none { it.id == selectedRoleId }) {
+            selectedRoleId = roles.firstOrNull()?.id.orEmpty()
+        }
+    }
 
     LaunchedEffect(uiState) {
         if (uiState is WorkerUiState.Error) {
@@ -131,7 +135,7 @@ fun WorkerRegistrationScreen(
             )
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                repeat(4) { i ->
+                repeat(5) { i ->
                     androidx.compose.foundation.layout.Box(
                         Modifier.weight(1f).padding(vertical = 2.dp)
                             .background(if (i <= step) ChRed else ChBorder, RoundedCornerShape(20.dp))
@@ -139,14 +143,24 @@ fun WorkerRegistrationScreen(
                     )
                 }
             }
-            Text("Step ${step + 1} of 4", color = ChGreen, fontWeight = FontWeight.Bold)
+            Text("Step ${step + 1} of 5", color = ChGreen, fontWeight = FontWeight.Bold)
 
             AnimatedContent(step, label = "worker-registration-step") { current ->
                 when (current) {
-                    0 -> RoleStep(workerType) { workerType = it }
-                    1 -> ExperienceStep(experience) { experience = it }
-                    2 -> SkillsStep(skills, areas, languages, { skills = it }, { areas = it }, { languages = it })
-                    else -> ReviewStep(workerType, experience, skills, areas, languages, bio) { bio = it }
+                    0 -> CategoryStep(selectedCategoryId) { selectedCategoryId = it }
+                    1 -> RoleStep(selectedCategoryId, selectedRoleId) { selectedRoleId = it }
+                    2 -> ExperienceStep(experience) { experience = it }
+                    3 -> SkillsStep(skills, areas, languages, { skills = it }, { areas = it }, { languages = it })
+                    else -> ReviewStep(
+                        categoryId = selectedCategoryId,
+                        roleId = selectedRoleId,
+                        experience = experience,
+                        skills = skills,
+                        areas = areas,
+                        languages = languages,
+                        bio = bio,
+                        onBio = { bio = it }
+                    )
                 }
             }
 
@@ -158,58 +172,75 @@ fun WorkerRegistrationScreen(
                 ) { Text(if (step == 0) "Cancel" else "Back", color = ChGreen) }
 
                 Button(
-                    enabled = uiState !is WorkerUiState.Loading && valid(step, experience, skills, areas, languages),
+                    enabled = uiState !is WorkerUiState.Loading && valid(step, selectedRoleId, experience, skills, areas, languages),
                     onClick = {
-                        if (step < 3) step++
-                        else viewModel.submitProfile(
-                            CreateWorkerProfileRequest(
-                                workerType, experience.toIntOrNull() ?: 0,
-                                skills.trim(), areas.trim(), languages.trim(), bio.trim().ifBlank { null }
-                            )
-                        )
+                        if (step < 4) {
+                            if (step == 0 && selectedRoleId.isBlank()) {
+                                selectedRoleId = ServiceCatalog.rolesForCategory(selectedCategoryId)
+                                    .firstOrNull { it.workerType != null }?.id.orEmpty()
+                            }
+                            step++
+                        } else {
+                            val workerType = ServiceCatalog.roles.firstOrNull { it.id == selectedRoleId }?.workerType
+                            if (workerType != null) {
+                                viewModel.submitProfile(
+                                    CreateWorkerProfileRequest(
+                                        workerType, experience.toIntOrNull() ?: 0,
+                                        skills.trim(), areas.trim(), languages.trim(), bio.trim().ifBlank { null }
+                                    )
+                                )
+                            }
+                        }
                     },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(18.dp),
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = ChRed)
                 ) {
                     if (uiState is WorkerUiState.Loading) CircularProgressIndicator(strokeWidth = 2.dp)
-                    else Text(if (step < 3) "Continue" else "Submit")
+                    else Text(if (step < 4) "Continue" else "Submit")
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RoleStep(selected: WorkerType, onChange: (WorkerType) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    val groups = WorkerType.displayRoles().groupBy { it.category }
-    CreamCard("Select your service", "Customers will see this as your primary professional role.") {
-        ExposedDropdownMenuBox(expanded, { expanded = !expanded }) {
-            OutlinedTextField(
-                selected.label, {}, readOnly = true,
-                label = { Text("Service role") },
-                leadingIcon = { Icon(Icons.Filled.Work, null, tint = ChRed) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                modifier = Modifier.menuAnchor().fillMaxWidth()
-            )
-            ExposedDropdownMenu(expanded, { expanded = false }) {
-                groups.forEach { (category, roles) ->
-                    DropdownMenuItem(
-                        text = { Text(category, color = ChGreen, fontWeight = FontWeight.Bold) },
-                        onClick = {}, enabled = false
-                    )
-                    roles.forEach { role ->
-                        DropdownMenuItem(
-                            text = { Text(role.label) },
-                            onClick = { onChange(role); expanded = false }
-                        )
-                    }
+private fun CategoryStep(selectedCategoryId: String, onChange: (String) -> Unit) {
+    CreamCard("Choose your service", "Select the category you provide professionally.") {
+        ServiceCatalog.categories.forEach { category ->
+            val selected = category.id == selectedCategoryId
+            OutlinedButton(
+                onClick = { onChange(category.id) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) ChRed else ChBorder)
+            ) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text(category.title, color = if (selected) ChRed else ChInk, fontWeight = FontWeight.Bold)
+                    Text(category.subtitle, color = ChMuted, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
-        Text(selected.category, color = ChGreen, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun RoleStep(categoryId: String, selectedRoleId: String, onChange: (String) -> Unit) {
+    val roles = remember(categoryId) {
+        ServiceCatalog.rolesForCategory(categoryId).filter { it.workerType != null }
+    }
+    CreamCard("Choose your role", "Only roles for the selected category are shown.") {
+        roles.forEach { role ->
+            val selected = role.id == selectedRoleId
+            OutlinedButton(
+                onClick = { onChange(role.id) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) ChRed else ChBorder)
+            ) {
+                Text(role.title, color = if (selected) ChRed else ChInk, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 
@@ -243,12 +274,14 @@ private fun SkillsStep(
 
 @Composable
 private fun ReviewStep(
-    role: WorkerType, experience: String, skills: String, areas: String, languages: String,
+    categoryId: String, roleId: String, experience: String, skills: String, areas: String, languages: String,
     bio: String, onBio: (String) -> Unit
 ) {
+    val role = ServiceCatalog.roles.firstOrNull { it.id == roleId }
+    val category = ServiceCatalog.category(categoryId)
     CreamCard("Review your profile", "Make sure your details are correct before submitting.") {
-        androidx.compose.material3.AssistChip(onClick = {}, label = { Text(role.label) })
-        ReviewLine("Category", role.category)
+        androidx.compose.material3.AssistChip(onClick = {}, label = { Text(role?.title ?: "Role not selected") })
+        ReviewLine("Category", category?.title ?: "Not selected")
         ReviewLine("Experience", "$experience years")
         ReviewLine("Skills", skills)
         ReviewLine("Preferred areas", areas)
@@ -283,9 +316,10 @@ private fun ReviewLine(label: String, value: String) {
     }
 }
 
-private fun valid(step: Int, experience: String, skills: String, areas: String, languages: String) =
+private fun valid(step: Int, roleId: String, experience: String, skills: String, areas: String, languages: String) =
     when (step) {
-        1 -> experience.isNotBlank()
-        2, 3 -> skills.isNotBlank() && areas.isNotBlank() && languages.isNotBlank()
+        1 -> roleId.isNotBlank()
+        2 -> experience.isNotBlank()
+        3, 4 -> skills.isNotBlank() && areas.isNotBlank() && languages.isNotBlank()
         else -> true
     }

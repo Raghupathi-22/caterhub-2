@@ -126,10 +126,17 @@ fun CaterHubLoadingState(message: String = "Loading CaterHub...") {
 
 @Composable
 fun CaterHubErrorState(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    val normalized = message.lowercase(Locale.ROOT)
+    val title = when {
+        normalized.contains("session") || normalized.contains("sign in again") -> "Session expired"
+        normalized.contains("permission") -> "Permission required"
+        normalized.contains("connect") || normalized.contains("internet") || normalized.contains("timeout") -> "Connection issue"
+        else -> "Something went wrong"
+    }
     Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Filled.CloudOff, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(34.dp))
-            Text("Unable to connect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
             Text(message, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onErrorContainer)
             Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Retry") }
         }

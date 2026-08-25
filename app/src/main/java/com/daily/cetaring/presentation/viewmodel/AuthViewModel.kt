@@ -307,6 +307,12 @@ class AuthViewModel(
                 message
 
             message.contains(
+                "session has expired",
+                ignoreCase = true
+            ) ->
+                "Your session has expired. Please sign in again."
+
+            message.contains(
                 "403",
                 ignoreCase = true
             ) ->
