@@ -33,6 +33,7 @@ import com.daily.cetaring.data.remote.dto.CreateStaffingRequest
 import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
 import com.daily.cetaring.data.remote.dto.WorkerType
 import com.daily.cetaring.data.repository.WorkerRepository
+import com.daily.cetaring.domain.catalog.EventTypeCatalog
 import com.daily.cetaring.domain.catalog.ServiceCatalog
 import com.daily.cetaring.presentation.components.ReviewLineItem
 import com.daily.cetaring.presentation.components.ReviewRequestCard
@@ -140,7 +141,7 @@ fun ServiceRequestScreen(
     val items = category.items
     val selected = remember(serviceType) { mutableStateMapOf<String, Int>() }
     var step by remember { mutableIntStateOf(0) }
-    var eventType by remember { mutableStateOf("Birthday") }
+    var eventType by remember { mutableStateOf<String?>(null) }
     var eventDate by remember { mutableStateOf("") }
     var startTime by remember { mutableStateOf("") }
     var endTime by remember { mutableStateOf("") }
@@ -158,6 +159,7 @@ fun ServiceRequestScreen(
     val hasSelection = selected.values.any { it > 0 }
     val hasQuoteServices = items.any { (selected[it.id] ?: 0) > 0 && it.quoteOnly }
     val detailsComplete = hasSelection &&
+        !eventType.isNullOrBlank() &&
         eventDate.isNotBlank() &&
         startTime.isNotBlank() &&
         endTime.isNotBlank() &&
@@ -234,7 +236,7 @@ fun ServiceRequestScreen(
                     else -> {
                         val selectedItems = items.filter { (selected[it.id] ?: 0) > 0 }
                         ReviewRequestCard(
-                            eventType = eventType,
+                            eventType = EventTypeCatalog.displayNameForBackendValue(eventType),
                             eventDate = eventDate.takeIf { it.isNotBlank() }?.let(::displayDateForReview).orEmpty(),
                             timeRange = "${startTime.takeIf { it.isNotBlank() }?.let(::displayTime).orEmpty()} – ${endTime.takeIf { it.isNotBlank() }?.let(::displayTime).orEmpty()}",
                             location = "$area, $location",
@@ -270,6 +272,7 @@ fun ServiceRequestScreen(
                         if (step < 2) {
                             error = when {
                                 !hasSelection -> "Please select at least one service."
+                                step == 1 && eventType.isNullOrBlank() -> "Please select an event type."
                                 step == 1 && eventDate.isBlank() -> "Please choose the event date."
                                 step == 1 && startTime.isBlank() -> "Please choose the start time."
                                 step == 1 && endTime.isBlank() -> "Please choose the end time."
@@ -293,7 +296,7 @@ fun ServiceRequestScreen(
                                         val qty = selected[item.id] ?: 0
                                         workerRepository.createStaffingRequest(
                                             CreateStaffingRequest(
-                                                eventType, item.workerType!!, eventDate, startTime, endTime,
+                                                requireNotNull(eventType), item.workerType!!, eventDate, startTime, endTime,
                                                 location, area, qty, BigDecimal(item.price.coerceAtLeast(1)), notes.ifBlank { null }
                                             )
                                         )
@@ -307,7 +310,7 @@ fun ServiceRequestScreen(
                                         val fullDetails = "End time: $endTime; $details${if (notes.isBlank()) "" else "; Notes: $notes"}"
                                         workerRepository.createServiceRequest(
                                             ServiceRequestRequest(
-                                                category.serviceType, eventType, eventDate, startTime,
+                                                category.serviceType, requireNotNull(eventType), eventDate, startTime,
                                                 location, area, fullDetails, BigDecimal(fixedTotal)
                                             )
                                         )
@@ -519,18 +522,46 @@ private fun TotalCard(total: Int, color: Color, hasQuoteOnly: Boolean) {
 }
 
 @Composable
-private fun EventTypeField(value: String, onChange: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    val options = listOf(
-        "Wedding", "Reception", "Engagement", "Birthday", "Anniversary", "Housewarming",
-        "Baby Shower", "Naming Ceremony", "Corporate Event", "School / College Event",
-        "Festival", "Religious Ceremony", "Farewell", "Get Together", "Other"
+private fun EventTypeField(value: String?, onChange: (String) -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+    PickerField(
+        label = "Event type",
+        value = value?.let { EventTypeCatalog.displayNameForBackendValue(it) } ?: "Select event type",
+        onClick = { showDialog = true }
     )
-    Box {
-        OutlinedTextField(value, {}, label = { Text("Event type") }, readOnly = true, modifier = Modifier.fillMaxWidth().clickable { expanded = true }, textStyle = LocalTextStyle.current.copy(color = TextDark))
-        DropdownMenu(expanded, { expanded = false }) {
-            options.forEach { DropdownMenuItem(text = { Text(it) }, onClick = { onChange(it); expanded = false }) }
-        }
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Choose event type") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    EventTypeCatalog.eventTypes.forEach { option ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onChange(option.backendValue)
+                                    showDialog = false
+                                }
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = value == option.backendValue,
+                                onClick = {
+                                    onChange(option.backendValue)
+                                    showDialog = false
+                                }
+                            )
+                            Text(option.displayName, color = TextDark)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) { Text("Close") }
+            }
+        )
     }
 }
 

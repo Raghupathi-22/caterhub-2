@@ -147,24 +147,15 @@ private fun PublicHomeContent(
             )
         }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ActionCard(
-                modifier = Modifier.weight(1f),
-                title = "Book Catering",
-                subtitle = "Plan your event\nin a few easy steps",
-                color = Maroon,
-                icon = Icons.Filled.RestaurantMenu,
-                onClick = onBook
-            )
-            ActionCard(
-                modifier = Modifier.weight(1f),
-                title = "Join CaterHub",
-                subtitle = "Find flexible catering\nopportunities near you",
-                color = Green,
-                icon = Icons.Filled.Groups,
-                onClick = onWorkerRegister
-            )
-        }
+        ActionCard(
+            modifier = Modifier.fillMaxWidth(),
+            title = "Book Catering",
+            subtitle = "Plan your event\nin a few easy steps",
+            color = Maroon,
+            icon = Icons.Filled.RestaurantMenu,
+            onClick = onBook
+        )
+        PublicJoinCtaSection(onWorkerRegister = onWorkerRegister)
 
         OffersPreview(onBook)
         SpecialitiesPreview()
@@ -321,6 +312,43 @@ private fun ActionCard(
                     lineHeight = 17.sp,
                     maxLines = 2
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PublicJoinCtaSection(onWorkerRegister: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("Join CaterHub", color = Maroon, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
+            Text("Work with us and earn with your skills", color = Green, fontWeight = FontWeight.Bold)
+            Text(
+                "Join as a catering professional, decorator,\nDJ, singer, photographer, beauty professional,\nor other event service provider.",
+                color = TextDark,
+                fontSize = 13.sp,
+                lineHeight = 19.sp
+            )
+            Card(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onWorkerRegister),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Green)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Join CaterHub →", color = Color.White, fontWeight = FontWeight.ExtraBold)
+                }
             }
         }
     }

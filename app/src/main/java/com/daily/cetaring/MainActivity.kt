@@ -214,7 +214,6 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(serviceRequestRoute(categoryId))
                                 }
                             },
-                            onWorkerRegisterClick = { navController.navigate(AppRoute.WORKER_ONBOARDING) },
                             onBookingsClick = { navController.navigate(AppRoute.BOOKINGS) },
                             onBookingClick = { bookingId -> navController.navigate("booking_details/$bookingId") },
                             onNotificationsClick = { },

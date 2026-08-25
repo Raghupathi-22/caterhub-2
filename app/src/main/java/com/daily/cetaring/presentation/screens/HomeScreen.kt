@@ -59,7 +59,6 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onBookCateringClick: () -> Unit,
     onServiceCategoryClick: (String) -> Unit,
-    onWorkerRegisterClick: () -> Unit,
     onBookingsClick: () -> Unit,
     onBookingClick: (Long) -> Unit,
     onNotificationsClick: () -> Unit,
@@ -87,7 +86,6 @@ fun HomeScreen(
             HomeOffers()
             HomeSpecialities()
             HomeWhyCaterHub()
-            HomeWorkWithUs(onWorkerRegisterClick = onWorkerRegisterClick)
             Spacer(Modifier.height(6.dp))
         }
     }
@@ -249,26 +247,6 @@ private fun WhyItem(text: String, icon: ImageVector, accent: Color) {
             Icon(icon, null, tint = accent, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text(text, color = Ink, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
-private fun HomeWorkWithUs(onWorkerRegisterClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Border)
-    ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Join CaterHub", color = Red, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-            Text("Work with us and earn with your skills", color = Green, fontWeight = FontWeight.SemiBold)
-            Text(
-                "Join as a catering professional, decorator, DJ, singer, photographer, beauty professional or other event service provider.",
-                color = Ink
-            )
-            ActionButton("Join CaterHub \u2192", Green, onWorkerRegisterClick, showTrailingArrow = false)
         }
     }
 }

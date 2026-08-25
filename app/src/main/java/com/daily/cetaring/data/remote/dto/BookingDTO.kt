@@ -1,6 +1,7 @@
 package com.daily.cetaring.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
+import com.daily.cetaring.domain.catalog.EventTypeCatalog
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -53,7 +54,7 @@ data class BookingResponse(
  * kept out of this flow; staff booking has its own entry point on Home.
  */
 data class BookingDraft(
-    val eventType: String = "",
+    val eventType: String? = null,
     val guestCount: Int? = null,
     // Legacy fields kept for source/test compatibility. The new UI does not expose them.
     val foodService: String = "",
@@ -94,23 +95,7 @@ data class StaffingRequirement(
 )
 
 object BookingOptions {
-    val eventTypes = listOf(
-        "Wedding",
-        "Reception",
-        "Birthday",
-        "Engagement",
-        "Anniversary",
-        "Housewarming",
-        "Baby Shower",
-        "Naming Ceremony",
-        "Corporate Event",
-        "School / College Event",
-        "Festival",
-        "Religious Ceremony",
-        "Farewell",
-        "Get Together",
-        "Other"
-    )
+    val eventTypes = EventTypeCatalog.eventTypes.map { it.backendValue }
 
     const val fullCatering = "Full Catering"
 
@@ -170,7 +155,7 @@ object BookingValidator {
     }
 
     private fun validateEvent(draft: BookingDraft): BookingValidationResult {
-        val eventType = if (draft.eventType.isBlank()) {
+        val eventType = if (draft.eventType.isNullOrBlank()) {
             BookingValidationResult.Invalid("Please select an event type.")
         } else {
             BookingValidationResult.Valid

@@ -70,6 +70,8 @@ import com.daily.cetaring.data.remote.dto.BookingDraft
 import com.daily.cetaring.data.remote.dto.BookingOptions
 import com.daily.cetaring.data.remote.dto.BookingResponse
 import com.daily.cetaring.data.remote.dto.BookingValidationResult
+import com.daily.cetaring.domain.catalog.EventTypeCatalog
+import com.daily.cetaring.domain.catalog.EventTypeDefinition
 import com.daily.cetaring.presentation.components.CaterHubBookingCard
 import com.daily.cetaring.presentation.components.CaterHubCategoryChip
 import com.daily.cetaring.presentation.components.CaterHubEmptyState
@@ -232,16 +234,21 @@ private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
         "Choose the occasion and expected guest count.",
         color = Muted
     )
+    Text(
+        text = draft.eventType?.let { EventTypeCatalog.displayNameForBackendValue(it) } ?: "Select event type",
+        color = if (draft.eventType == null) Muted else TextDark,
+        fontWeight = FontWeight.SemiBold
+    )
 
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(9.dp),
         verticalArrangement = Arrangement.spacedBy(9.dp)
     ) {
-        BookingOptions.eventTypes.forEach { event ->
+        EventTypeCatalog.eventTypes.forEach { event ->
             EventTypeCard(
                 event = event,
-                selected = draft.eventType == event,
-                onClick = { viewModel.updateDraft { it.copy(eventType = event) } }
+                selected = draft.eventType == event.backendValue,
+                onClick = { viewModel.updateDraft { it.copy(eventType = event.backendValue) } }
             )
         }
     }
@@ -285,19 +292,17 @@ private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
 
 @Composable
 private fun EventTypeCard(
-    event: String,
+    event: EventTypeDefinition,
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val icon = when (event) {
-        "Birthday" -> Icons.Filled.Cake
-        "Wedding" -> Icons.Filled.Favorite
-        "Engagement" -> Icons.Filled.Favorite
-        "Housewarming" -> Icons.Filled.Home
-        "Corporate" -> Icons.Filled.Groups
-        "Baby Shower" -> Icons.Filled.Favorite
-        "Naming Ceremony" -> Icons.Filled.Cake
-        "Festival" -> Icons.Filled.Star
+    val icon = when (event.id) {
+        "birthday" -> Icons.Filled.Cake
+        "wedding", "engagement", "reception", "anniversary" -> Icons.Filled.Favorite
+        "housewarming" -> Icons.Filled.Home
+        "corporate", "school_college" -> Icons.Filled.Groups
+        "baby_shower", "naming_ceremony" -> Icons.Filled.Cake
+        "festival", "party" -> Icons.Filled.Star
         else -> Icons.Filled.Event
     }
 
@@ -325,7 +330,7 @@ private fun EventTypeCard(
             )
             Spacer(Modifier.size(7.dp))
             Text(
-                event,
+                event.displayName,
                 color = if (selected) Color.White else TextDark,
                 fontWeight = FontWeight.Bold
             )
@@ -691,7 +696,7 @@ private fun ReviewStep(draft: BookingDraft, onEdit: (Int) -> Unit) {
     }
 
     ReviewRequestCard(
-        eventType = draft.eventType,
+        eventType = EventTypeCatalog.displayNameForBackendValue(draft.eventType),
         eventDate = formatBookingDate(draft.eventDate),
         timeRange = formatBookingReviewTimeRange(draft.eventTime),
         location = draft.deliveryAddress(),

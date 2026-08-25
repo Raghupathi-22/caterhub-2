@@ -56,7 +56,7 @@ class BookingViewModel(
         _uiState.value = BookingUiState.Idle
         _draft.value = BookingDraft(
             guestCount = prefillGuests,
-            eventType = eventType.orEmpty(),
+            eventType = eventType,
             cateringPlan = when (foodService) {
                 "Basic", "Classic", "Premium", "Customized" -> foodService
                 else -> ""
@@ -84,7 +84,7 @@ class BookingViewModel(
             try {
                 val response = bookingRepository.createBooking(
                     CreateMyBookingRequest(
-                        eventType = currentDraft.eventType,
+                        eventType = currentDraft.eventType.orEmpty(),
                         guestCount = currentDraft.guestCount ?: 0,
                         mealType = currentDraft.mealTypeForBackend(),
                         eventDateTime = currentDraft.eventDateTimeIso(),

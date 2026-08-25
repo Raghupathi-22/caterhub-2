@@ -127,7 +127,7 @@ fun WorkerRegistrationScreen(
                 .verticalScroll(rememberScrollState()).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Join CaterHub", style = MaterialTheme.typography.headlineSmall,
+            Text("Worker registration", style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold, color = ChRed)
             Text(
                 "Offer your professional service to customers across Hyderabad.",
