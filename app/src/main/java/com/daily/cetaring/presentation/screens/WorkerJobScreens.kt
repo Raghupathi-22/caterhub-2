@@ -1,5 +1,6 @@
 package com.daily.cetaring.presentation.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,7 +33,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
@@ -43,6 +50,27 @@ import com.daily.cetaring.presentation.components.SummaryRow
 import com.daily.cetaring.presentation.viewmodel.WorkerUiState
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 
+private val Cream = Color(0xFFFFFBF3)
+private val Red = Color(0xFFA61920)
+private val Green = Color(0xFF08752D)
+private val Gold = Color(0xFFC28A12)
+private val Ink = Color(0xFF292623)
+private val Muted = Color(0xFF746E68)
+private val Border = Color(0xFFE1D8CA)
+private val PaleRed = Color(0xFFF9E8E5)
+private val PaleGreen = Color(0xFFE9F4EA)
+private val PaleGold = Color(0xFFFFF3D5)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WorkerTopBar(title: String, onBackClick: () -> Unit) {
+    TopAppBar(
+        title = { Text(title, color = Ink, fontWeight = FontWeight.Bold) },
+        navigationIcon = { IconButton(onClick = onBackClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Red) } },
+        colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = Cream)
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobClick: (Long) -> Unit) {
@@ -50,28 +78,32 @@ fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobC
     var search by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { viewModel.loadAvailableJobs() }
 
-    Scaffold(topBar = { WorkerTopBar("Available Jobs", onBackClick) }) { padding ->
+    Scaffold(containerColor = Cream, topBar = { WorkerTopBar("Available Bookings", onBackClick) }) { padding ->
         when (val state = uiState) {
-            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Finding suitable jobs...")
+            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Finding bookings...")
             is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadAvailableJobs(search = search.ifBlank { null }) })
+                CaterHubErrorState(state.message) { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }
             }
             is WorkerUiState.JobsLoaded -> Column(
-                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                Modifier.fillMaxSize().background(Cream).padding(padding)
+                    .verticalScroll(rememberScrollState()).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Jobs matched to your role and area", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+                Text("Available bookings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Red)
+                Text("Bookings matched to your professional role and preferred area.", color = Muted)
                 OutlinedTextField(
-                    search,
-                    { search = it },
-                    label = { Text("Search area, event or service") },
+                    search, { search = it },
+                    label = { Text("Search event, area or service") },
+                    leadingIcon = { Icon(Icons.Filled.Work, null, tint = Red) },
                     modifier = Modifier.fillMaxWidth()
                 )
-                CaterHubPrimaryButton("Search", { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }, Modifier.fillMaxWidth())
+                CaterHubPrimaryButton("Search Bookings", { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }, Modifier.fillMaxWidth())
                 if (state.jobs.isEmpty()) {
-                    CaterHubEmptyState("No suitable jobs available", "Try another area or check again later.", actionText = "Refresh", onActionClick = { viewModel.loadAvailableJobs() })
+                    CaterHubEmptyState("No bookings available", "Try another area or check again later.", "Refresh") {
+                        viewModel.loadAvailableJobs()
+                    }
                 } else {
-                    state.jobs.forEach { WorkerStaffingJobCard(it, onClick = { onJobClick(it.id) }) }
+                    state.jobs.forEach { WorkerStaffingJobCard(it) { onJobClick(it.id) } }
                 }
             }
             else -> Unit
@@ -86,47 +118,60 @@ fun WorkerJobDetailsScreen(viewModel: WorkerViewModel, jobId: Long, onBackClick:
     LaunchedEffect(jobId) { viewModel.loadJob(jobId) }
     LaunchedEffect(uiState) { if (uiState is WorkerUiState.JobAccepted) onAccepted() }
 
-    Scaffold(topBar = { WorkerTopBar("Job Details", onBackClick) }) { padding ->
+    Scaffold(containerColor = Cream, topBar = { WorkerTopBar("Booking Details", onBackClick) }) { padding ->
         when (val state = uiState) {
-            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading job details...")
+            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading booking...")
             is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadJob(jobId) })
+                CaterHubErrorState(state.message) { viewModel.loadJob(jobId) }
             }
-            is WorkerUiState.JobDetailsLoaded -> JobDetailsContent(state.job, onAccept = { viewModel.acceptJob(state.job.id) }, modifier = Modifier.padding(padding))
-            is WorkerUiState.JobAccepted -> JobDetailsContent(state.job, acceptedMessage = state.message, onAccept = null, modifier = Modifier.padding(padding))
+            is WorkerUiState.JobDetailsLoaded -> JobDetails(state.job, null, { viewModel.acceptJob(state.job.id) }, Modifier.padding(padding))
+            is WorkerUiState.JobAccepted -> JobDetails(state.job, state.message, null, Modifier.padding(padding))
             else -> Unit
         }
     }
 }
 
 @Composable
-private fun JobDetailsContent(job: StaffingJobResponse, acceptedMessage: String? = null, onAccept: (() -> Unit)?, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        if (acceptedMessage != null) Text(acceptedMessage, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        Card(shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(1.dp)) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+private fun JobDetails(job: StaffingJobResponse, message: String?, onAccept: (() -> Unit)?, modifier: Modifier) {
+    Column(modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (message != null) Text(message, color = Green, fontWeight = FontWeight.Bold)
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(job.eventType, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                        Text(job.workerType.label, color = MaterialTheme.colorScheme.primary)
+                        Text(job.eventType, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Red)
+                        Text(job.workerType.label, color = Green, fontWeight = FontWeight.Bold)
                     }
                     CaterHubStatusChip(job.status)
                 }
-                SummaryRow("Date", job.eventDate)
-                SummaryRow("Time", "${job.startTime} – ${job.endTime}")
-                SummaryRow("Location", "${job.location}, ${job.area}")
+                Detail("Event date", job.eventDate, Icons.Filled.Event)
+                Detail("Time", "${job.startTime} – ${job.endTime}", Icons.Filled.Event)
+                Detail("Location", "${job.location}, ${job.area}", Icons.Filled.LocationOn)
                 SummaryRow("Payment", "₹${job.payment}")
-                SummaryRow("Positions", "${job.acceptedWorkers} / ${job.requiredWorkers} filled · ${job.remainingPositions} remaining")
+                SummaryRow("Positions", "${job.acceptedWorkers}/${job.requiredWorkers} filled · ${job.remainingPositions} remaining")
                 SummaryRow("Requirements", job.additionalRequirements.orEmpty().ifBlank { "No additional requirements" })
             }
         }
-        val canAccept = job.remainingPositions > 0 && job.alreadyAccepted != true && onAccept != null
         CaterHubPrimaryButton(
-            if (job.remainingPositions <= 0) "All positions are filled" else "Accept Job",
-            onClick = { onAccept?.invoke() },
-            enabled = canAccept,
-            modifier = Modifier.fillMaxWidth()
+            if (job.remainingPositions <= 0) "All positions filled" else "Accept Booking",
+            { onAccept?.invoke() },
+            Modifier.fillMaxWidth(),
+            enabled = job.remainingPositions > 0 && job.alreadyAccepted != true && onAccept != null
         )
+    }
+}
+
+@Composable
+private fun Detail(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = Red)
+        Column(Modifier.padding(start = 12.dp)) {
+            Text(label, color = Muted)
+            Text(value, color = Ink, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
@@ -135,18 +180,21 @@ private fun JobDetailsContent(job: StaffingJobResponse, acceptedMessage: String?
 fun WorkerMyJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     LaunchedEffect(Unit) { viewModel.loadMyJobs() }
-    Scaffold(topBar = { WorkerTopBar("My Jobs", onBackClick) }) { padding ->
+    Scaffold(containerColor = Cream, topBar = { WorkerTopBar("My Bookings", onBackClick) }) { padding ->
         when (val state = uiState) {
-            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading your jobs...")
+            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading your bookings...")
             is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadMyJobs() })
+                CaterHubErrorState(state.message) { viewModel.loadMyJobs() }
             }
             is WorkerUiState.MyJobsLoaded -> Column(
-                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
+                Modifier.fillMaxSize().background(Cream).padding(padding)
+                    .verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                if (state.jobs.isEmpty()) CaterHubEmptyState("No accepted jobs", "Accepted jobs will appear here.")
-                state.jobs.forEach { WorkerMyJobCard(it) }
+                Text("Your bookings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Red)
+                Text("Track accepted service bookings and their status.", color = Muted)
+                if (state.jobs.isEmpty()) CaterHubEmptyState("No bookings yet", "Accepted bookings will appear here.")
+                state.jobs.forEach { MyJobCard(it) }
             }
             else -> Unit
         }
@@ -154,18 +202,21 @@ fun WorkerMyJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit) {
 }
 
 @Composable
-private fun WorkerMyJobCard(job: WorkerJobResponse) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), elevation = CardDefaults.cardElevation(1.dp)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(Modifier.weight(1f)) {
-                    Text(job.eventType, fontWeight = FontWeight.ExtraBold)
-                    Text(job.workerType.label, color = MaterialTheme.colorScheme.primary)
+private fun MyJobCard(job: WorkerJobResponse) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
+        Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Event, null, tint = Green)
+                Column(Modifier.padding(start = 10.dp).weight(1f)) {
+                    Text(job.eventType, fontWeight = FontWeight.ExtraBold, color = Ink)
+                    Text(job.workerType.label, color = Red, fontWeight = FontWeight.Bold)
                 }
                 CaterHubStatusChip(job.status)
             }
-            Text("${job.area} · ${job.eventDate} · ${job.startTime}–${job.endTime}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("₹${job.payment}", fontWeight = FontWeight.Bold)
+            Text("${job.area} · ${job.eventDate} · ${job.startTime}–${job.endTime}", color = Muted)
+            Text("₹${job.payment}", color = Green, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
@@ -176,65 +227,69 @@ fun WorkerProfileScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onL
     val uiState by viewModel.uiState.collectAsState()
     LaunchedEffect(Unit) { viewModel.loadProfile() }
 
-    Scaffold(topBar = { WorkerTopBar("Professional Profile", onBackClick) }) { padding ->
+    Scaffold(containerColor = Cream, topBar = { WorkerTopBar("My Profile", onBackClick) }) { padding ->
         when (val state = uiState) {
             WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading your profile...")
             is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadProfile() })
+                CaterHubErrorState(state.message) { viewModel.loadProfile() }
             }
-            is WorkerUiState.ProfileLoaded -> WorkerProfileContent(state.profile, onLogoutClick, Modifier.padding(padding))
+            is WorkerUiState.ProfileLoaded -> ProfileContent(state.profile, onLogoutClick, Modifier.padding(padding))
             else -> Unit
         }
     }
 }
 
 @Composable
-private fun WorkerProfileContent(profile: WorkerProfileResponse, onLogoutClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Card(
-            Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-        ) {
-            Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column(Modifier.weight(1f)) {
-                        Text(profile.fullName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-                        Text(profile.workerType.category, color = MaterialTheme.colorScheme.onPrimaryContainer)
+private fun ProfileContent(profile: WorkerProfileResponse, onLogout: () -> Unit, modifier: Modifier) {
+    Column(modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PaleRed)) {
+                        Icon(Icons.Filled.Person, null, tint = Red, modifier = Modifier.padding(16.dp))
+                    }
+                    Column(Modifier.padding(start = 14.dp).weight(1f)) {
+                        Text(profile.fullName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Ink)
+                        Text(profile.workerType.category, color = Green)
                     }
                     CaterHubStatusChip(profile.status.label)
                 }
-                SummaryRow("Service role", profile.workerType.label)
-                SummaryRow("Experience", "${profile.experienceYears} years")
-                SummaryRow("Skills", profile.skills.orEmpty().ifBlank { "Not added" })
-                SummaryRow("Languages", profile.languages.orEmpty().ifBlank { "Not added" })
-                SummaryRow("Preferred areas", profile.preferredAreas.orEmpty().ifBlank { "Not added" })
-                SummaryRow("Rating", "${profile.rating} (${profile.totalRatings} reviews)")
+                androidx.compose.material3.HorizontalDivider(color = Border)
+                ProfileRow("Service role", profile.workerType.label)
+                ProfileRow("Experience", "${profile.experienceYears} years")
+                ProfileRow("Skills", profile.skills.orEmpty().ifBlank { "Not added" })
+                ProfileRow("Languages", profile.languages.orEmpty().ifBlank { "Not added" })
+                ProfileRow("Preferred areas", profile.preferredAreas.orEmpty().ifBlank { "Not added" })
+                ProfileRow("Rating", "${profile.rating} (${profile.totalRatings} reviews)")
             }
         }
 
-        Text("Profile visibility", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
-            Text(
-                "Your profile becomes bookable for this service after CaterHub admin verification.",
-                Modifier.padding(18.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Text("Account status", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = Red)
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = PaleGreen)) {
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(profile.status.label, color = Green, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    if (profile.status.name == "ACTIVE")
+                        "Your service profile is active and can be matched to customer bookings."
+                    else
+                        "Your profile will become bookable after CaterHub admin verification.",
+                    color = Ink
+                )
+            }
         }
 
-        CaterHubPrimaryButton("Logout", onLogoutClick, Modifier.fillMaxWidth())
+        CaterHubPrimaryButton("Logout", onLogout, Modifier.fillMaxWidth())
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WorkerTopBar(title: String, onBackClick: () -> Unit) {
-    TopAppBar(
-        title = { Text(title, fontWeight = FontWeight.Bold) },
-        navigationIcon = {
-            androidx.compose.material3.IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-        }
-    )
+private fun ProfileRow(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label.uppercase(), style = MaterialTheme.typography.labelMedium, color = Green, fontWeight = FontWeight.Bold)
+        Text(value, color = Ink, fontWeight = FontWeight.Medium)
+    }
 }

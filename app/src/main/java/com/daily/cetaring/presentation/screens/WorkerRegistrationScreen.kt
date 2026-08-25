@@ -1,14 +1,13 @@
 package com.daily.cetaring.presentation.screens
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -18,7 +17,6 @@ import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,13 +44,23 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.daily.cetaring.data.remote.dto.CreateWorkerProfileRequest
 import com.daily.cetaring.data.remote.dto.WorkerType
 import com.daily.cetaring.presentation.viewmodel.WorkerUiState
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
+
+private val ChCream = Color(0xFFFFFBF3)
+private val ChRed = Color(0xFFA61920)
+private val ChGreen = Color(0xFF08752D)
+private val ChGold = Color(0xFFC28A12)
+private val ChInk = Color(0xFF292623)
+private val ChMuted = Color(0xFF746E68)
+private val ChBorder = Color(0xFFE1D8CA)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,25 +78,24 @@ fun WorkerRegistrationScreen(
     var areas by remember { mutableStateOf("") }
     var languages by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
-    var showSubmittedDialog by remember { mutableStateOf(false) }
+    var showSubmitted by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
-        when (val state = uiState) {
-            is WorkerUiState.Error -> snackbarHostState.showSnackbar(state.message)
-            is WorkerUiState.Submitted -> showSubmittedDialog = true
-            else -> Unit
+        if (uiState is WorkerUiState.Error) {
+            snackbarHostState.showSnackbar((uiState as WorkerUiState.Error).message)
         }
+        if (uiState is WorkerUiState.Submitted) showSubmitted = true
     }
 
-    if (showSubmittedDialog) {
+    if (showSubmitted) {
         AlertDialog(
             onDismissRequest = {},
-            icon = { Icon(Icons.Filled.CheckCircle, contentDescription = null) },
-            title = { Text("Profile submitted") },
-            text = { Text("Your service-provider profile is pending admin verification. You can track the status from your dashboard.") },
+            icon = { Icon(Icons.Filled.CheckCircle, null, tint = ChGreen) },
+            title = { Text("Profile submitted", color = ChRed, fontWeight = FontWeight.ExtraBold) },
+            text = { Text("Your profile has been submitted for CaterHub admin verification.") },
             confirmButton = {
                 Button(onClick = {
-                    showSubmittedDialog = false
+                    showSubmitted = false
                     viewModel.reset()
                     onSubmitted()
                 }) { Text("Go to dashboard") }
@@ -97,45 +104,49 @@ fun WorkerRegistrationScreen(
     }
 
     Scaffold(
+        containerColor = ChCream,
         topBar = {
             TopAppBar(
-                title = { Text("Join CaterHub") },
+                title = { Text("Worker Registration", color = ChInk, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = ChRed)
                     }
-                }
+                },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = ChCream)
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+            Modifier.fillMaxSize().background(ChCream).padding(padding)
+                .verticalScroll(rememberScrollState()).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Become a CaterHub service professional", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+            Text("Join CaterHub", style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold, color = ChRed)
             Text(
-                "Get matched with catering, events, entertainment, beauty and other service bookings in your area.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                "Offer your professional service to customers across Hyderabad.",
+                style = MaterialTheme.typography.bodyLarge, color = ChMuted
             )
 
-            LinearProgressIndicator(
-                progress = { (step + 1) / 4f },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text("Step ${step + 1} of 4", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                repeat(4) { i ->
+                    androidx.compose.foundation.layout.Box(
+                        Modifier.weight(1f).padding(vertical = 2.dp)
+                            .background(if (i <= step) ChRed else ChBorder, RoundedCornerShape(20.dp))
+                            .padding(vertical = 4.dp)
+                    )
+                }
+            }
+            Text("Step ${step + 1} of 4", color = ChGreen, fontWeight = FontWeight.Bold)
 
-            AnimatedContent(targetState = step, label = "worker-step") { currentStep ->
-                when (currentStep) {
-                    0 -> WorkerTypeStep(workerType, onWorkerTypeChange = { workerType = it })
-                    1 -> ExperienceStep(experience, onExperienceChange = { experience = it })
+            AnimatedContent(step, label = "worker-registration-step") { current ->
+                when (current) {
+                    0 -> RoleStep(workerType) { workerType = it }
+                    1 -> ExperienceStep(experience) { experience = it }
                     2 -> SkillsStep(skills, areas, languages, { skills = it }, { areas = it }, { languages = it })
-                    else -> ReviewStep(workerType, experience, skills, areas, languages, bio, { bio = it })
+                    else -> ReviewStep(workerType, experience, skills, areas, languages, bio) { bio = it }
                 }
             }
 
@@ -143,32 +154,26 @@ fun WorkerRegistrationScreen(
                 OutlinedButton(
                     onClick = { if (step == 0) onBackClick() else step-- },
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp)
-                ) { Text(if (step == 0) "Cancel" else "Back") }
+                    shape = RoundedCornerShape(18.dp)
+                ) { Text(if (step == 0) "Cancel" else "Back", color = ChGreen) }
 
                 Button(
-                    enabled = uiState !is WorkerUiState.Loading && isStepValid(step, experience, skills, areas, languages),
+                    enabled = uiState !is WorkerUiState.Loading && valid(step, experience, skills, areas, languages),
                     onClick = {
                         if (step < 3) step++
                         else viewModel.submitProfile(
                             CreateWorkerProfileRequest(
-                                workerType = workerType,
-                                experienceYears = experience.toIntOrNull() ?: 0,
-                                skills = skills.trim(),
-                                preferredAreas = areas.trim(),
-                                languages = languages.trim(),
-                                bio = bio.trim().ifBlank { null }
+                                workerType, experience.toIntOrNull() ?: 0,
+                                skills.trim(), areas.trim(), languages.trim(), bio.trim().ifBlank { null }
                             )
                         )
                     },
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(18.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = ChRed)
                 ) {
-                    if (uiState is WorkerUiState.Loading) {
-                        CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(if (step < 3) "Continue" else "Submit")
-                    }
+                    if (uiState is WorkerUiState.Loading) CircularProgressIndicator(strokeWidth = 2.dp)
+                    else Text(if (step < 3) "Continue" else "Submit")
                 }
             }
         }
@@ -177,65 +182,45 @@ fun WorkerRegistrationScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WorkerTypeStep(workerType: WorkerType, onWorkerTypeChange: (WorkerType) -> Unit) {
+private fun RoleStep(selected: WorkerType, onChange: (WorkerType) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val grouped = WorkerType.displayRoles().groupBy { it.category }
-
-    RegistrationCard(
-        title = "What service do you provide?",
-        subtitle = "Choose the role customers can book you for."
-    ) {
-        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+    val groups = WorkerType.displayRoles().groupBy { it.category }
+    CreamCard("Select your service", "Customers will see this as your primary professional role.") {
+        ExposedDropdownMenuBox(expanded, { expanded = !expanded }) {
             OutlinedTextField(
-                value = workerType.label,
-                onValueChange = {},
-                readOnly = true,
+                selected.label, {}, readOnly = true,
                 label = { Text("Service role") },
-                leadingIcon = { Icon(Icons.Filled.Work, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Filled.Work, null, tint = ChRed) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
                 modifier = Modifier.menuAnchor().fillMaxWidth()
             )
-            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                grouped.forEach { (category, roles) ->
+            ExposedDropdownMenu(expanded, { expanded = false }) {
+                groups.forEach { (category, roles) ->
                     DropdownMenuItem(
-                        text = { Text(category, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
-                        onClick = {},
-                        enabled = false
+                        text = { Text(category, color = ChGreen, fontWeight = FontWeight.Bold) },
+                        onClick = {}, enabled = false
                     )
-                    roles.forEach { type ->
+                    roles.forEach { role ->
                         DropdownMenuItem(
-                            text = { Text(type.label) },
-                            onClick = {
-                                onWorkerTypeChange(type)
-                                expanded = false
-                            }
+                            text = { Text(role.label) },
+                            onClick = { onChange(role); expanded = false }
                         )
                     }
                 }
             }
         }
-
-        Text(
-            workerType.category,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
+        Text(selected.category, color = ChGreen, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-private fun ExperienceStep(experience: String, onExperienceChange: (String) -> Unit) {
-    RegistrationCard(
-        title = "Your experience",
-        subtitle = "Tell customers and admins how much experience you have."
-    ) {
+private fun ExperienceStep(value: String, onChange: (String) -> Unit) {
+    CreamCard("Your experience", "Add your experience so CaterHub can match you with suitable bookings.") {
         OutlinedTextField(
-            value = experience,
-            onValueChange = { onExperienceChange(it.filter(Char::isDigit).take(2)) },
+            value, { onChange(it.filter(Char::isDigit).take(2)) },
             label = { Text("Experience in years") },
-            leadingIcon = { Icon(Icons.Filled.Badge, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Filled.Badge, null, tint = ChRed) },
             supportingText = { Text("Enter 0 if you are a fresher.") },
-            isError = experience.isBlank(),
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -243,86 +228,48 @@ private fun ExperienceStep(experience: String, onExperienceChange: (String) -> U
 
 @Composable
 private fun SkillsStep(
-    skills: String,
-    areas: String,
-    languages: String,
-    onSkillsChange: (String) -> Unit,
-    onAreasChange: (String) -> Unit,
-    onLanguagesChange: (String) -> Unit
+    skills: String, areas: String, languages: String,
+    onSkills: (String) -> Unit, onAreas: (String) -> Unit, onLanguages: (String) -> Unit
 ) {
-    RegistrationCard(
-        title = "Skills & service areas",
-        subtitle = "Use comma-separated values. This helps CaterHub match you to suitable jobs."
-    ) {
-        OutlinedTextField(
-            value = skills,
-            onValueChange = onSkillsChange,
-            label = { Text("Skills") },
-            placeholder = { Text("Biryani, bulk cooking, plating") },
-            isError = skills.isBlank(),
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = areas,
-            onValueChange = onAreasChange,
-            label = { Text("Preferred areas") },
-            placeholder = { Text("Kondapur, Gachibowli, Madhapur") },
-            isError = areas.isBlank(),
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = languages,
-            onValueChange = onLanguagesChange,
-            label = { Text("Languages") },
-            placeholder = { Text("Telugu, Hindi, English") },
-            isError = languages.isBlank(),
-            modifier = Modifier.fillMaxWidth()
-        )
+    CreamCard("Skills & service areas", "These details help us match you with nearby bookings.") {
+        OutlinedTextField(skills, onSkills, label = { Text("Skills") },
+            placeholder = { Text("Biryani, bulk cooking, plating") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(areas, onAreas, label = { Text("Preferred areas") },
+            placeholder = { Text("Kondapur, Gachibowli, Madhapur") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(languages, onLanguages, label = { Text("Languages") },
+            placeholder = { Text("Telugu, Hindi, English") }, modifier = Modifier.fillMaxWidth())
     }
 }
 
 @Composable
 private fun ReviewStep(
-    workerType: WorkerType,
-    experience: String,
-    skills: String,
-    areas: String,
-    languages: String,
-    bio: String,
-    onBioChange: (String) -> Unit
+    role: WorkerType, experience: String, skills: String, areas: String, languages: String,
+    bio: String, onBio: (String) -> Unit
 ) {
-    RegistrationCard(
-        title = "Review your profile",
-        subtitle = "Check the details before sending them for verification."
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AssistChip(onClick = {}, label = { Text(workerType.label) })
-            AssistChip(onClick = {}, label = { Text("$experience years") })
-        }
-        ReviewLine("Category", workerType.category)
+    CreamCard("Review your profile", "Make sure your details are correct before submitting.") {
+        androidx.compose.material3.AssistChip(onClick = {}, label = { Text(role.label) })
+        ReviewLine("Category", role.category)
+        ReviewLine("Experience", "$experience years")
         ReviewLine("Skills", skills)
-        ReviewLine("Areas", areas)
+        ReviewLine("Preferred areas", areas)
         ReviewLine("Languages", languages)
-        OutlinedTextField(
-            value = bio,
-            onValueChange = onBioChange,
-            label = { Text("Short bio (optional)") },
-            minLines = 3,
-            modifier = Modifier.fillMaxWidth()
-        )
+        OutlinedTextField(bio, onBio, label = { Text("Short bio (optional)") },
+            minLines = 3, modifier = Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-private fun RegistrationCard(title: String, subtitle: String, content: @Composable () -> Unit) {
+private fun CreamCard(title: String, subtitle: String, content: @Composable () -> Unit) {
     Card(
         Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, ChBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = ChInk)
+            Text(subtitle, color = ChMuted)
             content()
         }
     }
@@ -330,13 +277,13 @@ private fun RegistrationCard(title: String, subtitle: String, content: @Composab
 
 @Composable
 private fun ReviewLine(label: String, value: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-        Text(value.ifBlank { "Not provided" }, style = MaterialTheme.typography.bodyMedium)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, color = ChGreen, fontWeight = FontWeight.Bold)
+        Text(value.ifBlank { "Not provided" }, color = ChInk)
     }
 }
 
-private fun isStepValid(step: Int, experience: String, skills: String, areas: String, languages: String): Boolean =
+private fun valid(step: Int, experience: String, skills: String, areas: String, languages: String) =
     when (step) {
         1 -> experience.isNotBlank()
         2, 3 -> skills.isNotBlank() && areas.isNotBlank() && languages.isNotBlank()
