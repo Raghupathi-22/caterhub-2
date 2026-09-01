@@ -72,6 +72,7 @@ twofactor:
   base-url: ${TWOFACTOR_BASE_URL:https://2factor.in}
   voice-base-url: ${TWOFACTOR_VOICE_BASE_URL:${TWOFACTOR_BASE_URL:https://2factor.in}}
   timeout-seconds: ${TWOFACTOR_TIMEOUT_SECONDS:10}
+  sender-id: ${TWOFACTOR_SENDER_ID:}
   # Approved 2Factor/DLT OTP template. The template determines the approved
   # sender/header and message content. The OTP is sent as var1.
   otp-template: ${TWOFACTOR_OTP_TEMPLATE:${SMS_PROVIDER_TEMPLATE_ID:}}
