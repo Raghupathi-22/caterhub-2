@@ -13,15 +13,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,15 +27,15 @@ class SmsOtpSenderTest {
     private HttpServer server;
     private int statusCode;
     private String responseBody;
-    private final AtomicReference<String> capturedPath = new AtomicReference<>();
-    private final AtomicReference<String> capturedQuery = new AtomicReference<>();
+    private String capturedPath;
+    private String capturedQuery;
 
     @BeforeEach
     void setUp() throws IOException {
         statusCode = 200;
         responseBody = "{\"Status\":\"Success\",\"Details\":\"REQ123\"}";
         server = HttpServer.create(new InetSocketAddress(0), 0);
-        server.createContext("/API/R1/", this::handleRequest);
+        server.createContext("/API/V1/", this::handleRequest);
         server.start();
     }
 
@@ -52,26 +47,56 @@ class SmsOtpSenderTest {
     }
 
     @Test
-    void sendsConfiguredSenderTemplateAndOtpVariable() {
-        SmsOtpSender sender = sender("test-api-key", "OTP1", "", "SULTNE");
+    void constructsOtpEndpointPath() {
+        SmsOtpSender sender = sender("test-api-key", "SULTNE", "OTP1");
 
         sender.sendSms("+919876543210", "123456", "LOGIN");
 
-        assertEquals("/API/R1/", capturedPath.get());
-        Map<String, String> query = parseQuery(capturedQuery.get());
-        assertEquals("TRANS_SMS", query.get("module"));
-        assertEquals("test-api-key", query.get("apikey"));
-        assertEquals("9876543210", query.get("to"));
-        assertEquals("SULTNE", query.get("from"));
-        assertEquals("OTP1", query.get("templatename"));
-        assertEquals("123456", query.get("var1"));
+        assertEquals("/API/V1/test-api-key/SMS/9876543210/123456", capturedPath);
     }
 
     @Test
-    void reportsProviderRejection() {
+    void normalizesLocalIndianMobileToTenDigitsInPath() {
+        SmsOtpSender sender = sender("test-api-key", "SULTNE", "OTP1");
+
+        sender.sendSms("9876543210", "123456", "LOGIN");
+
+        assertEquals("/API/V1/test-api-key/SMS/9876543210/123456", capturedPath);
+    }
+
+    @Test
+    void placesOtpInPathSegment() {
+        SmsOtpSender sender = sender("test-api-key", "SULTNE", "OTP1");
+
+        sender.sendSms("+919876543210", "654321", "LOGIN");
+
+        assertTrue(capturedPath.endsWith("/654321"));
+    }
+
+    @Test
+    void doesNotSendSenderOrTemplateParameters() {
+        SmsOtpSender sender = sender("test-api-key", "SULTNE", "OTP1");
+
+        sender.sendSms("+919876543210", "123456", "LOGIN");
+
+        assertTrue(capturedQuery == null || capturedQuery.isBlank());
+        assertFalse(capturedPath.contains("from="));
+        assertFalse(capturedPath.contains("sender"));
+        assertFalse(capturedPath.contains("templatename"));
+        assertFalse(capturedPath.contains("template"));
+    }
+
+    @Test
+    void handlesSuccessfulProviderResponse() {
+        SmsOtpSender sender = sender("test-api-key", "SULTNE", "OTP1");
+        assertDoesNotThrow(() -> sender.sendSms("+919876543210", "123456", "LOGIN"));
+    }
+
+    @Test
+    void rejectsProviderErrorEvenWhenHttp200() {
         statusCode = 200;
-        responseBody = "{\"Status\":\"Error\",\"ErrorCode\":\"1701\",\"Message\":\"Template rejected\",\"Details\":\"REQ456\"}";
-        SmsOtpSender sender = sender("test-api-key", "OTP1", "", "SULTNE");
+        responseBody = "{\"Status\":\"Error\",\"Details\":\"Incorrect sender id and templatename provided\"}";
+        SmsOtpSender sender = sender("test-api-key", "SULTNE", "OTP1");
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
@@ -82,10 +107,10 @@ class SmsOtpSenderTest {
     }
 
     @Test
-    void reportsHttpError() {
-        statusCode = 500;
-        responseBody = "{\"Status\":\"Error\",\"ErrorCode\":\"500\",\"Message\":\"Internal error\",\"Details\":\"REQ789\"}";
-        SmsOtpSender sender = sender("test-api-key", "OTP1", "", "SULTNE");
+    void rejectsHttp400Response() {
+        statusCode = 400;
+        responseBody = "{\"Status\":\"Error\",\"Details\":\"Bad request\"}";
+        SmsOtpSender sender = sender("test-api-key", "SULTNE", "OTP1");
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
@@ -96,19 +121,10 @@ class SmsOtpSenderTest {
     }
 
     @Test
-    void validatesDltConfigurationInputs() {
-        assertTrue(sender("k", "OTP1", "", "SULTNE").isDltConfigured());
-        assertTrue(sender("k", "", "1707162736154333359", "SULTNE").isDltConfigured());
-        assertFalse(sender("", "OTP1", "", "SULTNE").isDltConfigured());
-        assertFalse(sender("k", "", "", "SULTNE").isDltConfigured());
-        assertFalse(sender("k", "OTP1", "", "").isDltConfigured());
-    }
-
-    @Test
-    void logsProviderFailureWithoutExposingSecrets() {
+    void requestAndErrorLogsDoNotLeakApiKeyOtpOrFullMobile() {
         statusCode = 200;
-        responseBody = "{\"Status\":\"Error\",\"ErrorCode\":\"1702\",\"Message\":\"failed test-api-key 123456 9876543210\",\"Details\":\"REQ999\"}";
-        SmsOtpSender sender = sender("test-api-key", "OTP1", "", "SULTNE");
+        responseBody = "{\"Status\":\"Error\",\"Message\":\"failed test-api-key 123456 9876543210\",\"Details\":\"REQ999\"}";
+        SmsOtpSender sender = sender("test-api-key", "SULTNE", "OTP1");
 
         Logger logger = (Logger) LoggerFactory.getLogger(SmsOtpSender.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
@@ -125,51 +141,37 @@ class SmsOtpSenderTest {
                 .map(ILoggingEvent::getFormattedMessage)
                 .collect(Collectors.joining("\n"));
 
-        assertTrue(logs.contains("httpStatus=200"));
-        assertTrue(logs.contains("providerCode=1702"));
-        assertTrue(logs.contains("providerRequestId=REQ999"));
+        assertTrue(logs.contains("path=/API/V1/[REDACTED]/SMS/******3210/[OTP_REDACTED]"));
+        assertTrue(logs.contains("providerStatus=Error"));
         assertFalse(logs.contains("test-api-key"));
         assertFalse(logs.contains("123456"));
         assertFalse(logs.contains("9876543210"));
     }
 
     @Test
-    void prefersTemplateIdOverTemplateNameWhenBothConfigured() {
-        SmsOtpSender sender = sender("test-api-key", "OTP1", "1707162736154333359", "SULTNE");
-
-        sender.sendSms("+919876543210", "123456", "LOGIN");
-
-        Map<String, String> query = parseQuery(capturedQuery.get());
-        assertEquals("1707162736154333359", query.get("templatename"));
+    void readinessDependsOnApiKey() {
+        assertTrue(sender("k", "SULTNE", "OTP1").isDltConfigured());
+        assertFalse(sender("", "SULTNE", "OTP1").isDltConfigured());
     }
 
-    private SmsOtpSender sender(String apiKey, String templateName, String templateId, String senderId) {
+    private SmsOtpSender sender(String apiKey, String senderId, String otpTemplate) {
         int port = server.getAddress().getPort();
-        return new SmsOtpSender("http://localhost:" + port, apiKey, templateName, templateId, senderId, 5);
+        return new SmsOtpSender(
+                "http://localhost:" + port,
+                apiKey,
+                senderId,
+                otpTemplate,
+                5
+        );
     }
 
     private void handleRequest(HttpExchange exchange) throws IOException {
-        capturedPath.set(exchange.getRequestURI().getPath());
-        capturedQuery.set(exchange.getRequestURI().getRawQuery());
+        capturedPath = exchange.getRequestURI().getPath();
+        capturedQuery = exchange.getRequestURI().getRawQuery();
         byte[] payload = responseBody.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(statusCode, payload.length);
         try (OutputStream outputStream = exchange.getResponseBody()) {
             outputStream.write(payload);
         }
-    }
-
-    private static Map<String, String> parseQuery(String rawQuery) {
-        Map<String, String> query = new HashMap<>();
-        if (rawQuery == null || rawQuery.isBlank()) {
-            return query;
-        }
-        List<String> parts = Arrays.asList(rawQuery.split("&"));
-        for (String part : parts) {
-            String[] token = part.split("=", 2);
-            String key = URLDecoder.decode(token[0], StandardCharsets.UTF_8);
-            String value = token.length > 1 ? URLDecoder.decode(token[1], StandardCharsets.UTF_8) : "";
-            query.put(key, value);
-        }
-        return query;
     }
 }
