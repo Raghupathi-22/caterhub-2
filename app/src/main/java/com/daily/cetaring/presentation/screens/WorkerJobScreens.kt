@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,27 +16,22 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
 import com.daily.cetaring.data.remote.dto.WorkerJobResponse
 import com.daily.cetaring.data.remote.dto.WorkerProfileResponse
+import com.daily.cetaring.data.remote.dto.WorkerStatus
 import com.daily.cetaring.domain.catalog.ServiceCatalog
 import com.daily.cetaring.presentation.components.CaterHubEmptyState
 import com.daily.cetaring.presentation.components.CaterHubErrorState
@@ -58,12 +55,10 @@ import com.daily.cetaring.presentation.components.CaterHubLoadingState
 import com.daily.cetaring.presentation.components.CaterHubPrimaryButton
 import com.daily.cetaring.presentation.components.CaterHubStatusChip
 import com.daily.cetaring.presentation.components.SummaryRow
+import com.daily.cetaring.presentation.components.categoryUiMeta
 import com.daily.cetaring.presentation.viewmodel.WorkerUiState
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
-import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
-import java.util.TimeZone
 
 private val Cream = Color(0xFFFFFBF3)
 private val Red = Color(0xFFA61920)
@@ -90,118 +85,285 @@ private fun WorkerTopBar(title: String, onBackClick: () -> Unit) {
 @Composable
 fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobClick: (Long) -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
-    var search by remember { mutableStateOf("") }
-    var categoryId by remember { mutableStateOf<String?>(null) }
-    var roleId by remember { mutableStateOf<String?>(null) }
+    var profile by remember { mutableStateOf<WorkerProfileResponse?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var jobs by remember { mutableStateOf<List<StaffingJobResponse>>(emptyList()) }
+    var selectedSkill by remember { mutableStateOf("") }
+    var skillExpanded by remember { mutableStateOf(false) }
     var areaFilter by remember { mutableStateOf("") }
-    var selectedDate by remember { mutableStateOf("") }
-    var showDatePicker by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { viewModel.loadAvailableJobs() }
+    var initialSearchDone by remember { mutableStateOf(false) }
 
-    Scaffold(containerColor = Cream, topBar = { WorkerTopBar("Available Bookings", onBackClick) }) { padding ->
+    LaunchedEffect(Unit) { viewModel.loadProfile() }
+
+    LaunchedEffect(uiState) {
         when (val state = uiState) {
-            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Finding bookings...")
-            is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(
-                    message = state.message,
-                    onRetry = { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }
-                )
-            }
-            is WorkerUiState.JobsLoaded -> Column(
-                Modifier.fillMaxSize().background(Cream).padding(padding)
-                    .verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text("Available bookings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Red)
-                Text("Bookings matched to your professional role and preferred area.", color = Muted)
-                OutlinedTextField(
-                    search, { search = it },
-                    label = { Text("Search event, area or service") },
-                    leadingIcon = { Icon(Icons.Filled.Work, null, tint = Red) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                RoleCategoryFilter(
-                    selectedCategoryId = categoryId,
-                    selectedRoleId = roleId,
-                    onCategoryChange = {
-                        categoryId = it
-                        if (it == null || ServiceCatalog.roles.firstOrNull { role -> role.id == roleId }?.categoryId != it) {
-                            roleId = null
-                        }
-                    },
-                    onRoleChange = { roleId = it }
-                )
-                OutlinedTextField(
-                    value = areaFilter,
-                    onValueChange = { areaFilter = it },
-                    label = { Text("Area") },
-                    leadingIcon = { Icon(Icons.Filled.LocationOn, null, tint = Green) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
-                    Text(if (selectedDate.isBlank()) "Filter by date" else "Date: $selectedDate")
+            WorkerUiState.Loading, WorkerUiState.Idle -> loading = true
+            is WorkerUiState.ProfileLoaded -> {
+                profile = state.profile
+                loading = false
+                errorMessage = null
+                val role = ServiceCatalog.roles.firstOrNull { it.workerType == state.profile.workerType }
+                val categoryId = role?.categoryId
+                    ?: ServiceCatalog.categoryForWorkerType(state.profile.workerType)?.id
+                    ?: "other-event-services"
+                val roleId = role?.id
+                val suggestions = ServiceCatalog.skillSuggestionsFor(categoryId, roleId)
+                val preferredSkills = splitWorkerField(state.profile.skills)
+                val preferredAreas = splitWorkerField(state.profile.preferredAreas)
+                if (selectedSkill.isBlank()) {
+                    selectedSkill = preferredSkills.firstOrNull { preferred ->
+                        suggestions.any { it.equals(preferred, ignoreCase = true) }
+                    } ?: suggestions.firstOrNull().orEmpty()
                 }
-                CaterHubPrimaryButton("Search Bookings", { viewModel.loadAvailableJobs(search = search.ifBlank { null }) }, Modifier.fillMaxWidth())
-                val filteredJobs = state.jobs.filter { job ->
-                    val role = ServiceCatalog.roles.firstOrNull { it.workerType == job.workerType }
-                    val matchesCategory = categoryId == null || role?.categoryId == categoryId
-                    val matchesRole = roleId == null || role?.id == roleId
-                    val matchesArea = areaFilter.isBlank() || job.area.contains(areaFilter, ignoreCase = true)
-                    val matchesDate = selectedDate.isBlank() || job.eventDate == selectedDate
-                    matchesCategory && matchesRole && matchesArea && matchesDate
+                if (areaFilter.isBlank()) {
+                    areaFilter = preferredAreas.firstOrNull().orEmpty()
                 }
-                if (filteredJobs.isEmpty()) {
-                    CaterHubEmptyState(
-                        title = "No bookings available",
-                        message = "Try changing category, role, area or date filters.",
-                        actionText = "Refresh",
-                        onActionClick = { viewModel.loadAvailableJobs() }
+                if (state.profile.status == WorkerStatus.ACTIVE && !initialSearchDone) {
+                    initialSearchDone = true
+                    loading = true
+                    viewModel.loadAvailableJobs(
+                        role = state.profile.workerType,
+                        area = areaFilter.ifBlank { null }
                     )
-                } else {
-                    filteredJobs.forEach { job ->
-                        WorkerStaffingJobCard(
-                            job = job,
-                            onClick = { onJobClick(job.id) }
-                        )
-                    }
                 }
+            }
+            is WorkerUiState.JobsLoaded -> {
+                jobs = state.jobs
+                loading = false
+                errorMessage = null
+            }
+            is WorkerUiState.Error -> {
+                loading = false
+                errorMessage = state.message
             }
             else -> Unit
         }
     }
 
-    if (showDatePicker) {
-        val today = remember {
-            Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }.timeInMillis
+    Scaffold(containerColor = Cream, topBar = { WorkerTopBar("Available Bookings", onBackClick) }) { padding ->
+        val workerProfile = profile
+        if (loading && workerProfile == null) {
+            CaterHubLoadingState("Loading your worker profile...")
+            return@Scaffold
         }
-        val state = rememberDatePickerState(
-            initialSelectedDateMillis = selectedDate.toDateMillisOrNull(),
-            selectableDates = object : SelectableDates {
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= today
-                override fun isSelectableYear(year: Int): Boolean = year >= Calendar.getInstance().get(Calendar.YEAR)
+
+        if (workerProfile == null) {
+            Column(Modifier.padding(padding).padding(20.dp)) {
+                CaterHubErrorState(
+                    message = errorMessage ?: "Unable to load worker profile.",
+                    onRetry = { viewModel.loadProfile() }
+                )
             }
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let { millis ->
-                        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).apply {
-                            timeZone = TimeZone.getDefault()
-                        }
-                        selectedDate = formatter.format(millis)
+            return@Scaffold
+        }
+
+        val role = ServiceCatalog.roles.firstOrNull { it.workerType == workerProfile.workerType }
+        val categoryId = role?.categoryId
+            ?: ServiceCatalog.categoryForWorkerType(workerProfile.workerType)?.id
+            ?: "other-event-services"
+        val roleId = role?.id
+        val category = ServiceCatalog.category(categoryId)
+        val visual = category?.let(::categoryUiMeta)
+        val skillSuggestions = ServiceCatalog.skillSuggestionsFor(categoryId, roleId)
+        val isVerified = workerProfile.status == WorkerStatus.ACTIVE
+        val filteredJobs = jobs.filter { job ->
+            val areaMatches = areaFilter.isBlank() || job.area.contains(areaFilter, ignoreCase = true)
+            val skillMatches = selectedSkill.isBlank() || jobMatchesSkill(job, selectedSkill)
+            areaMatches && skillMatches
+        }
+
+        Column(
+            Modifier.fillMaxSize().background(Cream).padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text("Available bookings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Red)
+            Text("Find work matching your skills and preferred area.", color = Muted)
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Border)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = visual?.icon ?: Icons.Filled.Work,
+                            contentDescription = null,
+                            tint = visual?.accent ?: Red
+                        )
+                        Text("  ${workerProfile.workerType.label}", color = Ink, fontWeight = FontWeight.ExtraBold)
                     }
-                    showDatePicker = false
-                }) { Text("Confirm", color = Red) }
-            },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
-        ) { DatePicker(state = state) }
+                    Text(category?.title ?: workerProfile.workerType.category, color = Muted)
+
+                    if (!isVerified) {
+                        WorkerVerificationGateCard(workerProfile.status, workerProfile.rejectionReason)
+                    }
+
+                    Box {
+                        OutlinedTextField(
+                            value = selectedSkill.ifBlank { "Select skill" },
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = isVerified,
+                            label = { Text("Skill") },
+                            leadingIcon = { Icon(Icons.Filled.Work, null, tint = Red) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = isVerified) { skillExpanded = true }
+                        )
+                        DropdownMenu(expanded = skillExpanded, onDismissRequest = { skillExpanded = false }) {
+                            skillSuggestions.forEach { skill ->
+                                DropdownMenuItem(
+                                    text = { Text(skill) },
+                                    onClick = {
+                                        selectedSkill = skill
+                                        skillExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = areaFilter,
+                        onValueChange = { areaFilter = it },
+                        enabled = isVerified,
+                        label = { Text("Area") },
+                        placeholder = { Text("Enter/select preferred area") },
+                        leadingIcon = { Icon(Icons.Filled.LocationOn, null, tint = Green) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    CaterHubPrimaryButton(
+                        text = "Search Bookings",
+                        onClick = {
+                            errorMessage = null
+                            viewModel.loadAvailableJobs(
+                                role = workerProfile.workerType,
+                                area = areaFilter.ifBlank { null }
+                            )
+                        },
+                        enabled = isVerified && selectedSkill.isNotBlank() && areaFilter.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Text("Available bookings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Ink)
+            if (errorMessage != null) {
+                CaterHubErrorState(
+                    message = errorMessage ?: "Unable to load bookings",
+                    onRetry = {
+                        viewModel.loadAvailableJobs(
+                            role = workerProfile.workerType,
+                            area = areaFilter.ifBlank { null }
+                        )
+                    }
+                )
+            } else if (!isVerified) {
+                CaterHubEmptyState(
+                    title = "Your profile is under verification",
+                    message = "You can start receiving bookings after CaterHub verifies your profile."
+                )
+            } else if (filteredJobs.isEmpty()) {
+                CaterHubEmptyState(
+                    title = "No matching bookings",
+                    message = "Try another skill or area.",
+                    actionText = "Clear Filters",
+                    onActionClick = {
+                        selectedSkill = skillSuggestions.firstOrNull().orEmpty()
+                        areaFilter = splitWorkerField(workerProfile.preferredAreas).firstOrNull().orEmpty()
+                        viewModel.loadAvailableJobs(
+                            role = workerProfile.workerType,
+                            area = areaFilter.ifBlank { null }
+                        )
+                    }
+                )
+            } else {
+                filteredJobs.forEach { job ->
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        WorkerStaffingJobCard(job = job, onClick = { onJobClick(job.id) })
+                        CaterHubPrimaryButton(
+                            text = "View Booking",
+                            onClick = { onJobClick(job.id) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
     }
+}
+
+@Composable
+private fun WorkerVerificationGateCard(status: WorkerStatus, rejectionReason: String?) {
+    val title = when (status) {
+        WorkerStatus.PENDING_VERIFICATION -> "Your profile is under verification"
+        WorkerStatus.REJECTED -> "Profile verification needs attention"
+        WorkerStatus.SUSPENDED -> "Profile access is temporarily restricted"
+        WorkerStatus.ACTIVE -> "Profile verified"
+    }
+    val description = when (status) {
+        WorkerStatus.PENDING_VERIFICATION -> "You can start receiving bookings after CaterHub verifies your profile."
+        WorkerStatus.REJECTED -> rejectionReason?.takeIf { it.isNotBlank() }
+            ?: "Please update your profile details and contact support."
+        WorkerStatus.SUSPENDED -> "Your profile is temporarily suspended from booking acceptance."
+        WorkerStatus.ACTIVE -> "You can search and accept matching bookings."
+    }
+    val tone = when (status) {
+        WorkerStatus.PENDING_VERIFICATION -> PaleGold
+        WorkerStatus.REJECTED, WorkerStatus.SUSPENDED -> PaleRed
+        WorkerStatus.ACTIVE -> PaleGreen
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = tone),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = if (status == WorkerStatus.PENDING_VERIFICATION) Icons.Filled.HourglassTop else Icons.Filled.Work,
+                contentDescription = null,
+                tint = if (status == WorkerStatus.PENDING_VERIFICATION) Gold else Red
+            )
+            Column {
+                Text(title, fontWeight = FontWeight.ExtraBold, color = Ink)
+                Text(description, color = Muted)
+            }
+        }
+    }
+}
+
+private fun splitWorkerField(raw: String?): List<String> =
+    raw.orEmpty()
+        .split(",", "\n", ";")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+
+private fun jobMatchesSkill(job: StaffingJobResponse, skill: String): Boolean {
+    val query = skill.trim().lowercase(Locale.ROOT)
+    if (query.isBlank()) return true
+    val searchable = buildString {
+        append(job.workerType.label).append(' ')
+        append(job.eventType).append(' ')
+        append(job.additionalRequirements.orEmpty()).append(' ')
+        append(job.area).append(' ')
+        append(job.location)
+    }.lowercase(Locale.ROOT)
+    return searchable.contains(query)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -267,61 +429,6 @@ private fun Detail(label: String, value: String, icon: androidx.compose.ui.graph
         }
     }
 }
-
-@Composable
-private fun RoleCategoryFilter(
-    selectedCategoryId: String?,
-    selectedRoleId: String?,
-    onCategoryChange: (String?) -> Unit,
-    onRoleChange: (String?) -> Unit
-) {
-    var categoryExpanded by remember { mutableStateOf(false) }
-    var roleExpanded by remember { mutableStateOf(false) }
-    val roles = ServiceCatalog.roles.filter {
-        it.workerType != null && (selectedCategoryId == null || it.categoryId == selectedCategoryId)
-    }
-    Box {
-        OutlinedTextField(
-            value = ServiceCatalog.category(selectedCategoryId.orEmpty())?.title ?: "All Categories",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Category") },
-            modifier = Modifier.fillMaxWidth().clickable { categoryExpanded = true }
-        )
-        DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
-            DropdownMenuItem(text = { Text("All Categories") }, onClick = { onCategoryChange(null); categoryExpanded = false })
-            ServiceCatalog.categories.filter { it.id != "other-event-services" }.forEach { category ->
-                DropdownMenuItem(text = { Text(category.title) }, onClick = {
-                    onCategoryChange(category.id)
-                    categoryExpanded = false
-                })
-            }
-        }
-    }
-    Box {
-        OutlinedTextField(
-            value = ServiceCatalog.roles.firstOrNull { it.id == selectedRoleId }?.title ?: "All Roles",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Role") },
-            modifier = Modifier.fillMaxWidth().clickable { roleExpanded = true }
-        )
-        DropdownMenu(expanded = roleExpanded, onDismissRequest = { roleExpanded = false }) {
-            DropdownMenuItem(text = { Text("All Roles") }, onClick = { onRoleChange(null); roleExpanded = false })
-            roles.forEach { role ->
-                DropdownMenuItem(text = { Text(role.title) }, onClick = {
-                    onRoleChange(role.id)
-                    roleExpanded = false
-                })
-            }
-        }
-    }
-}
-
-private fun String.toDateMillisOrNull(): Long? = runCatching {
-    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).apply { timeZone = TimeZone.getDefault() }
-    formatter.parse(this)?.time
-}.getOrNull()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
