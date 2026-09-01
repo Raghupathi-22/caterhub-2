@@ -1,61 +1,35 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { User } from '../types/models'
 
-export interface User {
-  id: number
-  username: string
-  email: string
-  phone_number: string
-  first_name: string
-  last_name: string
-  profile_image_url?: string
-  is_active: boolean
-  is_verified: boolean
-  created_at: string
-}
-
-interface AuthStore {
+interface AuthState {
   user: User | null
   accessToken: string | null
   refreshToken: string | null
   isAuthenticated: boolean
   setAuth: (user: User, accessToken: string, refreshToken: string) => void
+  setAccessToken: (token: string) => void
   logout: () => void
-  updateUser: (user: User) => void
+  hasRole: (...roles: string[]) => boolean
 }
 
-export const useAuthStore = create<AuthStore>()(
+export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-
       setAuth: (user, accessToken, refreshToken) =>
-        set({
-          user,
-          accessToken,
-          refreshToken,
-          isAuthenticated: true,
-        }),
-
-      logout: () =>
-        set({
-          user: null,
-          accessToken: null,
-          refreshToken: null,
-          isAuthenticated: false,
-        }),
-
-      updateUser: (user) =>
-        set({
-          user,
-        }),
+        set({ user, accessToken, refreshToken, isAuthenticated: true }),
+      setAccessToken: (token) =>
+        set((state) => ({ ...state, accessToken: token, isAuthenticated: true })),
+      logout: () => set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
+      hasRole: (...roles: string[]) => {
+        const userRoles = get().user?.roles ?? []
+        return roles.some((role) => userRoles.includes(role))
+      },
     }),
-    {
-      name: 'auth-storage',
-    }
-  )
+    { name: 'caterhub-auth' },
+  ),
 )
-

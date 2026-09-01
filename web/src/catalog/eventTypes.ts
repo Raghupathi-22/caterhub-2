@@ -1,0 +1,16 @@
+export const EVENT_TYPES = [
+  'Birthday',
+  'Wedding',
+  'Engagement',
+  'Reception',
+  'Anniversary',
+  'Baby Shower',
+  'Naming Ceremony',
+  'Housewarming',
+  'Pooja / Religious Event',
+  'Corporate Event',
+  'School / College Event',
+  'Festival',
+  'Party',
+  'Other',
+]

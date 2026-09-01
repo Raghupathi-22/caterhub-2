@@ -30,7 +30,7 @@ src/
 ### Prerequisites
 
 - Node.js 18+ and npm/yarn/pnpm
-- Backend API running on http://localhost:8080/api
+- Backend API running on http://localhost:8080/api/v1
 
 ### Installation
 
@@ -71,7 +71,7 @@ npm run lint
 Create a `.env` file in the root directory:
 
 ```env
-VITE_API_URL=http://localhost:8080/api
+VITE_API_BASE_URL=http://localhost:8080/api/v1
 ```
 
 ## Authentication Flow
@@ -161,7 +161,7 @@ public class CorsConfiguration {
 
 1. Verify backend is running on port 8080
 2. Check backend logs for errors
-3. Verify VITE_API_URL in .env file
+3. Verify VITE_API_BASE_URL in .env file
 4. Check browser console for network errors
 
 ## Phase 1 Completion Checklist
@@ -184,4 +184,3 @@ public class CorsConfiguration {
 3. Run development server: `npm run dev`
 4. Test authentication flow
 5. Begin Phase 2: Booking System
-

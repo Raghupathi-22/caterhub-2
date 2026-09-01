@@ -1,51 +1,35 @@
-import axios from '../api/axiosConfig'
+import { http } from './http'
+import type { AuthResponse, User } from '../types/models'
 
-export interface RegisterRequest {
-  username: string
-  email: string
-  phone_number: string
-  password: string
-  first_name?: string
-  last_name?: string
+export type OtpPurpose = 'LOGIN' | 'REGISTER_CUSTOMER' | 'REGISTER_WORKER'
+
+export interface SendOtpRequest {
+  mobileNumber: string
+  purpose: OtpPurpose
+  userType?: string
+  channel?: 'AUTO' | 'SMS' | 'VOICE'
 }
 
-export interface LoginRequest {
-  email_or_username: string
-  password: string
+export interface VerifyOtpRequest {
+  mobileNumber: string
+  otp: string
+  purpose: OtpPurpose
+  name?: string
 }
 
-export interface AuthResponse {
-  access_token: string
-  refresh_token: string
-  token_type: string
-  expires_in: number
-  user: {
-    id: number
-    username: string
-    email: string
-    phone_number: string
-    first_name: string
-    last_name: string
-    is_active: boolean
-    is_verified: boolean
-  }
+export const authApi = {
+  sendOtp: async (payload: SendOtpRequest): Promise<void> => {
+    await http.post('/auth/otp/send', payload)
+  },
+  verifyOtp: async (payload: VerifyOtpRequest): Promise<AuthResponse> => {
+    const response = await http.post<AuthResponse>('/auth/otp/verify', payload)
+    return response.data
+  },
+  logout: async (refreshToken: string): Promise<void> => {
+    await http.post('/auth/logout', { refresh_token: refreshToken })
+  },
+  getMe: async (): Promise<User> => {
+    const response = await http.get<User>('/users/me')
+    return response.data
+  },
 }
-
-export const authAPI = {
-  register: (data: RegisterRequest) =>
-    axios.post<AuthResponse>('/auth/register', data),
-
-  login: (data: LoginRequest) =>
-    axios.post<AuthResponse>('/auth/login', data),
-
-  refreshToken: (refreshToken: string) =>
-    axios.post<AuthResponse>('/auth/refresh', {
-      refresh_token: refreshToken,
-    }),
-
-  logout: (refreshToken: string) =>
-    axios.post<void>('/auth/logout', {
-      refresh_token: refreshToken,
-    }),
-}
-

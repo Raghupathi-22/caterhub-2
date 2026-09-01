@@ -1,172 +1,69 @@
+import { Alert, Box, Button, Card, CardContent, CircularProgress, Stack, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Box,
-  Button,
-  Card,
-  Container,
-  TextField,
-  Typography,
-  Alert,
-  CircularProgress,
-  Link,
-  Grid,
-} from '@mui/material'
-import { useMutation } from '@tanstack/react-query'
-import { authAPI, RegisterRequest } from '../api/authAPI'
+import { authApi } from '../api/authApi'
+import { apiErrorMessage } from '../api/http'
 import { useAuthStore } from '../store/authStore'
 
-export const RegisterPage = () => {
+export function RegisterPage() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((state) => state.setAuth)
-  const [formData, setFormData] = useState<RegisterRequest>({
-    username: '',
-    email: '',
-    phone_number: '',
-    password: '',
-    first_name: '',
-    last_name: '',
-  })
+  const [name, setName] = useState('')
+  const [mobileNumber, setMobileNumber] = useState('')
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const { mutate: register, isPending } = useMutation({
-    mutationFn: authAPI.register,
-    onSuccess: (response) => {
-      const { data } = response
-      setAuth(data.user as any, data.access_token, data.refresh_token)
-      navigate('/')
-    },
-    onError: (error: any) => {
-      setError(
-        error.response?.data?.message || 'Registration failed. Please try again.'
-      )
-    },
-  })
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+  const sendOtp = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      await authApi.sendOtp({ mobileNumber, purpose: 'REGISTER_CUSTOMER', userType: 'CUSTOMER', channel: 'AUTO' })
+      setOtpSent(true)
+    } catch (e: unknown) {
+      setError(apiErrorMessage(e, 'Unable to send OTP.'))
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const verifyOtp = async () => {
     setError('')
-    register(formData)
+    setLoading(true)
+    try {
+      const auth = await authApi.verifyOtp({ mobileNumber, otp, purpose: 'REGISTER_CUSTOMER', name })
+      setAuth(auth.user, auth.access_token, auth.refresh_token)
+      navigate('/home', { replace: true })
+    } catch (e: unknown) {
+      setError(apiErrorMessage(e, 'Registration failed.'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '100vh',
-          py: 4,
-        }}
-      >
-        <Card sx={{ padding: 4, width: '100%' }}>
-          <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 3 }}>
-            Create Account
-          </Typography>
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              disabled={isPending}
-              required
-            />
-
-            <TextField
-              fullWidth
-              label="Email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              disabled={isPending}
-              required
-            />
-
-            <TextField
-              fullWidth
-              label="Phone Number"
-              name="phone_number"
-              value={formData.phone_number}
-              onChange={handleChange}
-              disabled={isPending}
-              required
-            />
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="First Name"
-                  name="first_name"
-                  value={formData.first_name}
-                  onChange={handleChange}
-                  disabled={isPending}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Last Name"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleChange}
-                  disabled={isPending}
-                />
-              </Grid>
-            </Grid>
-
-            <TextField
-              fullWidth
-              label="Password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              disabled={isPending}
-              required
-              helperText="Password must be at least 8 characters"
-            />
-
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={isPending}
-              sx={{ mt: 2 }}
-            >
-              {isPending ? <CircularProgress size={24} /> : 'Register'}
-            </Button>
-          </Box>
-
-          <Typography sx={{ mt: 3, textAlign: 'center' }}>
-            Already have an account?{' '}
-            <Link href="/login" underline="hover">
-              Login
-            </Link>
-          </Typography>
-        </Card>
-      </Box>
-    </Container>
+    <Box sx={{ minHeight: '70vh', display: 'grid', placeItems: 'center' }}>
+      <Card sx={{ width: '100%', maxWidth: 440 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack spacing={2}>
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>Create Account</Typography>
+            {error ? <Alert severity="error">{error}</Alert> : null}
+            <TextField label="Full Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth />
+            <TextField label="Mobile Number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} fullWidth />
+            {otpSent ? <TextField label="OTP" value={otp} onChange={(e) => setOtp(e.target.value)} fullWidth /> : null}
+            {!otpSent ? (
+              <Button variant="contained" onClick={() => void sendOtp()} disabled={loading || !name.trim() || !mobileNumber.trim()}>
+                {loading ? <CircularProgress size={20} color="inherit" /> : 'Send OTP'}
+              </Button>
+            ) : (
+              <Button variant="contained" onClick={() => void verifyOtp()} disabled={loading || otp.length < 4}>
+                {loading ? <CircularProgress size={20} color="inherit" /> : 'Verify & Register'}
+              </Button>
+            )}
+          </Stack>
+        </CardContent>
+      </Card>
+    </Box>
   )
 }

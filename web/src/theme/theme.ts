@@ -3,14 +3,14 @@ import { createTheme } from '@mui/material/styles'
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#FF6B35',
-      light: '#FF8C5A',
-      dark: '#E53E1F',
+      main: '#17653A',
+      light: '#2E7D4E',
+      dark: '#0F4A2A',
     },
     secondary: {
-      main: '#004E89',
-      light: '#2E7CB5',
-      dark: '#003A61',
+      main: '#B04522',
+      light: '#C25D37',
+      dark: '#8A3419',
     },
     success: {
       main: '#4CAF50',
@@ -22,7 +22,7 @@ const theme = createTheme({
       main: '#F44336',
     },
     background: {
-      default: '#F5F5F5',
+      default: '#F7F8FA',
       paper: '#FFFFFF',
     },
   },
@@ -60,7 +60,7 @@ const theme = createTheme({
     },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 12,
   },
   components: {
     MuiButton: {
@@ -68,14 +68,16 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 600,
-          padding: '10px 20px',
+          borderRadius: 10,
+          minHeight: 44,
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 6px 20px rgba(15, 23, 42, 0.06)',
+          borderRadius: 14,
         },
       },
     },
@@ -83,4 +85,3 @@ const theme = createTheme({
 })
 
 export default theme
-

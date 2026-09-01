@@ -1,122 +1,78 @@
+import { Alert, Box, Button, Card, CardContent, CircularProgress, Stack, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Box,
-  Button,
-  Card,
-  Container,
-  TextField,
-  Typography,
-  Alert,
-  CircularProgress,
-  Link,
-} from '@mui/material'
-import { useMutation } from '@tanstack/react-query'
-import { authAPI, LoginRequest } from '../api/authAPI'
+import { authApi } from '../api/authApi'
+import { apiErrorMessage } from '../api/http'
 import { useAuthStore } from '../store/authStore'
 
-export const LoginPage = () => {
+export function LoginPage() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((state) => state.setAuth)
-  const [formData, setFormData] = useState<LoginRequest>({
-    email_or_username: '',
-    password: '',
-  })
+  const [mobileNumber, setMobileNumber] = useState('')
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const { mutate: login, isPending } = useMutation({
-    mutationFn: authAPI.login,
-    onSuccess: (response) => {
-      const { data } = response
-      setAuth(data.user as any, data.access_token, data.refresh_token)
-      navigate('/')
-    },
-    onError: (error: any) => {
-      setError(
-        error.response?.data?.message || 'Login failed. Please try again.'
-      )
-    },
-  })
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+  const sendOtp = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      await authApi.sendOtp({ mobileNumber, purpose: 'LOGIN', channel: 'AUTO' })
+      setOtpSent(true)
+    } catch (e: unknown) {
+      setError(apiErrorMessage(e, 'Unable to send OTP.'))
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const verifyOtp = async () => {
     setError('')
-    login(formData)
+    setLoading(true)
+    try {
+      const auth = await authApi.verifyOtp({ mobileNumber, otp, purpose: 'LOGIN' })
+      setAuth(auth.user, auth.access_token, auth.refresh_token)
+      navigate('/home', { replace: true })
+    } catch (e: unknown) {
+      setError(apiErrorMessage(e, 'Invalid OTP or login failed.'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '100vh',
-        }}
-      >
-        <Card sx={{ padding: 4, width: '100%', maxWidth: 400 }}>
-          <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 3 }}>
-            Login
-          </Typography>
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box sx={{ minHeight: '70vh', display: 'grid', placeItems: 'center' }}>
+      <Card sx={{ width: '100%', maxWidth: 440 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack spacing={2}>
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>Customer Login</Typography>
+            {error ? <Alert severity="error">{error}</Alert> : null}
             <TextField
+              label="Mobile Number"
+              value={mobileNumber}
+              onChange={(e) => setMobileNumber(e.target.value)}
+              placeholder="+91XXXXXXXXXX"
               fullWidth
-              label="Email or Username"
-              name="email_or_username"
-              type="text"
-              value={formData.email_or_username}
-              onChange={handleChange}
-              disabled={isPending}
-              required
             />
-
-            <TextField
-              fullWidth
-              label="Password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              disabled={isPending}
-              required
-            />
-
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={isPending}
-              sx={{ mt: 2 }}
-            >
-              {isPending ? <CircularProgress size={24} /> : 'Login'}
+            {otpSent ? (
+              <TextField label="OTP" value={otp} onChange={(e) => setOtp(e.target.value)} fullWidth />
+            ) : null}
+            {!otpSent ? (
+              <Button variant="contained" onClick={() => void sendOtp()} disabled={loading || !mobileNumber.trim()}>
+                {loading ? <CircularProgress size={20} color="inherit" /> : 'Send OTP'}
+              </Button>
+            ) : (
+              <Button variant="contained" onClick={() => void verifyOtp()} disabled={loading || otp.length < 4}>
+                {loading ? <CircularProgress size={20} color="inherit" /> : 'Verify OTP'}
+              </Button>
+            )}
+            <Button onClick={() => navigate('/register')} size="small">
+              New user? Register
             </Button>
-          </Box>
-
-          <Typography sx={{ mt: 3, textAlign: 'center' }}>
-            Don't have an account?{' '}
-            <Link href="/register" underline="hover">
-              Register
-            </Link>
-          </Typography>
-        </Card>
-      </Box>
-    </Container>
+          </Stack>
+        </CardContent>
+      </Card>
+    </Box>
   )
 }

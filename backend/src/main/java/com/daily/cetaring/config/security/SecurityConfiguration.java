@@ -115,6 +115,7 @@ public class SecurityConfiguration {
                         // Spring Security evaluates the request.
                         .requestMatchers("/health", "/api/v1/health").permitAll()
                         .requestMatchers("/auth/**", "/api/v1/auth/**").permitAll()
+                        .requestMatchers("/catalog/**", "/api/v1/catalog/**").permitAll()
 
                         // Swagger
                         .requestMatchers(
