@@ -30,12 +30,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.daily.cetaring.config.SupportContact
 import com.daily.cetaring.presentation.components.CaterHubPrimaryButton
 import com.daily.cetaring.presentation.components.CaterHubSecondaryButton
 
 private const val SUPPORT_EMAIL = "caterhub.support@gmail.com"
-private const val SUPPORT_PHONE = "9959095202"
-private const val SUPPORT_PHONE_INTERNATIONAL = "919959095202"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +84,10 @@ fun HelpSupportScreen(onBackClick: () -> Unit) {
             }
 
             Text("Contact CaterHub Support", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-            Text("Email: $SUPPORT_EMAIL\nWhatsApp / Call: $SUPPORT_PHONE", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "Email: $SUPPORT_EMAIL\nWhatsApp / Call: ${SupportContact.SUPPORT_PHONE_NATIONAL}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             CaterHubPrimaryButton(
                 text = "Email Support",
@@ -102,11 +104,11 @@ fun HelpSupportScreen(onBackClick: () -> Unit) {
             CaterHubSecondaryButton(
                 text = "WhatsApp Support",
                 onClick = {
-                    val appIntent = Intent(Intent.ACTION_VIEW, Uri.parse("whatsapp://send?phone=$SUPPORT_PHONE_INTERNATIONAL"))
+                    val appIntent = Intent(Intent.ACTION_VIEW, Uri.parse("whatsapp://send?phone=${SupportContact.SUPPORT_PHONE_WHATSAPP}"))
                     try {
                         context.startActivity(appIntent)
                     } catch (_: ActivityNotFoundException) {
-                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$SUPPORT_PHONE_INTERNATIONAL"))
+                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/${SupportContact.SUPPORT_PHONE_WHATSAPP}"))
                         launchIntent(webIntent, "WhatsApp is not installed. Please contact us by phone.")
                     }
                 },
@@ -116,8 +118,8 @@ fun HelpSupportScreen(onBackClick: () -> Unit) {
             CaterHubSecondaryButton(
                 text = "Call Support",
                 onClick = {
-                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$SUPPORT_PHONE"))
-                    launchIntent(intent, "Unable to open dialer. Please call $SUPPORT_PHONE")
+                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${SupportContact.SUPPORT_PHONE_NATIONAL}"))
+                    launchIntent(intent, "Unable to open dialer. Please call ${SupportContact.SUPPORT_PHONE_NATIONAL}")
                 },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -132,4 +134,3 @@ fun HelpSupportScreen(onBackClick: () -> Unit) {
         }
     }
 }
-

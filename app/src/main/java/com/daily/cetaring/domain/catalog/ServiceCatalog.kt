@@ -6,8 +6,22 @@ data class ServiceCategoryDefinition(
     val id: String,
     val title: String,
     val subtitle: String,
-    val serviceType: String
+    val serviceType: String,
+    val visualTone: CategoryVisualTone
 )
+
+enum class CategoryVisualTone {
+    FOOD,
+    DECORATION,
+    ENTERTAINMENT,
+    BEAUTY,
+    PHOTOGRAPHY,
+    RELIGIOUS,
+    SUPPORT,
+    RENTALS,
+    TRANSPORT,
+    OTHER
+}
 
 data class ServiceRoleDefinition(
     val id: String,
@@ -21,16 +35,76 @@ data class ServiceRoleDefinition(
 
 object ServiceCatalog {
     val categories = listOf(
-        ServiceCategoryDefinition("catering-food", "Catering & Food", "Food packages, chefs and service staff.", "CATERING_FOOD"),
-        ServiceCategoryDefinition("decoration", "Decoration", "Stage, flower, lighting and event decor.", "DECORATION"),
-        ServiceCategoryDefinition("entertainment", "Entertainment", "DJ, music, performers and live acts.", "ENTERTAINMENT"),
-        ServiceCategoryDefinition("beauty", "Beauty", "Makeup, mehendi, styling and grooming.", "BEAUTY"),
-        ServiceCategoryDefinition("photography-video", "Photography & Video", "Photo, video, editing and streaming.", "PHOTOGRAPHY_VIDEO"),
-        ServiceCategoryDefinition("religious-ceremony", "Religious & Ceremony", "Pujari, pooja, homam and rituals.", "RELIGIOUS_CEREMONY"),
-        ServiceCategoryDefinition("event-support", "Event Support", "Supervision, security and helper staff.", "EVENT_SUPPORT"),
-        ServiceCategoryDefinition("rentals", "Rentals", "Furniture and event equipment rentals.", "RENTALS"),
-        ServiceCategoryDefinition("transport-logistics", "Transport & Logistics", "Guest and goods transport support.", "TRANSPORT_LOGISTICS"),
-        ServiceCategoryDefinition("other-event-services", "Other Event Services", "Invitations, cakes, gifts and custom requirements.", "OTHER_EVENT_SERVICES")
+        ServiceCategoryDefinition(
+            "catering-food",
+            "Catering & Food",
+            "Meals, snacks, drinks & catering staff",
+            "CATERING_FOOD",
+            CategoryVisualTone.FOOD
+        ),
+        ServiceCategoryDefinition(
+            "decoration",
+            "Decoration",
+            "Stage, flowers, lighting, tents & seating",
+            "DECORATION",
+            CategoryVisualTone.DECORATION
+        ),
+        ServiceCategoryDefinition(
+            "entertainment",
+            "Entertainment",
+            "DJ, singers, dancers, bands & live shows",
+            "ENTERTAINMENT",
+            CategoryVisualTone.ENTERTAINMENT
+        ),
+        ServiceCategoryDefinition(
+            "beauty",
+            "Beauty",
+            "Makeup, mehendi, hairstyling & beauty services",
+            "BEAUTY",
+            CategoryVisualTone.BEAUTY
+        ),
+        ServiceCategoryDefinition(
+            "photography-video",
+            "Photography & Video",
+            "Photography, videography & event coverage",
+            "PHOTOGRAPHY_VIDEO",
+            CategoryVisualTone.PHOTOGRAPHY
+        ),
+        ServiceCategoryDefinition(
+            "religious-ceremony",
+            "Religious & Ceremony",
+            "Pujari, rituals & ceremony support",
+            "RELIGIOUS_CEREMONY",
+            CategoryVisualTone.RELIGIOUS
+        ),
+        ServiceCategoryDefinition(
+            "event-support",
+            "Event Support",
+            "Event coordinators, hosts & support staff",
+            "EVENT_SUPPORT",
+            CategoryVisualTone.SUPPORT
+        ),
+        ServiceCategoryDefinition(
+            "rentals",
+            "Rentals",
+            "Chairs, tables, furniture & event equipment",
+            "RENTALS",
+            CategoryVisualTone.RENTALS
+        ),
+        ServiceCategoryDefinition(
+            "transport-logistics",
+            "Transport & Logistics",
+            "Event transport, delivery & logistics",
+            "TRANSPORT_LOGISTICS",
+            CategoryVisualTone.TRANSPORT
+        ),
+        ServiceCategoryDefinition(
+            "other-event-services",
+            "Other Event Services",
+            "Additional services for your event",
+            "OTHER_EVENT_SERVICES",
+            CategoryVisualTone.OTHER
+        )
     )
 
     val roles = listOf(
@@ -152,4 +226,3 @@ object ServiceCatalog {
         return category(role.categoryId)
     }
 }
-

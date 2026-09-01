@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.daily.cetaring.data.remote.dto.BookingDraft
 import com.daily.cetaring.data.remote.dto.BookingResponse
+import com.daily.cetaring.data.remote.dto.CustomerBookingSource
+import com.daily.cetaring.data.remote.dto.CustomerBookingUiModel
 import com.daily.cetaring.data.remote.dto.BookingValidationResult
 import com.daily.cetaring.data.remote.dto.BookingValidator
 import com.daily.cetaring.data.remote.dto.CreateMyBookingRequest
@@ -18,8 +20,8 @@ import java.math.BigDecimal
 sealed class BookingUiState {
     data object Idle : BookingUiState()
     data object Loading : BookingUiState()
-    data class ListLoaded(val bookings: List<BookingResponse>) : BookingUiState()
-    data class DetailsLoaded(val booking: BookingResponse) : BookingUiState()
+    data class ListLoaded(val bookings: List<CustomerBookingUiModel>) : BookingUiState()
+    data class DetailsLoaded(val booking: CustomerBookingUiModel) : BookingUiState()
 
     data class Submitted(
         val booking: BookingResponse,
@@ -109,7 +111,7 @@ class BookingViewModel(
             _uiState.value = BookingUiState.Loading
             try {
                 _uiState.value = BookingUiState.ListLoaded(
-                    bookingRepository.getMyBookings()
+                    bookingRepository.getUnifiedMyBookings()
                 )
             } catch (exception: Exception) {
                 _uiState.value = BookingUiState.Error(
@@ -119,12 +121,12 @@ class BookingViewModel(
         }
     }
 
-    fun loadBooking(id: Long) {
+    fun loadBooking(id: Long, source: CustomerBookingSource) {
         viewModelScope.launch {
             _uiState.value = BookingUiState.Loading
             try {
                 _uiState.value = BookingUiState.DetailsLoaded(
-                    bookingRepository.getBooking(id)
+                    bookingRepository.getUnifiedBooking(id, source)
                 )
             } catch (exception: Exception) {
                 _uiState.value = BookingUiState.Error(
@@ -140,7 +142,7 @@ class BookingViewModel(
             try {
                 bookingRepository.cancelBooking(id)
                 _uiState.value = BookingUiState.Cancelled(id)
-                loadBooking(id)
+                loadBooking(id, CustomerBookingSource.CATERING)
             } catch (exception: Exception) {
                 _uiState.value = BookingUiState.Error(
                     exception.message ?: "Unable to cancel booking"

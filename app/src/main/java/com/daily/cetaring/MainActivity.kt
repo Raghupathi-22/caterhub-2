@@ -58,7 +58,7 @@ private object AppRoute {
     const val SERVICE_REQUEST = "service_request/{categoryId}"
     const val BOOKINGS = "bookings"
     const val BOOKING_SUCCESS = "booking_success/{bookingId}"
-    const val BOOKING_DETAILS = "booking_details/{bookingId}"
+    const val BOOKING_DETAILS = "booking_details/{source}/{bookingId}"
     const val WORKER_ONBOARDING = "worker_onboarding"
     const val WORKER_DASHBOARD = "worker_dashboard"
     const val CUSTOMER_PROFILE = "customer_profile"
@@ -72,6 +72,7 @@ private object AppRoute {
 }
 
 private fun serviceRequestRoute(categoryId: String) = "service_request/$categoryId"
+private fun bookingDetailsRoute(source: String, bookingId: Long) = "booking_details/$source/$bookingId"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -215,7 +216,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onBookingsClick = { navController.navigate(AppRoute.BOOKINGS) },
-                            onBookingClick = { bookingId -> navController.navigate("booking_details/$bookingId") },
+                            onBookingClick = { bookingId -> navController.navigate(bookingDetailsRoute("catering", bookingId)) },
                             onNotificationsClick = { },
                             onProfileClick = { navController.navigate(AppRoute.CUSTOMER_PROFILE) },
                             onGuestSizeClick = { guests ->
@@ -271,7 +272,14 @@ class MainActivity : ComponentActivity() {
                             serviceType = validCategoryId,
                             workerRepository = workerRepository,
                             onBackClick = { navController.popBackStack() },
-                            onSubmitted = { navController.popBackStack() }
+                            onSubmitted = { },
+                            onViewMyBookings = { navController.navigate(AppRoute.BOOKINGS) },
+                            onBackToHome = {
+                                navController.navigate(AppRoute.HOME) {
+                                    popUpTo(AppRoute.HOME) { inclusive = false }
+                                    launchSingleTop = true
+                                }
+                            }
                         )
                     }
 
@@ -279,11 +287,12 @@ class MainActivity : ComponentActivity() {
                         BookingHistoryScreen(
                             viewModel = bookingViewModel,
                             onBackClick = { navController.popBackStack() },
-                            onBookingClick = { bookingId -> navController.navigate("booking_details/$bookingId") },
-                            onBookCateringClick = {
-                                bookingViewModel.startNewBooking()
-                                navController.navigate(AppRoute.BOOKING_FLOW)
-                            }
+                            onBookingClick = { source, bookingId ->
+                                navController.navigate(bookingDetailsRoute(source, bookingId))
+                            },
+                            onExploreServicesClick = { navController.navigate(AppRoute.HOME) { launchSingleTop = true } },
+                            onBackToHome = { navController.navigate(AppRoute.HOME) { launchSingleTop = true } },
+                            onProfileClick = { navController.navigate(AppRoute.CUSTOMER_PROFILE) { launchSingleTop = true } }
                         )
                     }
 
@@ -295,7 +304,7 @@ class MainActivity : ComponentActivity() {
                         BookingSuccessScreen(
                             viewModel = bookingViewModel,
                             bookingId = bookingId,
-                            onViewBooking = { navController.navigate("booking_details/$it") },
+                            onViewBooking = { navController.navigate(bookingDetailsRoute("catering", it)) },
                             onHome = {
                                 navController.navigate(AppRoute.HOME) {
                                     popUpTo(AppRoute.HOME) { inclusive = true }
@@ -306,12 +315,17 @@ class MainActivity : ComponentActivity() {
 
                     composable(
                         route = AppRoute.BOOKING_DETAILS,
-                        arguments = listOf(navArgument("bookingId") { type = NavType.LongType })
+                        arguments = listOf(
+                            navArgument("source") { type = NavType.StringType },
+                            navArgument("bookingId") { type = NavType.LongType }
+                        )
                     ) { entry ->
                         val bookingId = entry.arguments?.getLong("bookingId") ?: return@composable
+                        val source = entry.arguments?.getString("source") ?: return@composable
                         BookingDetailsScreen(
                             viewModel = bookingViewModel,
                             bookingId = bookingId,
+                            source = source,
                             onBackClick = { navController.popBackStack() }
                         )
                     }

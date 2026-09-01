@@ -145,16 +145,22 @@ data class ServiceRequestRequest(
     val eventType: String,
     val eventDate: String,
     val startTime: String,
+    val endTime: String,
     val location: String,
     val area: String,
+    val selectedServices: List<String>,
+    val instructions: String? = null,
     val details: String? = null,
+    val quoteBased: Boolean = false,
     val totalAmount: BigDecimal
 )
 
 data class ServiceRequestResponse(
     val id: Long, val serviceType: String, val eventType: String, val eventDate: String,
-    val startTime: String, val location: String, val area: String, val details: String?,
-    val totalAmount: BigDecimal, val status: String, val createdAt: String?
+    val startTime: String, val endTime: String?, val location: String, val area: String,
+    val selectedServices: List<String> = emptyList(), val instructions: String?, val details: String?,
+    val quoteBased: Boolean = false, val totalAmount: BigDecimal, val status: String,
+    val createdAt: String?, val updatedAt: String?
 )
 
 data class CreateWorkerProfileRequest(

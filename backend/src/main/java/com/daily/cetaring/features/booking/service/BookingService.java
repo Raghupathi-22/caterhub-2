@@ -10,8 +10,10 @@ import com.daily.cetaring.shared.repository.BusinessRepository;
 import com.daily.cetaring.shared.repository.UserRepository;
 import com.daily.cetaring.shared.entity.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -51,7 +53,7 @@ public class BookingService {
             .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"))
             .getId();
         if (!userId.equals(booking.getUserId())) {
-            throw new IllegalArgumentException("Booking not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found");
         }
         return booking;
     }
@@ -123,7 +125,7 @@ public class BookingService {
     public BookingDTO getBooking(Long bookingId) {
         return bookingRepository.findById(bookingId)
             .map(this::mapToDTO)
-            .orElseThrow(() -> new RuntimeException("Booking not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
     }
 
     public List<BookingDTO> getUserBookings(Long userId) {
@@ -149,7 +151,7 @@ public class BookingService {
 
     public BookingDTO updateBookingStatus(Long bookingId, String status) {
         Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new RuntimeException("Booking not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
         booking.setStatus(status);
         booking = bookingRepository.save(booking);
         return mapToDTO(booking);

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
@@ -30,14 +32,19 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SelectableDates
@@ -63,16 +70,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.daily.cetaring.data.remote.dto.BookingDraft
 import com.daily.cetaring.data.remote.dto.BookingOptions
 import com.daily.cetaring.data.remote.dto.BookingResponse
+import com.daily.cetaring.data.remote.dto.CustomerBookingSource
+import com.daily.cetaring.data.remote.dto.CustomerBookingUiModel
 import com.daily.cetaring.data.remote.dto.BookingValidationResult
 import com.daily.cetaring.domain.catalog.EventTypeCatalog
 import com.daily.cetaring.domain.catalog.EventTypeDefinition
-import com.daily.cetaring.presentation.components.CaterHubBookingCard
 import com.daily.cetaring.presentation.components.CaterHubCategoryChip
 import com.daily.cetaring.presentation.components.CaterHubEmptyState
 import com.daily.cetaring.presentation.components.CaterHubErrorState
@@ -83,9 +92,11 @@ import com.daily.cetaring.presentation.components.CaterHubStatusChip
 import com.daily.cetaring.presentation.components.ReviewLineItem
 import com.daily.cetaring.presentation.components.ReviewRequestCard
 import com.daily.cetaring.presentation.components.SummaryRow
+import com.daily.cetaring.presentation.components.categoryUiMeta
 import com.daily.cetaring.presentation.components.formatDateTime
 import com.daily.cetaring.presentation.viewmodel.BookingUiState
 import com.daily.cetaring.presentation.viewmodel.BookingViewModel
+import com.daily.cetaring.domain.catalog.ServiceCatalog
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalTime
@@ -730,15 +741,8 @@ fun BookingSuccessScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(bookingId) {
-        if (uiState !is BookingUiState.Submitted) {
-            viewModel.loadBooking(bookingId)
-        }
-    }
-
     val submitted = uiState as? BookingUiState.Submitted
     val booking = submitted?.booking
-        ?: (uiState as? BookingUiState.DetailsLoaded)?.booking
 
     Column(
         Modifier
@@ -791,15 +795,44 @@ fun BookingSuccessScreen(
 fun BookingHistoryScreen(
     viewModel: BookingViewModel,
     onBackClick: () -> Unit,
-    onBookingClick: (Long) -> Unit,
-    onBookCateringClick: () -> Unit
+    onBookingClick: (String, Long) -> Unit,
+    onExploreServicesClick: () -> Unit,
+    onBackToHome: () -> Unit,
+    onProfileClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var statusFilter by remember { mutableStateOf("All") }
+    var categoryFilter by remember { mutableStateOf("all") }
     LaunchedEffect(Unit) { viewModel.loadBookings() }
 
     Scaffold(
         containerColor = Cream,
-        topBar = { BookingTopBar("My Bookings", onBackClick) }
+        topBar = { BookingTopBar("My Bookings", onBackClick) },
+        bottomBar = {
+            NavigationBar(
+                modifier = Modifier.navigationBarsPadding(),
+                containerColor = Color.White
+            ) {
+                NavigationBarItem(
+                    selected = false,
+                    onClick = onBackToHome,
+                    icon = { Icon(Icons.Filled.Home, "Home") },
+                    label = { Text("Home") }
+                )
+                NavigationBarItem(
+                    selected = true,
+                    onClick = {},
+                    icon = { Icon(Icons.Filled.Event, "Bookings") },
+                    label = { Text("Bookings") }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = onProfileClick,
+                    icon = { Icon(Icons.Filled.AccountCircle, "Profile") },
+                    label = { Text("Profile") }
+                )
+            }
+        }
     ) { padding ->
         when (val state = uiState) {
             BookingUiState.Loading, BookingUiState.Idle ->
@@ -822,19 +855,63 @@ fun BookingHistoryScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    if (state.bookings.isEmpty()) {
+                    Text(
+                        "Your catering & event services",
+                        color = Muted,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("All", "Pending", "Confirmed", "Completed", "Cancelled").forEach { option ->
+                            FilterChip(
+                                selected = statusFilter == option,
+                                onClick = { statusFilter = option },
+                                label = { Text(option) }
+                            )
+                        }
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val categories = listOf("all" to "All") + ServiceCatalog.categories.map { it.id to it.title }
+                        categories.forEach { option ->
+                            AssistChip(
+                                onClick = { categoryFilter = option.first },
+                                label = { Text(option.second, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                leadingIcon = if (categoryFilter == option.first) {
+                                    { Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp), tint = Maroon) }
+                                } else null
+                            )
+                        }
+                    }
+
+                    val filtered = state.bookings.filter { booking ->
+                        val statusMatches = when (statusFilter) {
+                            "All" -> true
+                            "Pending" -> booking.status.equals("PENDING", true) || booking.status.equals("OPEN", true)
+                            "Confirmed" -> booking.status.equals("CONFIRMED", true) || booking.status.equals("APPROVED", true)
+                            "Completed" -> booking.status.equals("COMPLETED", true) || booking.status.equals("DELIVERED", true)
+                            "Cancelled" -> booking.status.equals("CANCELLED", true) || booking.status.equals("REJECTED", true)
+                            else -> true
+                        }
+                        val categoryMatches = categoryFilter == "all" || booking.categoryId == categoryFilter
+                        statusMatches && categoryMatches
+                    }
+
+                    if (filtered.isEmpty()) {
                         CaterHubEmptyState(
                             "No bookings yet",
-                            "Book catering for your next event.",
-                            actionText = "Book Catering",
-                            onActionClick = onBookCateringClick
+                            "Your event plans will appear here.",
+                            actionText = "Explore Services",
+                            onActionClick = onExploreServicesClick
+                        )
+                        CaterHubSecondaryButton(
+                            text = "Back to Home",
+                            onClick = onBackToHome,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     } else {
-                        state.bookings.forEach {
-                            CaterHubBookingCard(
-                                it,
-                                { onBookingClick(it.id) }
-                            )
+                        filtered.forEach { booking ->
+                            UnifiedBookingCard(booking = booking) {
+                                onBookingClick(booking.source.name.lowercase(Locale.ROOT), booking.id)
+                            }
                         }
                     }
                 }
@@ -848,10 +925,14 @@ fun BookingHistoryScreen(
 fun BookingDetailsScreen(
     viewModel: BookingViewModel,
     bookingId: Long,
+    source: String,
     onBackClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    LaunchedEffect(bookingId) { viewModel.loadBooking(bookingId) }
+    val bookingSource = remember(source) {
+        if (source.equals("service_request", true)) CustomerBookingSource.SERVICE_REQUEST else CustomerBookingSource.CATERING
+    }
+    LaunchedEffect(bookingId, source) { viewModel.loadBooking(bookingId, bookingSource) }
 
     Scaffold(
         containerColor = Cream,
@@ -865,7 +946,7 @@ fun BookingDetailsScreen(
                 Column(Modifier.padding(padding).padding(20.dp)) {
                     CaterHubErrorState(
                         state.message,
-                        { viewModel.loadBooking(bookingId) }
+                        { viewModel.loadBooking(bookingId, bookingSource) }
                     )
                 }
 
@@ -877,10 +958,112 @@ fun BookingDetailsScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(20.dp)
                 ) {
-                    BookingSummaryCard(state.booking, detailed = true)
+                    UnifiedBookingDetailsCard(state.booking)
                 }
 
             else -> Unit
+        }
+    }
+}
+
+@Composable
+private fun UnifiedBookingCard(
+    booking: CustomerBookingUiModel,
+    onClick: () -> Unit
+) {
+    val category = ServiceCatalog.category(booking.categoryId) ?: ServiceCatalog.category("other-event-services")
+    val visual = category?.let(::categoryUiMeta)
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = (visual?.accent ?: Maroon).copy(alpha = 0.12f))
+                    ) {
+                        Icon(
+                            imageVector = visual?.icon ?: Icons.Filled.Event,
+                            contentDescription = null,
+                            tint = visual?.accent ?: Maroon,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                    Column {
+                        Text(booking.categoryName, fontWeight = FontWeight.ExtraBold, color = TextDark)
+                        Text(booking.eventType, color = Muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                CaterHubStatusChip(booking.status)
+            }
+            Text(formatBookingDate(booking.eventDate), fontWeight = FontWeight.SemiBold, color = TextDark)
+            Text(bookingTimeRange(booking.startTime, booking.endTime), color = TextDark)
+            Text(bookingLocation(booking), color = Muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                booking.services.take(3).joinToString(" • ").ifBlank { "Services selected" },
+                color = TextDark,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                if (booking.quoteBased) "Price: To be quoted" else "Price: ₹${booking.totalAmount ?: 0}",
+                color = if (booking.quoteBased) Green else Maroon,
+                fontWeight = FontWeight.Bold
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Text("View details →", color = visual?.accent ?: Maroon, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnifiedBookingDetailsCard(booking: CustomerBookingUiModel) {
+    val category = ServiceCatalog.category(booking.categoryId) ?: ServiceCatalog.category("other-event-services")
+    val visual = category?.let(::categoryUiMeta)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(visual?.icon ?: Icons.Filled.Event, null, tint = visual?.accent ?: Maroon)
+                    Text(category?.title ?: booking.categoryName, fontWeight = FontWeight.ExtraBold, color = TextDark)
+                }
+                CaterHubStatusChip(booking.status)
+            }
+            HorizontalDivider(color = Border)
+            SummaryRow("Category", category?.title ?: booking.categoryName)
+            SummaryRow("Event", booking.eventType)
+            SummaryRow("Date", formatBookingDate(booking.eventDate))
+            SummaryRow("Time", bookingTimeRange(booking.startTime, booking.endTime))
+            SummaryRow("Location", bookingLocation(booking))
+            Text("SERVICES", style = MaterialTheme.typography.labelSmall, color = Maroon, fontWeight = FontWeight.Bold)
+            if (booking.services.isEmpty()) {
+                Text("Not specified", color = Muted)
+            } else {
+                booking.services.forEach { Text(it, color = TextDark) }
+            }
+            SummaryRow("Price", if (booking.quoteBased) "To be quoted" else "₹${booking.totalAmount ?: 0}")
+            SummaryRow("Status", booking.status.replace('_', ' ').lowercase(Locale.ROOT).replaceFirstChar { it.titlecase(Locale.ROOT) })
+            SummaryRow("Created", formatDateTime(booking.createdAt))
         }
     }
 }
@@ -969,4 +1152,16 @@ private fun formatBookingTime(raw: String): String =
 private fun formatBookingReviewTimeRange(raw: String): String {
     val display = formatBookingTime(raw)
     return if (display.isBlank() || display == raw && raw.isBlank()) "Time to be confirmed" else display
+}
+
+private fun bookingTimeRange(startTime: String, endTime: String?): String {
+    val start = formatBookingTime(startTime)
+    val end = endTime?.takeIf { it.isNotBlank() }?.let(::formatBookingTime)
+    return if (end.isNullOrBlank()) start else "$start – $end"
+}
+
+private fun bookingLocation(booking: CustomerBookingUiModel): String {
+    val areaText = booking.area?.trim().orEmpty()
+    val addressText = booking.address.trim()
+    return listOf(areaText, addressText).filter { it.isNotBlank() }.joinToString(", ")
 }

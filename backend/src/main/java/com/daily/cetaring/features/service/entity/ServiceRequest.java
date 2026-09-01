@@ -34,12 +34,20 @@ public class ServiceRequest {
     private LocalDate eventDate;
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
+    @Column(name = "end_time")
+    private LocalTime endTime;
     @Column(nullable = false, length = 255)
     private String location;
     @Column(nullable = false, length = 100)
     private String area;
+    @Column(name = "selected_services", columnDefinition = "TEXT")
+    private String selectedServices;
+    @Column(name = "instructions", columnDefinition = "TEXT")
+    private String instructions;
     @Column(columnDefinition = "TEXT")
     private String details;
+    @Column(name = "quote_based", nullable = false)
+    private Boolean quoteBased;
     @Column(name = "total_amount", precision = 12, scale = 2, nullable = false)
     private BigDecimal totalAmount;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
@@ -49,6 +57,12 @@ public class ServiceRequest {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @PrePersist void create() { LocalDateTime now=LocalDateTime.now(); createdAt=now; updatedAt=now; if(status==null) status=Status.PENDING; }
+    @PrePersist void create() {
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
+        if (status == null) status = Status.PENDING;
+        if (quoteBased == null) quoteBased = false;
+    }
     @PreUpdate void update() { updatedAt=LocalDateTime.now(); }
 }

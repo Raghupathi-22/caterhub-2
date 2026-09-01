@@ -60,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.daily.cetaring.config.SupportContact
 import com.daily.cetaring.R
 
 private val Cream = Color(0xFFFFFCF6)
@@ -486,8 +487,8 @@ private fun WhyItem(text: String, symbol: String) {
 @Composable
 private fun ContactCard() {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val phone = "9959095202"
-    val internationalPhone = "919959095202"
+    val phone = SupportContact.SUPPORT_PHONE_NATIONAL
+    val internationalPhone = SupportContact.SUPPORT_PHONE_WHATSAPP
 
     fun openWhatsApp() {
         try {

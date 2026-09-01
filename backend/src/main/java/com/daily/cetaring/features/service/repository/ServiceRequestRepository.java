@@ -7,4 +7,6 @@ import java.util.List;
 public interface ServiceRequestRepository extends JpaRepository<ServiceRequest, Long> {
     List<ServiceRequest> findAllByOrderByCreatedAtDesc();
     List<ServiceRequest> findByCreatedByUsernameOrderByCreatedAtDesc(String username);
+    List<ServiceRequest> findByCreatedByIdOrderByCreatedAtDesc(Long userId);
+    java.util.Optional<ServiceRequest> findByIdAndCreatedById(Long id, Long userId);
 }

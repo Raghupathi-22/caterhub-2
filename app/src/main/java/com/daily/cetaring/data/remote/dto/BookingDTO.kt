@@ -47,6 +47,48 @@ data class BookingResponse(
     val createdAt: String?
 )
 
+data class ServiceRequestBookingResponse(
+    val id: Long,
+    val serviceType: String,
+    val eventType: String,
+    val eventDate: String,
+    val startTime: String,
+    val endTime: String?,
+    val location: String,
+    val area: String,
+    val selectedServices: List<String> = emptyList(),
+    val instructions: String?,
+    val details: String?,
+    val quoteBased: Boolean = false,
+    val totalAmount: BigDecimal?,
+    val status: String,
+    val createdAt: String?,
+    val updatedAt: String?
+)
+
+enum class CustomerBookingSource {
+    CATERING,
+    SERVICE_REQUEST
+}
+
+data class CustomerBookingUiModel(
+    val id: Long,
+    val source: CustomerBookingSource,
+    val categoryId: String,
+    val categoryName: String,
+    val eventType: String,
+    val eventDate: String,
+    val startTime: String,
+    val endTime: String?,
+    val address: String,
+    val area: String?,
+    val services: List<String>,
+    val totalAmount: BigDecimal?,
+    val quoteBased: Boolean,
+    val status: String,
+    val createdAt: String?
+)
+
 /**
  * Draft used only by the customer catering flow.
  *

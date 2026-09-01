@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.util.HashMap;
@@ -56,6 +57,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleResponseStatusException(
+            ResponseStatusException ex, WebRequest request) {
+        int statusCode = ex.getStatusCode().value();
+        String reason = ex.getReason() == null ? "Request failed" : ex.getReason();
+        ApiResponse<Map<String, String>> response = ApiResponse.<Map<String, String>>builder()
+                .code(statusCode)
+                .message(reason)
+                .data(Map.of("error", reason))
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+        return ResponseEntity.status(ex.getStatusCode()).body(response);
     }
 
  /*   @ExceptionHandler(MethodArgumentNotValidException.class)

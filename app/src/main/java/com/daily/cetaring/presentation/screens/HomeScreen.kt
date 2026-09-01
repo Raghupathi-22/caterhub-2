@@ -1,5 +1,9 @@
 package com.daily.cetaring.presentation.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,8 +27,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material3.Card
@@ -40,10 +45,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.daily.cetaring.config.SupportContact
 import com.daily.cetaring.domain.catalog.ServiceCatalog
+import com.daily.cetaring.presentation.components.CaterHubSupportCard
+import com.daily.cetaring.presentation.components.categoryUiMeta
 import com.daily.cetaring.presentation.viewmodel.HomeViewModel
 
 private val Cream = Color(0xFFFFFCF5)
@@ -67,6 +75,45 @@ fun HomeScreen(
     onEventTypeClick: (String) -> Unit,
     onLogout: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    fun launchIntent(intent: Intent): Boolean = try {
+        context.startActivity(intent)
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    }
+
+    fun openDialer() {
+        val opened = launchIntent(
+            Intent(
+                Intent.ACTION_DIAL,
+                Uri.parse("tel:${SupportContact.SUPPORT_PHONE_NATIONAL}")
+            )
+        )
+        if (!opened) {
+            Toast.makeText(context, "Unable to open phone dialer.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun openWhatsApp() {
+        val appIntent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("whatsapp://send?phone=${SupportContact.SUPPORT_PHONE_WHATSAPP}")
+        )
+        val appOpened = launchIntent(appIntent)
+        if (appOpened) return
+
+        val webIntent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("https://wa.me/${SupportContact.SUPPORT_PHONE_WHATSAPP}")
+        )
+        val webOpened = launchIntent(webIntent)
+        if (!webOpened) {
+            Toast.makeText(context, "WhatsApp is not available on this device.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     Scaffold(
         containerColor = Cream,
         bottomBar = { HomeBottomBar(onBookingsClick = onBookingsClick, onProfileClick = onProfileClick) }
@@ -83,10 +130,11 @@ fun HomeScreen(
             HomeHeader(onNotificationsClick = onNotificationsClick, onProfileClick = onProfileClick)
             HomeHero(onBookCateringClick = onBookCateringClick)
             HomeCategories(onCategoryClick = onServiceCategoryClick)
-            HomeOffers()
-            HomeSpecialities()
-            HomeWhyCaterHub()
-            Spacer(Modifier.height(6.dp))
+            CaterHubSupportCard(
+                onCallClick = ::openDialer,
+                onWhatsAppClick = ::openWhatsApp
+            )
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -145,10 +193,13 @@ private fun HomeHero(onBookCateringClick: () -> Unit) {
 private fun HomeCategories(onCategoryClick: (String) -> Unit) {
     SectionTitle("Service Categories")
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ServiceCatalog.categories.filter { it.id != "other-event-services" }.forEachIndexed { index, category ->
-            val accent = if (index % 2 == 0) Red else Green
+        ServiceCatalog.categories.forEach { category ->
+            val visual = categoryUiMeta(category)
             Card(
-                modifier = Modifier.fillMaxWidth().clickable { onCategoryClick(category.id) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 92.dp)
+                    .clickable { onCategoryClick(category.id) },
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(1.dp, Border),
@@ -159,94 +210,19 @@ private fun HomeCategories(onCategoryClick: (String) -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        modifier = Modifier.size(42.dp).background(accent.copy(alpha = 0.12f), CircleShape),
+                        modifier = Modifier.size(58.dp).background(visual.accent.copy(alpha = 0.12f), RoundedCornerShape(18.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(categoryEmoji(category.id), color = accent, style = MaterialTheme.typography.titleMedium)
+                        Icon(visual.icon, contentDescription = null, tint = visual.accent, modifier = Modifier.size(26.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(category.title, color = Ink, fontWeight = FontWeight.ExtraBold)
-                        Text("Choose the services you need", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        Text(category.subtitle, color = Muted, style = MaterialTheme.typography.bodySmall)
                     }
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = accent)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = visual.accent)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun HomeOffers() {
-    SectionTitle("Today's Offers")
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OfferCard("Wedding catering packages", "Starting from ₹499 per person", Gold)
-        OfferCard("Decoration packages", "Stage + flower + lighting combos", Green)
-        OfferCard("Photography packages", "Photo + video + highlights bundles", Red)
-        OfferCard("Complete event packages", "Catering + decor + entertainment", Gold)
-    }
-}
-
-@Composable
-private fun OfferCard(title: String, subtitle: String, accent: Color) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, Border),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, color = accent, fontWeight = FontWeight.ExtraBold)
-            Text(subtitle, color = Ink)
-        }
-    }
-}
-
-@Composable
-private fun HomeSpecialities() {
-    SectionTitle("Our Specialities")
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Border)
-    ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("• Authentic biryani and live counters", color = Ink)
-            Text("• Professional decorators and setup teams", color = Ink)
-            Text("• Verified entertainment and event hosts", color = Ink)
-            Text("• Complete event coordination support", color = Ink)
-        }
-    }
-}
-
-@Composable
-private fun HomeWhyCaterHub() {
-    SectionTitle("Why CaterHub")
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        WhyItem("Verified professionals", Icons.Filled.Celebration, Red)
-        WhyItem("Trusted services", Icons.Filled.Celebration, Green)
-        WhyItem("Easy booking", Icons.Filled.Celebration, Gold)
-        WhyItem("Transparent pricing", Icons.Filled.Celebration, Red)
-        WhyItem("Complete event support", Icons.Filled.Celebration, Green)
-    }
-}
-
-@Composable
-private fun WhyItem(text: String, icon: ImageVector, accent: Color) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Border)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, null, tint = accent, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(text, color = Ink, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -280,19 +256,6 @@ private fun ActionButton(
 @Composable
 private fun SectionTitle(text: String) {
     Text(text, color = Red, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-}
-
-private fun categoryEmoji(categoryId: String): String = when (categoryId) {
-    "catering-food" -> "🍽"
-    "decoration" -> "🎀"
-    "entertainment" -> "🎵"
-    "beauty" -> "💄"
-    "photography-video" -> "📷"
-    "religious-ceremony" -> "🙏"
-    "event-support" -> "🎤"
-    "rentals" -> "🪑"
-    "transport-logistics" -> "🚗"
-    else -> "⭐"
 }
 
 @Composable
