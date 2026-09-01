@@ -59,7 +59,7 @@ enum class WorkerType(val label: String, val category: String) {
     BRIDAL_MAKEUP_ARTIST("Bridal Makeup Artist", "Beauty"),
     GROOM_MAKEUP_ARTIST("Groom Makeup Artist", "Beauty"),
     HAIR_STYLIST("Hair Stylist", "Beauty"),
-    MEHENDI_ARTIST("Mehendi Artist", "Beauty"),
+    MEHENDI_ARTIST("Mehndi Artist", "Beauty"),
     SAREE_DRAPIST("Saree Drapist", "Beauty"),
     BEAUTY_SPECIALIST("Beauty Specialist", "Beauty"),
 
@@ -135,7 +135,7 @@ enum class WorkerType(val label: String, val category: String) {
 
 enum class WorkerStatus(val label: String) {
     PENDING_VERIFICATION("Pending verification"),
-    ACTIVE("Approved"),
+    ACTIVE("Verified"),
     SUSPENDED("Suspended"),
     REJECTED("Rejected")
 }
@@ -200,6 +200,7 @@ data class WorkerProfileResponse(
     val rating: Double,
     val totalRatings: Int,
     val approvedAt: String?,
+    val rejectionReason: String?,
     val createdAt: String?,
     val updatedAt: String?
 )

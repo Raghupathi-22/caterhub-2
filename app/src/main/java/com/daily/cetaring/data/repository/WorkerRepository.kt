@@ -18,6 +18,7 @@ import com.daily.cetaring.data.remote.dto.WorkerJobResponse
 import com.daily.cetaring.data.remote.dto.WorkerProfileResponse
 import com.daily.cetaring.data.remote.dto.WorkerType
 import kotlinx.coroutines.flow.first
+import retrofit2.HttpException
 
 class WorkerRepository(
     private val workerApiService: WorkerApiService,
@@ -62,7 +63,7 @@ class WorkerRepository(
         executeNetworkCall { workerApiService.getMyJobs(bearerToken()) }
 
     suspend fun updateAvailability(available: Boolean) {
-        executeNetworkCall {
+        executeNetworkCall(WorkerApiOperation.AVAILABILITY_UPDATE) {
             workerApiService.updateAvailability(
                 bearerToken(),
                 UpdateAvailabilityToggleRequest(available = available)
@@ -84,20 +85,34 @@ class WorkerRepository(
         return "Bearer $token"
     }
 
-    private suspend fun <T> executeNetworkCall(block: suspend () -> T): T {
+    private suspend fun <T> executeNetworkCall(
+        operation: WorkerApiOperation = WorkerApiOperation.DEFAULT,
+        block: suspend () -> T
+    ): T {
         return try {
             block()
         } catch (exception: Exception) {
-            throw mapNetworkException(exception)
+            throw mapNetworkException(exception, operation)
         }
     }
 
-    private fun mapNetworkException(exception: Exception): Exception =
-        ApiErrorMapper.map(
+    private fun mapNetworkException(
+        exception: Exception,
+        operation: WorkerApiOperation
+    ): Exception {
+        if (exception is HttpException && exception.code() == 409 && operation == WorkerApiOperation.AVAILABILITY_UPDATE) {
+            return IllegalArgumentException("Availability can be enabled after your profile is verified.")
+        }
+        return ApiErrorMapper.map(
             exception = exception,
             contextLabel = "worker request",
             badRequestFallback = "Please check the worker details and try again.",
             defaultFallback = "Unable to complete worker request. Please try again."
         )
-}
+    }
 
+    private enum class WorkerApiOperation {
+        DEFAULT,
+        AVAILABILITY_UPDATE
+    }
+}

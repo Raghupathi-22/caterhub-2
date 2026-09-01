@@ -1,13 +1,16 @@
 package com.daily.cetaring.presentation.screens
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -23,6 +26,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -30,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,10 +48,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.daily.cetaring.data.remote.dto.CreateWorkerProfileRequest
 import com.daily.cetaring.data.remote.dto.WorkerType
 import com.daily.cetaring.domain.catalog.ServiceCatalog
+import com.daily.cetaring.presentation.components.CaterHubPrimaryButton
+import com.daily.cetaring.presentation.components.categoryUiMeta
 import com.daily.cetaring.presentation.viewmodel.WorkerUiState
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 
@@ -93,16 +101,58 @@ fun WorkerRegistrationScreen(
 
     if (showSubmitted) {
         AlertDialog(
-            onDismissRequest = {},
-            icon = { Icon(Icons.Filled.CheckCircle, null, tint = ChGreen) },
-            title = { Text("Profile submitted", color = ChRed, fontWeight = FontWeight.ExtraBold) },
-            text = { Text("Your profile has been submitted for CaterHub admin verification.") },
+            onDismissRequest = { },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(24.dp),
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(ChGreen.copy(alpha = 0.12f), RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.CheckCircle, "Profile submitted successfully", tint = ChGreen, modifier = Modifier.size(34.dp))
+                }
+            },
+            title = { Text("Profile submitted successfully", color = ChInk, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "Your profile has been sent to CaterHub for verification.",
+                        color = ChMuted,
+                        textAlign = TextAlign.Center
+                    )
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = ChGreen.copy(alpha = 0.08f)),
+                        border = BorderStroke(1.dp, ChBorder)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("STATUS", color = ChGreen, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                            Text("Pending verification", color = ChInk, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Text(
+                        "You'll be able to receive jobs after your profile is verified.",
+                        color = ChMuted,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
             confirmButton = {
-                Button(onClick = {
+                CaterHubPrimaryButton("Go to Dashboard", onClick = {
                     showSubmitted = false
                     viewModel.reset()
                     onSubmitted()
-                }) { Text("Go to dashboard") }
+                }, modifier = Modifier.fillMaxWidth())
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showSubmitted = false
+                }) { Text("View Profile", color = ChGreen, fontWeight = FontWeight.Bold) }
             }
         )
     }
@@ -150,7 +200,16 @@ fun WorkerRegistrationScreen(
                     0 -> CategoryStep(selectedCategoryId) { selectedCategoryId = it }
                     1 -> RoleStep(selectedCategoryId, selectedRoleId) { selectedRoleId = it }
                     2 -> ExperienceStep(experience) { experience = it }
-                    3 -> SkillsStep(skills, areas, languages, { skills = it }, { areas = it }, { languages = it })
+                    3 -> SkillsStep(
+                        categoryId = selectedCategoryId,
+                        roleId = selectedRoleId,
+                        skills = skills,
+                        areas = areas,
+                        languages = languages,
+                        onSkills = { skills = it },
+                        onAreas = { areas = it },
+                        onLanguages = { languages = it }
+                    )
                     else -> ReviewStep(
                         categoryId = selectedCategoryId,
                         roleId = selectedRoleId,
@@ -259,12 +318,31 @@ private fun ExperienceStep(value: String, onChange: (String) -> Unit) {
 
 @Composable
 private fun SkillsStep(
-    skills: String, areas: String, languages: String,
+    categoryId: String,
+    roleId: String,
+    skills: String,
+    areas: String,
+    languages: String,
     onSkills: (String) -> Unit, onAreas: (String) -> Unit, onLanguages: (String) -> Unit
 ) {
+    val role = remember(roleId) { ServiceCatalog.roles.firstOrNull { it.id == roleId } }
+    val skillSuggestions = remember(categoryId, roleId) { ServiceCatalog.skillSuggestionsFor(categoryId, roleId) }
     CreamCard("Skills & service areas", "These details help us match you with nearby bookings.") {
-        OutlinedTextField(skills, onSkills, label = { Text("Skills") },
-            placeholder = { Text("Biryani, bulk cooking, plating") }, modifier = Modifier.fillMaxWidth())
+        if (role != null) {
+            Text("Role: ${role.title}", color = ChGreen, fontWeight = FontWeight.Bold)
+        }
+        OutlinedTextField(
+            skills,
+            onSkills,
+            label = { Text("Skills") },
+            placeholder = { Text(ServiceCatalog.skillPlaceholderFor(categoryId, roleId)) },
+            supportingText = {
+                if (skillSuggestions.isNotEmpty()) {
+                    Text("Suggestions: ${skillSuggestions.take(5).joinToString(", ")}", color = ChMuted)
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
         OutlinedTextField(areas, onAreas, label = { Text("Preferred areas") },
             placeholder = { Text("Kondapur, Gachibowli, Madhapur") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(languages, onLanguages, label = { Text("Languages") },
@@ -279,10 +357,45 @@ private fun ReviewStep(
 ) {
     val role = ServiceCatalog.roles.firstOrNull { it.id == roleId }
     val category = ServiceCatalog.category(categoryId)
+    val visual = category?.let(::categoryUiMeta)
     CreamCard("Review your profile", "Make sure your details are correct before submitting.") {
-        androidx.compose.material3.AssistChip(onClick = {}, label = { Text(role?.title ?: "Role not selected") })
-        ReviewLine("Category", category?.title ?: "Not selected")
-        ReviewLine("Experience", "$experience years")
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, ChBorder)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = (visual?.accent ?: ChGreen).copy(alpha = 0.12f))
+                ) {
+                    Icon(
+                        imageVector = visual?.icon ?: Icons.Filled.Badge,
+                        contentDescription = "${category?.title ?: "Service"} role icon",
+                        tint = visual?.accent ?: ChGreen,
+                        modifier = Modifier.padding(10.dp)
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(role?.title ?: "Role not selected", color = ChInk, fontWeight = FontWeight.ExtraBold)
+                    Text(category?.title ?: "Category not selected", color = visual?.accent ?: ChGreen, fontWeight = FontWeight.Bold)
+                }
+                AssistChip(
+                    onClick = {},
+                    enabled = false,
+                    label = { Text(role?.title ?: "Role", color = ChInk, fontWeight = FontWeight.Bold) },
+                    border = BorderStroke(1.dp, (visual?.accent ?: ChGreen).copy(alpha = 0.45f))
+                )
+            }
+        }
+        ReviewLine("Experience", "${experience.ifBlank { "0" }} years")
         ReviewLine("Skills", skills)
         ReviewLine("Preferred areas", areas)
         ReviewLine("Languages", languages)

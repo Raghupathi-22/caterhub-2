@@ -162,6 +162,7 @@ public final class WorkerDtos {
         private BigDecimal rating;
         private Integer totalRatings;
         private LocalDateTime approvedAt;
+        private String rejectionReason;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
     }

@@ -20,9 +20,11 @@ import com.daily.cetaring.shared.entity.User;
 import com.daily.cetaring.shared.repository.RoleRepository;
 import com.daily.cetaring.shared.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -327,6 +329,15 @@ public class WorkerService {
 
     public WorkerDtos.WorkerDashboardResponse getWorkerDashboard(String username) {
         WorkerDtos.WorkerProfileResponse profile = getProfileByUsername(username);
+        boolean availabilityEnabled = profile.getStatus() == WorkerProfile.WorkerStatus.ACTIVE;
+        boolean availableForWork = false;
+        if (availabilityEnabled) {
+            WorkerAvailability latestAvailability = workerAvailabilityRepository
+                .findTopByWorkerProfileIdOrderByCreatedAtDesc(profile.getId())
+                .orElse(null);
+            availableForWork = latestAvailability == null
+                || latestAvailability.getStatus() == WorkerAvailability.AvailabilityStatus.AVAILABLE;
+        }
         List<WorkerDtos.StaffingJobResponse> opportunities = getAvailableStaffingJobs(username, null, null, null).stream()
             .limit(5)
             .toList();
@@ -334,7 +345,7 @@ public class WorkerService {
         return WorkerDtos.WorkerDashboardResponse.builder()
             .profile(profile)
             .profileCompletionPercent(profileCompletion(profile))
-            .availableForWork(profile.getStatus() == WorkerProfile.WorkerStatus.ACTIVE)
+            .availableForWork(availableForWork)
             .nearbyOpportunities(opportunities)
             .myJobs(myJobs)
             .build();
@@ -475,11 +486,11 @@ public class WorkerService {
         try {
             profile = getProfileEntityByUsername(username);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Please complete your worker profile before setting availability.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Please complete your worker profile before setting availability.");
         }
         boolean requestedAvailable = !Boolean.FALSE.equals(request.getAvailable());
         if (requestedAvailable && profile.getStatus() != WorkerProfile.WorkerStatus.ACTIVE) {
-            throw new IllegalArgumentException("Availability will be enabled after your profile is verified.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Availability will be enabled after your profile is verified.");
         }
         LocalTime now = LocalTime.now().withSecond(0).withNano(0);
         WorkerAvailability availability = WorkerAvailability.builder()
@@ -573,6 +584,7 @@ public class WorkerService {
             .rating(profile.getRating())
             .totalRatings(profile.getTotalRatings())
             .approvedAt(profile.getApprovedAt())
+            .rejectionReason(profile.getRejectionReason())
             .createdAt(profile.getCreatedAt())
             .updatedAt(profile.getUpdatedAt())
             .build();
