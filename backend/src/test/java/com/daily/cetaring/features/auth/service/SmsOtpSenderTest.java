@@ -53,7 +53,7 @@ class SmsOtpSenderTest {
 
     @Test
     void sendsConfiguredSenderTemplateAndOtpVariable() {
-        SmsOtpSender sender = sender("test-api-key", "OTP1", "SULTNE");
+        SmsOtpSender sender = sender("test-api-key", "OTP1", "", "SULTNE");
 
         sender.sendSms("+919876543210", "123456", "LOGIN");
 
@@ -71,7 +71,7 @@ class SmsOtpSenderTest {
     void reportsProviderRejection() {
         statusCode = 200;
         responseBody = "{\"Status\":\"Error\",\"ErrorCode\":\"1701\",\"Message\":\"Template rejected\",\"Details\":\"REQ456\"}";
-        SmsOtpSender sender = sender("test-api-key", "OTP1", "SULTNE");
+        SmsOtpSender sender = sender("test-api-key", "OTP1", "", "SULTNE");
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
@@ -85,7 +85,7 @@ class SmsOtpSenderTest {
     void reportsHttpError() {
         statusCode = 500;
         responseBody = "{\"Status\":\"Error\",\"ErrorCode\":\"500\",\"Message\":\"Internal error\",\"Details\":\"REQ789\"}";
-        SmsOtpSender sender = sender("test-api-key", "OTP1", "SULTNE");
+        SmsOtpSender sender = sender("test-api-key", "OTP1", "", "SULTNE");
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
@@ -97,17 +97,18 @@ class SmsOtpSenderTest {
 
     @Test
     void validatesDltConfigurationInputs() {
-        assertTrue(sender("k", "OTP1", "SULTNE").isDltConfigured());
-        assertFalse(sender("", "OTP1", "SULTNE").isDltConfigured());
-        assertFalse(sender("k", "", "SULTNE").isDltConfigured());
-        assertFalse(sender("k", "OTP1", "").isDltConfigured());
+        assertTrue(sender("k", "OTP1", "", "SULTNE").isDltConfigured());
+        assertTrue(sender("k", "", "1707162736154333359", "SULTNE").isDltConfigured());
+        assertFalse(sender("", "OTP1", "", "SULTNE").isDltConfigured());
+        assertFalse(sender("k", "", "", "SULTNE").isDltConfigured());
+        assertFalse(sender("k", "OTP1", "", "").isDltConfigured());
     }
 
     @Test
     void logsProviderFailureWithoutExposingSecrets() {
         statusCode = 200;
         responseBody = "{\"Status\":\"Error\",\"ErrorCode\":\"1702\",\"Message\":\"failed test-api-key 123456 9876543210\",\"Details\":\"REQ999\"}";
-        SmsOtpSender sender = sender("test-api-key", "OTP1", "SULTNE");
+        SmsOtpSender sender = sender("test-api-key", "OTP1", "", "SULTNE");
 
         Logger logger = (Logger) LoggerFactory.getLogger(SmsOtpSender.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
@@ -132,9 +133,19 @@ class SmsOtpSenderTest {
         assertFalse(logs.contains("9876543210"));
     }
 
-    private SmsOtpSender sender(String apiKey, String template, String senderId) {
+    @Test
+    void prefersTemplateIdOverTemplateNameWhenBothConfigured() {
+        SmsOtpSender sender = sender("test-api-key", "OTP1", "1707162736154333359", "SULTNE");
+
+        sender.sendSms("+919876543210", "123456", "LOGIN");
+
+        Map<String, String> query = parseQuery(capturedQuery.get());
+        assertEquals("1707162736154333359", query.get("templatename"));
+    }
+
+    private SmsOtpSender sender(String apiKey, String templateName, String templateId, String senderId) {
         int port = server.getAddress().getPort();
-        return new SmsOtpSender("http://localhost:" + port, apiKey, template, senderId, 5);
+        return new SmsOtpSender("http://localhost:" + port, apiKey, templateName, templateId, senderId, 5);
     }
 
     private void handleRequest(HttpExchange exchange) throws IOException {

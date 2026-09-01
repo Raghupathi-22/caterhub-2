@@ -38,7 +38,8 @@ public class SmsOtpSender implements SmsOtpGateway {
 
     private final String baseUrl;
     private final String apiKey;
-    private final String otpTemplate;
+    private final String otpTemplateName;
+    private final String otpTemplateId;
     private final String senderId;
     private final Duration timeout;
     private final HttpClient httpClient;
@@ -47,7 +48,8 @@ public class SmsOtpSender implements SmsOtpGateway {
     public SmsOtpSender(
             @Value("${twofactor.base-url}") String baseUrl,
             @Value("${twofactor.api-key}") String apiKey,
-            @Value("${twofactor.otp-template:}") String otpTemplate,
+            @Value("${twofactor.otp-template:}") String otpTemplateName,
+            @Value("${twofactor.otp-template-id:}") String otpTemplateId,
             @Value("${twofactor.sender-id:}") String senderId,
             @Value("${twofactor.timeout-seconds:30}") long timeoutSeconds
     ) {
@@ -55,7 +57,8 @@ public class SmsOtpSender implements SmsOtpGateway {
                 baseUrl == null || baseUrl.isBlank() ? "https://2factor.in" : baseUrl
         );
         this.apiKey = apiKey == null ? "" : apiKey.trim();
-        this.otpTemplate = otpTemplate == null ? "" : otpTemplate.trim();
+        this.otpTemplateName = otpTemplateName == null ? "" : otpTemplateName.trim();
+        this.otpTemplateId = otpTemplateId == null ? "" : otpTemplateId.trim();
         this.senderId = senderId == null ? "" : senderId.trim();
         this.timeout = Duration.ofSeconds(timeoutSeconds);
 
@@ -69,26 +72,43 @@ public class SmsOtpSender implements SmsOtpGateway {
     @PostConstruct
     void validateConfigurationAtStartup() {
         List<String> missing = new ArrayList<>();
+        boolean baseUrlConfigured = !baseUrl.isBlank();
+        boolean senderConfigured = !senderId.isBlank();
+        boolean templateNameConfigured = !otpTemplateName.isBlank();
+        boolean templateIdConfigured = !otpTemplateId.isBlank();
+        boolean templateConfigured = !resolveTemplateReference().isBlank();
+        boolean apiKeyConfigured = !apiKey.isBlank();
+
         if (baseUrl.isBlank()) {
             missing.add("twofactor.base-url / TWOFACTOR_BASE_URL");
         }
         if (senderId.isBlank()) {
             missing.add("twofactor.sender-id / TWOFACTOR_SENDER_ID");
         }
-        if (otpTemplate.isBlank()) {
-            missing.add("twofactor.otp-template / TWOFACTOR_OTP_TEMPLATE / SMS_PROVIDER_TEMPLATE_ID");
+        if (!templateConfigured) {
+            missing.add("twofactor.otp-template-id / SMS_PROVIDER_TEMPLATE_ID or twofactor.otp-template / TWOFACTOR_OTP_TEMPLATE");
         }
         if (apiKey.isBlank()) {
             missing.add("twofactor.api-key / TWOFACTOR_API_KEY");
         }
 
-        if (missing.isEmpty()) {
-            log.info(
-                    "2Factor SMS OTP configuration ready: baseUrl={}, senderId={}, templateRef={}",
-                    baseUrl,
-                    senderId,
-                    describeTemplateReference(otpTemplate)
+        log.info(
+                "2Factor SMS configured: baseUrlConfigured={}, senderConfigured={}, templateConfigured={}, templateIdConfigured={}, templateNameConfigured={}, apiKeyConfigured={}",
+                baseUrlConfigured,
+                senderConfigured,
+                templateConfigured,
+                templateIdConfigured,
+                templateNameConfigured,
+                apiKeyConfigured
+        );
+
+        if (templateIdConfigured && templateNameConfigured && !otpTemplateId.equals(otpTemplateName)) {
+            log.warn(
+                    "2Factor SMS template-id and template-name are both set and different; using template-id for templatename parameter."
             );
+        }
+
+        if (missing.isEmpty()) {
             return;
         }
 
@@ -100,7 +120,7 @@ public class SmsOtpSender implements SmsOtpGateway {
 
     @Override
     public boolean isDltConfigured() {
-        return !otpTemplate.isBlank() && !senderId.isBlank() && !apiKey.isBlank();
+        return !resolveTemplateReference().isBlank() && !senderId.isBlank() && !apiKey.isBlank();
     }
 
     @Override
@@ -128,7 +148,7 @@ public class SmsOtpSender implements SmsOtpGateway {
                     + "&apikey=" + encode(apiKey)
                     + "&to=" + encode(phoneWithoutCountryCode)
                     + "&from=" + encode(senderId)
-                    + "&templatename=" + encode(otpTemplate)
+                    + "&templatename=" + encode(resolveTemplateReference())
                     + "&var1=" + encode(otp);
 
             HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
@@ -156,7 +176,7 @@ public class SmsOtpSender implements SmsOtpGateway {
                     || !providerResponse.success()) {
 
                 log.error(
-                        "2Factor TRANSACTIONAL SMS OTP rejected: httpStatus={}, providerStatus={}, providerCode={}, providerMessage={}, providerRequestId={}, mobile={}, purpose={}, senderId={}, templateRef={}, response={}",
+                        "2Factor TRANSACTIONAL SMS OTP rejected: httpStatus={}, providerStatus={}, providerCode={}, providerMessage={}, providerRequestId={}, mobile={}, purpose={}, senderId={}, templateSource={}, templateRef={}, response={}",
                         response.statusCode(),
                         providerResponse.status(),
                         providerResponse.code(),
@@ -165,7 +185,8 @@ public class SmsOtpSender implements SmsOtpGateway {
                         maskedMobile,
                         purpose,
                         senderId,
-                        describeTemplateReference(otpTemplate),
+                        resolveTemplateSource(),
+                        describeTemplateReference(resolveTemplateReference()),
                         providerResponse.sanitizedResponse()
                 );
 
@@ -175,14 +196,15 @@ public class SmsOtpSender implements SmsOtpGateway {
             }
 
             log.info(
-                    "2Factor TRANSACTIONAL SMS OTP accepted: httpStatus={}, providerStatus={}, providerRequestId={}, mobile={}, purpose={}, senderId={}, templateRef={}",
+                    "2Factor TRANSACTIONAL SMS OTP accepted: httpStatus={}, providerStatus={}, providerRequestId={}, mobile={}, purpose={}, senderId={}, templateSource={}, templateRef={}",
                     response.statusCode(),
                     providerResponse.status(),
                     providerResponse.requestId(),
                     maskedMobile,
                     purpose,
                     senderId,
-                    describeTemplateReference(otpTemplate)
+                    resolveTemplateSource(),
+                    describeTemplateReference(resolveTemplateReference())
             );
 
         } catch (InterruptedException exception) {
@@ -257,6 +279,17 @@ public class SmsOtpSender implements SmsOtpGateway {
             return "***" + template.charAt(template.length() - 1);
         }
         return template.substring(0, 2) + "***" + template.substring(template.length() - 2);
+    }
+
+    private String resolveTemplateReference() {
+        if (!otpTemplateId.isBlank()) {
+            return otpTemplateId;
+        }
+        return otpTemplateName;
+    }
+
+    private String resolveTemplateSource() {
+        return otpTemplateId.isBlank() ? "TWOFACTOR_OTP_TEMPLATE" : "SMS_PROVIDER_TEMPLATE_ID";
     }
 
     private static String encode(String value) {
