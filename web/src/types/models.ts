@@ -42,6 +42,18 @@ export interface CatalogResponse {
   categories: CatalogCategory[]
 }
 
+export interface PublicOffer {
+  id: number
+  couponCode: string
+  description: string
+  discountType: 'PERCENTAGE' | 'FLAT_AMOUNT' | 'FREE_DELIVERY' | 'BUY_ONE_GET_ONE'
+  discountValue: number
+  minOrderValue?: number
+  maxDiscount?: number
+  validFrom: string
+  validUntil: string
+}
+
 export interface BookingDTO {
   id: number
   bookingReference?: string

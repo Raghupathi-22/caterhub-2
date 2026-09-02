@@ -4,6 +4,7 @@ import com.daily.cetaring.features.admin.entity.Coupon;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,4 +16,9 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     Optional<Coupon> findByIdAndBusinessId(Long id, Long businessId);
 
     boolean existsByCouponCode(String couponCode);
+
+    List<Coupon> findByIsActiveTrueAndValidFromLessThanEqualAndValidUntilGreaterThanEqualOrderByCreatedAtDesc(
+        LocalDateTime nowForStart,
+        LocalDateTime nowForEnd
+    );
 }
