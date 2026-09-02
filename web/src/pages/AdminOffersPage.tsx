@@ -1,5 +1,5 @@
 import { Alert, Button, Grid, MenuItem, Paper, Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { adminApi } from '../api/adminApi'
 import { apiErrorMessage } from '../api/http'
 import { useAuthStore } from '../store/authStore'
@@ -18,16 +18,16 @@ export function AdminOffersPage() {
     validUntil: '',
   })
 
-  const load = () => {
+  const load = useCallback(() => {
     adminApi
       .getOffers(businessId)
       .then(setOffers)
       .catch((e: unknown) => setError(apiErrorMessage(e, 'Unable to load offers.')))
-  }
+  }, [businessId])
 
   useEffect(() => {
     load()
-  }, [businessId])
+  }, [load])
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()

@@ -1,5 +1,4 @@
 import type { ReactElement } from 'react'
-import { Alert, Box, Button } from '@mui/material'
 import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 
@@ -16,20 +15,7 @@ export function RequireAdmin({ children }: RequireAdminProps) {
   }
 
   if (!hasRole('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert
-          severity="error"
-          action={
-            <Button color="inherit" size="small" href="/">
-              Go Home
-            </Button>
-          }
-        >
-          You do not have permission to access admin pages.
-        </Alert>
-      </Box>
-    )
+    return <Navigate to="/admin/login" replace />
   }
 
   return children

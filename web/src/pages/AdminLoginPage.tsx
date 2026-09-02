@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Card, CardContent, CircularProgress, Stack, TextField, Typography } from '@mui/material'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../api/authApi'
 import { apiErrorMessage } from '../api/http'
@@ -9,11 +9,19 @@ export function AdminLoginPage() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((state) => state.setAuth)
   const logout = useAuthStore((state) => state.logout)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const hasRole = useAuthStore((state) => state.hasRole)
   const [mobileNumber, setMobileNumber] = useState('')
   const [otp, setOtp] = useState('')
   const [otpSent, setOtpSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (isAuthenticated && hasRole('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')) {
+      navigate('/admin/dashboard', { replace: true })
+    }
+  }, [hasRole, isAuthenticated, navigate])
 
   const sendOtp = async () => {
     setError('')
@@ -40,7 +48,7 @@ export function AdminLoginPage() {
         return
       }
       setAuth(auth.user, auth.access_token, auth.refresh_token)
-      navigate('/admin', { replace: true })
+      navigate('/admin/dashboard', { replace: true })
     } catch (e: unknown) {
       setError(apiErrorMessage(e, 'Admin login failed.'))
     } finally {

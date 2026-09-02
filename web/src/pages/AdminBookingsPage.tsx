@@ -1,5 +1,5 @@
 import { Alert, Button, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { adminApi } from '../api/adminApi'
 import { apiErrorMessage } from '../api/http'
 import { StatusChip } from '../components/StatusChip'
@@ -13,17 +13,17 @@ export function AdminBookingsPage() {
   const [rows, setRows] = useState<BookingDTO[]>([])
   const [error, setError] = useState('')
 
-  const load = () => {
+  const load = useCallback(() => {
     setError('')
     adminApi
       .getOrders(businessId)
       .then(setRows)
       .catch((e: unknown) => setError(apiErrorMessage(e, 'Unable to load bookings.')))
-  }
+  }, [businessId])
 
   useEffect(() => {
     load()
-  }, [businessId])
+  }, [load])
 
   const updateStatus = async (id: number, status: string) => {
     try {

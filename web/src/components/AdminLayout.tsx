@@ -20,7 +20,7 @@ import { useAuthStore } from '../store/authStore'
 const drawerWidth = 260
 
 const navItems = [
-  { label: 'Dashboard', to: '/admin' },
+  { label: 'Dashboard', to: '/admin/dashboard' },
   { label: 'Bookings', to: '/admin/bookings' },
   { label: 'Customers', to: '/admin/customers' },
   { label: 'Workers', to: '/admin/workers' },
@@ -35,6 +35,13 @@ const navItems = [
 
 function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation()
+  const isSelected = (to: string) => {
+    if (to === '/admin/dashboard') {
+      return location.pathname === '/admin' || location.pathname === '/admin/dashboard'
+    }
+    return location.pathname === to || location.pathname.startsWith(`${to}/`)
+  }
+
   return (
     <List sx={{ px: 1 }}>
       {navItems.map((item) => (
@@ -42,7 +49,7 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
           key={item.to}
           component={RouterLink}
           to={item.to}
-          selected={location.pathname === item.to}
+          selected={isSelected(item.to)}
           onClick={onNavigate}
           sx={{ borderRadius: 1 }}
         >

@@ -20,7 +20,10 @@ export function WorkerJobsPage() {
   }
 
   useEffect(() => {
-    load()
+    workerApi
+      .getAvailableJobs({})
+      .then(setJobs)
+      .catch((e: unknown) => setError(apiErrorMessage(e, 'Unable to load jobs.')))
   }, [])
 
   const accept = async (jobId: number) => {

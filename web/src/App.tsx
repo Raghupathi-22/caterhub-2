@@ -63,8 +63,10 @@ export default function App() {
 
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
-            <Route index element={<AdminDashboardPage />} />
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="bookings" element={<AdminBookingsPage />} />
+            <Route path="orders" element={<Navigate to="/admin/bookings" replace />} />
             <Route path="bookings/:id" element={<AdminBookingsPage />} />
             <Route path="customers" element={<AdminCustomersPage />} />
             <Route path="workers" element={<AdminWorkersPage />} />
@@ -74,6 +76,7 @@ export default function App() {
             <Route path="categories" element={<AdminCategoriesPage />} />
             <Route path="offers" element={<AdminOffersPage />} />
             <Route path="support" element={<AdminSupportPage />} />
+            <Route path="service-requests" element={<AdminSupportPage />} />
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
             <Route path="events" element={<AdminEventsPage />} />
