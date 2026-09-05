@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Container,
+  Divider,
   Drawer,
   IconButton,
   List,
@@ -14,12 +15,10 @@ import {
   Typography,
 } from '@mui/material'
 import { useState } from 'react'
-import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
+import { Link as RouterLink, Outlet } from 'react-router-dom'
 import { siteConfig } from '../config/siteConfig'
 import { useAuthStore } from '../store/authStore'
-
-const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE ?? '+919999999999'
-const cleanPhone = SUPPORT_PHONE.replace(/[^\d]/g, '')
+import { CaterhubLogo } from './CaterhubLogo'
 
 const navItems = [
   { label: 'Home', to: '/' },
@@ -29,30 +28,52 @@ const navItems = [
   { label: 'Contact', to: '/contact' },
 ]
 
+const accountLinks = [
+  { label: 'Customer Login', to: '/login' },
+  { label: 'Get Started', to: '/get-started' },
+]
+
+function isExternal(url: string): boolean {
+  return /^https?:\/\//i.test(url)
+}
+
 export function PublicLayout() {
   const [open, setOpen] = useState(false)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const logout = useAuthStore((state) => state.logout)
 
+  const adminIsExternal = isExternal(siteConfig.adminLoginUrl)
+  const cleanPhoneHref = `tel:${siteConfig.supportPhone}`
+  const whatsappHref = `https://wa.me/${siteConfig.sanitizedSupportPhone}`
+
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+      <AppBar
+        position="sticky"
+        color="inherit"
+        elevation={0}
+        sx={{
+          bgcolor: 'background.paper',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          boxShadow: '0 8px 22px rgba(17, 24, 39, 0.05)',
+        }}
+      >
         <Container maxWidth="xl">
-          <Toolbar disableGutters>
-            <Typography component={RouterLink} to="/" sx={{ textDecoration: 'none', color: 'text.primary', fontWeight: 800, mr: 4 }}>
-              CaterHub
-            </Typography>
-            <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' }, flexGrow: 1 }}>
+          <Toolbar disableGutters sx={{ minHeight: { xs: 72, md: 82 } }}>
+            <CaterhubLogo />
+
+            <Stack direction="row" spacing={0.5} sx={{ ml: 4, display: { xs: 'none', md: 'flex' }, flexGrow: 1 }}>
               {navItems.map((item) => (
                 <Button key={item.to} component={RouterLink} to={item.to} color="inherit">
                   {item.label}
                 </Button>
               ))}
             </Stack>
-            <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }}>
+
+            <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' }, ml: 'auto' }}>
               {isAuthenticated ? (
                 <>
-                  <Button component={RouterLink} to="/home" variant="outlined">Home</Button>
                   <Button component={RouterLink} to="/my-bookings" variant="outlined">My Bookings</Button>
                   <Button variant="contained" onClick={logout}>Logout</Button>
                 </>
@@ -62,8 +83,24 @@ export function PublicLayout() {
                   <Button component={RouterLink} to="/get-started" variant="contained">Get Started</Button>
                 </>
               )}
+              <Button
+                component={adminIsExternal ? 'a' : RouterLink}
+                href={adminIsExternal ? siteConfig.adminLoginUrl : undefined}
+                to={adminIsExternal ? undefined : siteConfig.adminLoginUrl}
+                target={adminIsExternal ? '_blank' : undefined}
+                rel={adminIsExternal ? 'noreferrer' : undefined}
+                variant="outlined"
+                color="inherit"
+              >
+                Admin Login
+              </Button>
             </Stack>
-            <IconButton sx={{ display: { xs: 'inline-flex', md: 'none' } }} onClick={() => setOpen(true)}>
+
+            <IconButton
+              sx={{ display: { xs: 'inline-flex', md: 'none' }, ml: 'auto' }}
+              onClick={() => setOpen(true)}
+              aria-label="Open navigation menu"
+            >
               <MenuIcon />
             </IconButton>
           </Toolbar>
@@ -71,7 +108,11 @@ export function PublicLayout() {
       </AppBar>
 
       <Drawer anchor="right" open={open} onClose={() => setOpen(false)}>
-        <Box sx={{ width: 260 }} role="presentation" onClick={() => setOpen(false)}>
+        <Box sx={{ width: 290 }} role="presentation" onClick={() => setOpen(false)}>
+          <Box sx={{ px: 2, py: 2 }}>
+            <CaterhubLogo />
+          </Box>
+          <Divider />
           <List>
             {navItems.map((item) => (
               <ListItemButton key={item.to} component={RouterLink} to={item.to}>
@@ -180,3 +221,4 @@ export function PublicLayout() {
     </Box>
   )
 }
+
