@@ -116,6 +116,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/health", "/api/v1/health").permitAll()
                         .requestMatchers("/auth/**", "/api/v1/auth/**").permitAll()
                         .requestMatchers("/catalog/**", "/api/v1/catalog/**").permitAll()
+                        .requestMatchers("/offers/active", "/api/v1/offers/active").permitAll()
 
                         // Swagger
                         .requestMatchers(

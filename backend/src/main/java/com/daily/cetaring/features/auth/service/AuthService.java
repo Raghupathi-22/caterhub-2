@@ -13,6 +13,9 @@ import com.daily.cetaring.config.security.JwtTokenProvider;
 import com.daily.cetaring.features.auth.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +35,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserMapper userMapper;
+    private final AuthenticationManager authenticationManager;
 
     public AuthResponse authenticateWithVerifiedOtp(String mobileNumber, String name, OtpPurpose purpose) {
         String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
@@ -84,6 +88,32 @@ public class AuthService {
             log.info("New user registered via OTP: {} (Role: {})", user.getPhoneNumber(), roleName);
         }
 
+        return generateAuthResponse(user);
+    }
+
+    public AuthResponse authenticateAdminWithPassword(String username, String password) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("Password is required");
+        }
+
+        authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(username.trim(), password)
+        );
+
+        User user = userRepository.findByIdentifier(username.trim())
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        boolean isAdmin = user.getRoles() != null && user.getRoles().stream()
+            .anyMatch(role -> "ROLE_ADMIN".equals(role.getName()) || "ROLE_SUPER_ADMIN".equals(role.getName()));
+        if (!isAdmin) {
+            throw new AccessDeniedException("This account is not authorized for admin access.");
+        }
+
+        user.setLastLoginAt(LocalDateTime.now());
+        user = userRepository.save(user);
         return generateAuthResponse(user);
     }
 

@@ -1,6 +1,7 @@
 package com.daily.cetaring.features.auth.controller;
 
 import com.daily.cetaring.features.auth.service.AuthService;
+import com.daily.cetaring.features.auth.dto.AdminLoginRequest;
 import com.daily.cetaring.shared.dto.AuthResponse;
 import com.daily.cetaring.shared.dto.RefreshTokenRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,13 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+
+    @PostMapping("/admin/login")
+    @Operation(summary = "Admin login", description = "Authenticate admin user with username and password")
+    public ResponseEntity<AuthResponse> adminLogin(@Valid @RequestBody AdminLoginRequest request) {
+        AuthResponse response = authService.authenticateAdminWithPassword(request.getUsername(), request.getPassword());
+        return ResponseEntity.ok(response);
+    }
 
     @PostMapping("/refresh")
     @Operation(summary = "Refresh access token", description = "Generate a new access token using a valid refresh token")

@@ -50,7 +50,7 @@ export default function App() {
             <Route path="/join-caterhub" element={<JoinCaterhubPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/get-started" element={<Navigate to="/register" replace />} />
+            <Route path="/get-started" element={<RegisterPage />} />
             <Route path="/home" element={<RequireAuth><CustomerHomePage /></RequireAuth>} />
             <Route path="/booking/:categoryId" element={<RequireAuth><BookingPage /></RequireAuth>} />
             <Route path="/my-bookings" element={<RequireAuth><MyBookingsPage /></RequireAuth>} />

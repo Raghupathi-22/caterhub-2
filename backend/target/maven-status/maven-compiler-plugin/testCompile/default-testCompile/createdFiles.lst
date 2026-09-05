@@ -1,6 +1,6 @@
+com\daily\cetaring\features\auth\service\FallbackOtpSenderTest.class
+com\daily\cetaring\config\FlywayConfigTest.class
 com\daily\cetaring\features\admin\service\AdminOperationsServiceTest.class
-com\daily\cetaring\features\auth\service\SmsOtpSenderTest$ExchangeHandler.class
-com\daily\cetaring\features\auth\service\OtpServiceTest.class
 com\daily\cetaring\features\worker\service\WorkerServiceTest.class
 com\daily\cetaring\features\auth\service\SmsOtpSenderTest.class
 com\daily\cetaring\features\booking\service\BookingServiceTest.class
