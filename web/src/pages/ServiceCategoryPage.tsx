@@ -1,5 +1,5 @@
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Stack, Typography } from '@mui/material'
-import { useCallback, useEffect, useState } from 'react'
+import { Alert, Box, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
+import { useEffect, useState } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { catalogApi } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/http'
@@ -8,40 +8,19 @@ import type { CatalogCategory } from '../types/models'
 export function ServiceCategoryPage() {
   const { categoryId } = useParams()
   const [category, setCategory] = useState<CatalogCategory | null>(null)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const load = useCallback(() => {
-    if (!categoryId) {
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setError('')
+  useEffect(() => {
+    if (!categoryId) return
     catalogApi
       .getCategory(categoryId)
       .then(setCategory)
-      .catch((e: unknown) => {
-        if (import.meta.env.DEV) console.error('Failed to load category', e)
-        setError(apiErrorMessage(e, 'Category details are temporarily unavailable. Please try again shortly.'))
-      })
-      .finally(() => setLoading(false))
+      .catch((e: unknown) => setError(apiErrorMessage(e, 'Unable to load selected category.')))
   }, [categoryId])
 
-  useEffect(() => {
-    load()
-  }, [load])
-
   if (!categoryId) return <Alert severity="error">Category is missing in URL.</Alert>
-  if (loading) {
-    return (
-      <Stack alignItems="center" sx={{ py: 5 }}>
-        <CircularProgress />
-      </Stack>
-    )
-  }
-  if (error) return <Alert severity="warning" action={<Button color="inherit" size="small" onClick={load}>Retry</Button>}>{error}</Alert>
-  if (!category) return <Alert severity="info">Category information is not available right now.</Alert>
+  if (error) return <Alert severity="error">Services are temporarily unavailable.</Alert>
+  if (!category) return <Typography color="text.secondary">Loading category details...</Typography>
 
   return (
     <Stack spacing={2}>

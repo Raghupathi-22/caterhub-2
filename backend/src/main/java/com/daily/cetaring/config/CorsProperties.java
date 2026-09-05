@@ -11,6 +11,8 @@ public class CorsProperties {
     private List<String> allowedOrigins = List.of(
         "https://caterhub.in",
         "https://www.caterhub.in",
+        "https://admin.caterhub.in",
+        "https://caterhub-2-production.up.railway.app",
         "http://10.0.2.2",
         "http://10.0.2.2:8080",
         "http://localhost",

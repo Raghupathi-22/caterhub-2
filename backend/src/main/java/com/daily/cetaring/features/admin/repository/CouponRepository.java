@@ -17,8 +17,8 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
 
     boolean existsByCouponCode(String couponCode);
 
-    List<Coupon> findByIsActiveTrueAndValidFromLessThanEqualAndValidUntilGreaterThanEqualOrderByCreatedAtDesc(
-        LocalDateTime nowForStart,
-        LocalDateTime nowForEnd
+    List<Coupon> findByIsActiveTrueAndValidFromLessThanEqualAndValidUntilGreaterThanEqualOrderByValidUntilAsc(
+        LocalDateTime validFrom,
+        LocalDateTime validUntil
     );
 }

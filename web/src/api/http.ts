@@ -2,7 +2,14 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/authStore'
 import type { AuthResponse } from '../types/models'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
+function resolveApiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim()
+  if (configured) return configured
+  if (import.meta.env.PROD) return 'https://caterhub-2-production.up.railway.app/api/v1'
+  return '/api/v1'
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 type RetriableRequest = InternalAxiosRequestConfig & { _retry?: boolean }
 

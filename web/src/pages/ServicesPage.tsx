@@ -1,106 +1,99 @@
-import { ArrowForward } from '@mui/icons-material'
-import { Alert, Button, Card, CardContent, CircularProgress, Grid, Stack, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { Alert, Box, Button, Card, CardContent, Grid, Skeleton, Stack, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
-import { catalogApi } from '../api/catalogApi'
-import { apiErrorMessage } from '../api/http'
-import { CategoryIcon } from '../components/CategoryIcon'
-import type { CatalogCategory } from '../types/models'
+import { useEffect } from 'react'
+import { useCatalogCategories } from '../hooks/useCatalogCategories'
+import { getCategoryIcon } from '../utils/catalogVisuals'
 
 export function ServicesPage() {
-  const [categories, setCategories] = useState<CatalogCategory[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  const load = () => {
-    setLoading(true)
-    setError('')
-    catalogApi
-      .getCategories()
-      .then(setCategories)
-      .catch((e: unknown) => {
-        if (import.meta.env.DEV) console.error('Failed to load categories', e)
-        setError(apiErrorMessage(e, 'Services are temporarily unavailable. Please try again in a moment.'))
-      })
-      .finally(() => setLoading(false))
-  }
+  const { data: categories = [], isLoading, isError, error, refetch } = useCatalogCategories()
 
   useEffect(() => {
-    load()
-  }, [])
+    if (isError) {
+      console.error('Failed to load service categories', error)
+    }
+  }, [error, isError])
 
   return (
     <Stack spacing={2.5}>
-      <BoxHeader />
+      <Typography component="h1" variant="h3" sx={{ fontWeight: 800 }}>
+        Service Categories
+      </Typography>
 
-      {loading ? (
-        <Stack alignItems="center" sx={{ py: 4 }}>
-          <CircularProgress />
-        </Stack>
-      ) : null}
-
-      {!loading && error ? (
-        <Alert severity="warning" action={<Button color="inherit" size="small" onClick={load}>Retry</Button>}>
-          {error}
+      {isError ? (
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => void refetch()}>
+              Retry
+            </Button>
+          }
+        >
+          Services are temporarily unavailable.
         </Alert>
       ) : null}
 
-      {!loading && !error && categories.length === 0 ? (
-        <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+      <Grid container spacing={2.25}>
+        {isLoading
+          ? Array.from({ length: 8 }).map((_, index) => (
+              <Grid item xs={12} sm={6} md={4} key={index}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Skeleton variant="circular" width={42} height={42} />
+                    <Skeleton variant="text" sx={{ mt: 1.5 }} width="65%" />
+                    <Skeleton variant="text" width="95%" />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))
+          : categories.map((category) => {
+              const Icon = getCategoryIcon(category.serviceType, category.icon)
+              return (
+                <Grid item xs={12} sm={6} md={4} key={category.id}>
+                  <Card
+                    component={RouterLink}
+                    to={`/services/${category.id}`}
+                    sx={{
+                      textDecoration: 'none',
+                      color: 'text.primary',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      height: '100%',
+                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                      '&:hover': { transform: 'translateY(-2px)', boxShadow: 6 },
+                    }}
+                  >
+                    <CardContent>
+                      <Box
+                        sx={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: 2,
+                          bgcolor: 'rgba(23,101,58,0.09)',
+                          color: 'primary.main',
+                          display: 'grid',
+                          placeItems: 'center',
+                          mb: 1.2,
+                        }}
+                      >
+                        <Icon fontSize="small" />
+                      </Box>
+                      <Typography variant="h6" sx={{ fontSize: '1.05rem' }}>{category.name}</Typography>
+                      <Typography color="text.secondary">{category.description}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )
+            })}
+      </Grid>
+
+      {!isLoading && !isError && categories.length === 0 ? (
+        <Card>
           <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>No categories available right now</Typography>
-            <Typography color="text.secondary">Please check back shortly for available event services.</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>No service categories available</Typography>
+            <Typography color="text.secondary">Please check back shortly for available services.</Typography>
           </CardContent>
         </Card>
       ) : null}
-
-      {!loading && !error && categories.length > 0 ? (
-        <Grid container spacing={2}>
-          {categories.map((category) => (
-            <Grid item xs={12} sm={6} md={4} key={category.id}>
-              <Card
-                component={RouterLink}
-                to={`/services/${category.id}`}
-                sx={{
-                  textDecoration: 'none',
-                  height: '100%',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  transition: 'transform 180ms ease, box-shadow 180ms ease',
-                  '&:hover': { transform: 'translateY(-3px)', boxShadow: '0 10px 28px rgba(15,23,42,0.10)' },
-                }}
-              >
-                <CardContent>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                    <CategoryIcon icon={category.icon} sx={{ color: category.accent }} />
-                    <Typography variant="h6" sx={{ color: category.accent }}>{category.name}</Typography>
-                  </Stack>
-                  <Typography color="text.secondary" sx={{ minHeight: 44 }}>{category.description}</Typography>
-                  <Typography variant="body2" sx={{ mt: 1, fontWeight: 600, color: 'text.primary' }}>
-                    {category.services.length} services available
-                  </Typography>
-                  <Button endIcon={<ArrowForward />} sx={{ mt: 1 }}>
-                    View Services
-                  </Button>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      ) : null}
-    </Stack>
-  )
-}
-
-function BoxHeader() {
-  return (
-    <Stack spacing={0.8}>
-      <Typography variant="h4" sx={{ fontWeight: 700 }}>
-        Service Categories
-      </Typography>
-      <Typography color="text.secondary">
-        Explore event-ready service categories and select the right fit for your booking.
-      </Typography>
     </Stack>
   )
 }

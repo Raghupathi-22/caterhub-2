@@ -12,9 +12,12 @@ Single React + Vite frontend for both customer and admin experiences.
 Create `.env` from `.env.example`:
 
 ```env
-VITE_API_BASE_URL=https://api.caterhub.in/api/v1
+VITE_API_BASE_URL=https://caterhub-2-production.up.railway.app/api/v1
 VITE_SUPPORT_PHONE=+919999999999
+VITE_ADMIN_WEB_URL=
 ```
+
+- `VITE_ADMIN_WEB_URL` is optional. Keep it empty for the unified app route (`/admin/login`), or set it to your separate admin web base URL.
 
 ## Scripts
 
