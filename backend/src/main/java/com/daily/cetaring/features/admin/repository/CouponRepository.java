@@ -21,4 +21,9 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
         LocalDateTime validFrom,
         LocalDateTime validUntil
     );
+
+    List<Coupon> findByIsActiveTrueAndValidFromLessThanEqualAndValidUntilGreaterThanEqualOrderByCreatedAtDesc(
+        LocalDateTime validFrom,
+        LocalDateTime validUntil
+    );
 }

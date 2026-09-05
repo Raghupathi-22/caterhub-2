@@ -116,6 +116,7 @@ com\daily\cetaring\features\admin\entity\StaffRole$StaffRoleBuilder.class
 com\daily\cetaring\features\booking\dto\BookingDTO$BookingDTOBuilder.class
 com\daily\cetaring\features\notification\entity\FcmToken$FcmTokenBuilder.class
 com\daily\cetaring\features\auth\service\SmsOtpGateway.class
+com\daily\cetaring\features\catalog\CatalogController$PublicOfferResponse$PublicOfferResponseBuilder.class
 com\daily\cetaring\features\worker\dto\WorkerDtos$StaffingJobResponse.class
 com\daily\cetaring\features\menu\entity\ItemCustomization.class
 com\daily\cetaring\features\service\dto\ServiceRequestDtos.class
@@ -171,6 +172,7 @@ com\daily\cetaring\features\auth\dto\SendOtpRequest$SendOtpRequestBuilder.class
 com\daily\cetaring\features\menu\entity\ItemCustomization$ItemCustomizationBuilder.class
 com\daily\cetaring\features\menu\entity\MenuSchedule.class
 com\daily\cetaring\features\booking\dto\BookingDTO.class
+com\daily\cetaring\features\catalog\CatalogController$PublicOfferResponse.class
 com\daily\cetaring\features\worker\entity\WorkerDocument$WorkerDocumentBuilder.class
 com\daily\cetaring\features\catalog\PublicOffersController$1.class
 com\daily\cetaring\features\analytics\entity\AnalyticsSnapshot.class
