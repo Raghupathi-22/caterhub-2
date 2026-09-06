@@ -3,14 +3,14 @@ import { createTheme } from '@mui/material/styles'
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#17653A',
-      light: '#2E7D4E',
-      dark: '#0F4A2A',
+      main: '#1E6B44',
+      light: '#2E8A5B',
+      dark: '#154D31',
     },
     secondary: {
-      main: '#B04522',
-      light: '#C25D37',
-      dark: '#8A3419',
+      main: '#C1912D',
+      light: '#D4A84A',
+      dark: '#8E6A1F',
     },
     success: {
       main: '#4CAF50',
@@ -21,9 +21,13 @@ const theme = createTheme({
     error: {
       main: '#F44336',
     },
+    text: {
+      primary: '#1F2321',
+      secondary: '#4B5450',
+    },
     background: {
-      default: '#F7F4ED',
-      paper: '#FFFFFF',
+      default: '#F8F5EE',
+      paper: '#FFFDFC',
     },
   },
   typography: {
@@ -31,6 +35,7 @@ const theme = createTheme({
       '-apple-system',
       'BlinkMacSystemFont',
       '"Segoe UI"',
+      '"Inter"',
       'Roboto',
       '"Helvetica Neue"',
       'Arial',
@@ -38,37 +43,43 @@ const theme = createTheme({
     ].join(','),
     h1: {
       fontSize: '2.5rem',
-      fontWeight: 700,
+      fontWeight: 800,
+      letterSpacing: '-0.02em',
     },
     h2: {
       fontSize: '2rem',
-      fontWeight: 700,
+      fontWeight: 800,
+      letterSpacing: '-0.02em',
     },
     h3: {
       fontSize: '1.75rem',
-      fontWeight: 700,
+      fontWeight: 800,
+      letterSpacing: '-0.01em',
     },
     h4: {
       fontSize: '1.5rem',
-      fontWeight: 600,
+      fontWeight: 700,
+      letterSpacing: '-0.01em',
     },
     body1: {
       fontSize: '1rem',
+      lineHeight: 1.65,
     },
     body2: {
       fontSize: '0.875rem',
+      lineHeight: 1.6,
     },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 14,
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
           textTransform: 'none',
-          fontWeight: 600,
-          borderRadius: 10,
+          fontWeight: 700,
+          borderRadius: 12,
           minHeight: 44,
         },
       },
@@ -76,8 +87,16 @@ const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow: '0 6px 20px rgba(15, 23, 42, 0.06)',
-          borderRadius: 14,
+          boxShadow: '0 8px 26px rgba(15, 23, 42, 0.07)',
+          borderRadius: 16,
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: 10,
+          fontWeight: 600,
         },
       },
     },

@@ -3,9 +3,10 @@ import { Link as RouterLink } from 'react-router-dom'
 
 interface CaterhubLogoProps {
   to?: string
+  textColor?: string
 }
 
-export function CaterhubLogo({ to = '/' }: CaterhubLogoProps) {
+export function CaterhubLogo({ to = '/', textColor = 'text.primary' }: CaterhubLogoProps) {
   return (
     <Box
       component={RouterLink}
@@ -28,7 +29,7 @@ export function CaterhubLogo({ to = '/' }: CaterhubLogoProps) {
       <Typography
         variant="h6"
         sx={{
-          color: 'text.primary',
+          color: textColor,
           fontWeight: 800,
           letterSpacing: '-0.02em',
           lineHeight: 1,
@@ -40,4 +41,3 @@ export function CaterhubLogo({ to = '/' }: CaterhubLogoProps) {
     </Box>
   )
 }
-

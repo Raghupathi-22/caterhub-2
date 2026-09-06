@@ -43,11 +43,24 @@ export function RegisterPage() {
   }
 
   return (
-    <Box sx={{ minHeight: '70vh', display: 'grid', placeItems: 'center' }}>
-      <Card sx={{ width: '100%', maxWidth: 440 }}>
+    <Box
+      sx={{
+        minHeight: '70vh',
+        display: 'grid',
+        placeItems: 'center',
+        p: { xs: 1.5, md: 2 },
+        borderRadius: 4,
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: '#FFFDF8',
+        backgroundImage: 'radial-gradient(circle at 10% 15%, rgba(30,107,68,0.08), transparent 40%)',
+      }}
+    >
+      <Card sx={{ width: '100%', maxWidth: 440, border: '1px solid', borderColor: 'divider' }}>
         <CardContent sx={{ p: 3 }}>
           <Stack spacing={2}>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>Create Account</Typography>
+            <Typography variant="body2" color="text.secondary">Create your account to start booking premium event services.</Typography>
             {error ? <Alert severity="error">{error}</Alert> : null}
             <TextField label="Full Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth />
             <TextField label="Mobile Number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} fullWidth />

@@ -32,10 +32,13 @@ export function OffersPublicPage() {
 
   return (
     <Stack spacing={2.5}>
-      <Typography component="h1" variant="h3" sx={{ fontWeight: 800 }}>Offers</Typography>
-      <Typography color="text.secondary">
-        Explore the latest promotions available for your event services.
-      </Typography>
+      <Box sx={{ p: { xs: 2.25, md: 3 }, borderRadius: 3.5, border: '1px solid', borderColor: 'divider', bgcolor: '#FFFDF8' }}>
+        <Typography component="h1" variant="h3" sx={{ mb: 0.75 }}>Offers</Typography>
+        <Typography color="text.secondary">
+          Explore premium launch offers and seasonal promotions for your event services.
+        </Typography>
+      </Box>
+
       <FirstBookingOfferCard />
 
       {isError ? (
@@ -57,7 +60,7 @@ export function OffersPublicPage() {
             ))
           : offers.map((offer) => (
               <Grid item xs={12} md={6} key={offer.id}>
-                <Card sx={{ border: '1px solid', borderColor: 'divider', height: '100%' }}>
+                <Card sx={{ border: '1px solid', borderColor: 'divider', height: '100%', bgcolor: '#fff' }}>
                   <CardContent>
                     <Stack spacing={1}>
                       <Typography variant="h6" sx={{ fontWeight: 700 }}>{offer.title}</Typography>
@@ -107,7 +110,7 @@ export function AboutPage() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography component="h1" variant="h3" sx={{ fontWeight: 800, mb: 1 }}>About CaterHub</Typography>
+        <Typography component="h1" variant="h3" sx={{ mb: 1 }}>About CaterHub</Typography>
         <Typography color="text.secondary">
           CaterHub is an event-services marketplace that helps customers discover and book catering and related services from one platform.
         </Typography>
@@ -138,18 +141,6 @@ export function AboutPage() {
           </Stack>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardContent>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>Why CaterHub</Typography>
-          <Stack spacing={0.75}>
-            <Typography color="text.secondary">- Multiple event services in one place</Typography>
-            <Typography color="text.secondary">- Simple booking experience</Typography>
-            <Typography color="text.secondary">- Convenient event planning</Typography>
-            <Typography color="text.secondary">- Customer support</Typography>
-          </Stack>
-        </CardContent>
-      </Card>
     </Stack>
   )
 }
@@ -158,7 +149,7 @@ export function ContactPage() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography component="h1" variant="h3" sx={{ fontWeight: 800, mb: 1 }}>Contact & Support</Typography>
+        <Typography component="h1" variant="h3" sx={{ mb: 1 }}>Contact & Support</Typography>
         <Typography color="text.secondary">
           Facing an issue or have a question? We&apos;re here to help with your booking.
         </Typography>
