@@ -7,12 +7,20 @@ enum class AuthDestination {
 }
 
 object AuthRoleRouter {
-    fun destinationForRoles(roles: List<String>): AuthDestination {
-        val normalized = roles.map { it.trim().uppercase() }
+    fun destinationForRoles(
+        roles: List<String>?,
+        fallback: AuthDestination = AuthDestination.CUSTOMER_HOME
+    ): AuthDestination {
+        val normalized = roles.orEmpty()
+            .mapNotNull { raw ->
+                raw.trim().takeIf { it.isNotBlank() }?.uppercase()
+            }
+        if (normalized.isEmpty()) return fallback
         return when {
             normalized.any { it.contains("ADMIN") } -> AuthDestination.ADMIN_HOME
             normalized.any { it.contains("WORKER") } -> AuthDestination.WORKER_DASHBOARD
-            else -> AuthDestination.CUSTOMER_HOME
+            normalized.any { it.contains("CUSTOMER") } -> AuthDestination.CUSTOMER_HOME
+            else -> fallback
         }
     }
 
@@ -22,4 +30,3 @@ object AuthRoleRouter {
         .map { it.trim() }
         .filter { it.isNotBlank() }
 }
-

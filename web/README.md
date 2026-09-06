@@ -15,9 +15,11 @@ Create `.env` from `.env.example`:
 VITE_API_BASE_URL=https://caterhub-2-production.up.railway.app/api/v1
 VITE_SUPPORT_PHONE=+919959095202
 VITE_ADMIN_WEB_URL=
+VITE_PLAY_STORE_URL=
 ```
 
 - `VITE_ADMIN_WEB_URL` is optional. Keep it empty for the unified app route (`/admin/login`), or set it to your separate admin web base URL.
+- `VITE_PLAY_STORE_URL` should be set to the official CaterHub Google Play listing URL.
 
 ## Scripts
 

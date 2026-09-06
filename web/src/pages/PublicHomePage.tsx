@@ -9,6 +9,7 @@ import {
 } from '@mui/icons-material'
 import { Alert, Box, Button, Card, CardContent, Chip, Grid, Skeleton, Stack, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
+import { AppDownloadSection } from '../components/AppDownloadSection'
 import { FirstBookingOfferCard } from '../components/FirstBookingOfferCard'
 import { PremiumImageCarousel } from '../components/PremiumImageCarousel'
 import { foodShowcaseItems, getCategoryVisual, homeCarouselSlides } from '../data/marketingContent'
@@ -292,6 +293,8 @@ export function PublicHomePage() {
               )
             })}
       </Grid>
+
+      <AppDownloadSection />
     </Stack>
   )
 }

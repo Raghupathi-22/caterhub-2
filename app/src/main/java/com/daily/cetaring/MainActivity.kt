@@ -31,6 +31,7 @@ import com.daily.cetaring.presentation.screens.BookingSuccessScreen
 import com.daily.cetaring.presentation.screens.CustomerProfileScreen
 import com.daily.cetaring.presentation.screens.HelpSupportScreen
 import com.daily.cetaring.presentation.screens.HomeScreen
+import com.daily.cetaring.presentation.screens.MenuScreen
 import com.daily.cetaring.presentation.screens.OtpAuthScreen
 import com.daily.cetaring.presentation.screens.WorkerDashboardScreen
 import com.daily.cetaring.presentation.screens.WorkerJobsScreen
@@ -55,6 +56,7 @@ private object AppRoute {
     const val CUSTOMER_LOGIN = "customer_login"
     const val HOME = "home"
     const val BOOKING_FLOW = "booking_flow"
+    const val MENU = "menu"
     const val SERVICE_REQUEST = "service_request/{categoryId}"
     const val BOOKINGS = "bookings"
     const val BOOKING_SUCCESS = "booking_success/{bookingId}"
@@ -123,15 +125,24 @@ class MainActivity : ComponentActivity() {
                     AuthDestination.CUSTOMER_HOME -> AppRoute.HOME
                 }
 
+                fun navigateAfterAuth(route: String) {
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+
                 LaunchedEffect(session) {
                     val currentSession = session ?: return@LaunchedEffect
                     if (!sessionRestoreChecked) {
                         sessionRestoreChecked = true
                         val token = currentSession.first
                         if (!token.isNullOrBlank()) {
-                            navController.navigate(routeForDestination(AuthRoleRouter.destinationForRoles(AuthRoleRouter.parseStoredRoles(currentSession.second)))) {
-                                popUpTo(AppRoute.AUTH_LANDING) { inclusive = true }
-                            }
+                            val storedDestination = AuthRoleRouter.destinationForRoles(
+                                roles = AuthRoleRouter.parseStoredRoles(currentSession.second),
+                                fallback = AuthDestination.CUSTOMER_HOME
+                            )
+                            navigateAfterAuth(routeForDestination(storedDestination))
                         }
                     } else if (currentSession.first.isNullOrBlank()) {
                         navController.navigate(AppRoute.AUTH_LANDING) {
@@ -141,11 +152,16 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                fun routeAfterAuth(response: com.daily.cetaring.data.remote.dto.AuthResponse) {
-                    val destination = AuthRoleRouter.destinationForRoles(response.user.roles)
-                    navController.navigate(routeForDestination(destination)) {
-                        popUpTo(AppRoute.AUTH_LANDING) { inclusive = true }
-                    }
+                fun routeAfterAuth(
+                    response: com.daily.cetaring.data.remote.dto.AuthResponse,
+                    preferredDestination: AuthDestination
+                ) {
+                    val roles = runCatching { response.user.roles }.getOrNull()
+                    val destination = AuthRoleRouter.destinationForRoles(
+                        roles = roles,
+                        fallback = preferredDestination
+                    )
+                    navigateAfterAuth(routeForDestination(destination))
                 }
 
                 NavHost(
@@ -169,7 +185,8 @@ class MainActivity : ComponentActivity() {
                             onWorkerLoginClick = {
                                 authViewModel.resetOtpState()
                                 navController.navigate(AppRoute.WORKER_LOGIN)
-                            }
+                            },
+                            onMenuClick = { navController.navigate(AppRoute.MENU) }
                         )
                     }
 
@@ -179,7 +196,7 @@ class MainActivity : ComponentActivity() {
                             isRegistration = true,
                             userType = "CUSTOMER",
                             onBackClick = { navController.popBackStack() },
-                            onAuthSuccess = { routeAfterAuth(it) },
+                            onAuthSuccess = { routeAfterAuth(it, AuthDestination.CUSTOMER_HOME) },
                             onSwitchMode = {
                                 authViewModel.resetOtpState()
                                 navController.navigate(AppRoute.CUSTOMER_LOGIN) {
@@ -195,7 +212,7 @@ class MainActivity : ComponentActivity() {
                             isRegistration = false,
                             userType = "CUSTOMER",
                             onBackClick = { navController.popBackStack() },
-                            onAuthSuccess = { routeAfterAuth(it) },
+                            onAuthSuccess = { routeAfterAuth(it, AuthDestination.CUSTOMER_HOME) },
                             onSwitchMode = { navController.navigate(AppRoute.CUSTOMER_REGISTER) }
                         )
                     }
@@ -207,6 +224,7 @@ class MainActivity : ComponentActivity() {
                                 bookingViewModel.startNewBooking()
                                 navController.navigate(AppRoute.BOOKING_FLOW)
                             },
+                            onMenuClick = { navController.navigate(AppRoute.MENU) },
                             onServiceCategoryClick = { categoryId ->
                                 if (categoryId == "catering-food") {
                                     bookingViewModel.startNewBooking()
@@ -246,6 +264,16 @@ class MainActivity : ComponentActivity() {
                                 navController.navigate(AppRoute.AUTH_LANDING) {
                                     popUpTo(AppRoute.HOME) { inclusive = true }
                                 }
+                            }
+                        )
+                    }
+
+                    composable(AppRoute.MENU) {
+                        MenuScreen(
+                            onBackClick = { navController.popBackStack() },
+                            onBookCateringClick = {
+                                bookingViewModel.startNewBooking()
+                                navController.navigate(AppRoute.BOOKING_FLOW)
                             }
                         )
                     }
@@ -407,12 +435,15 @@ class MainActivity : ComponentActivity() {
                             userType = "WORKER",
                             onBackClick = { navController.popBackStack() },
                             onAuthSuccess = { response ->
-                                if (AuthRoleRouter.destinationForRoles(response.user.roles) == AuthDestination.WORKER_DASHBOARD) {
-                                    navController.navigate(AppRoute.WORKER_ONBOARDING) {
-                                    popUpTo(AppRoute.AUTH_LANDING) { inclusive = true }
-                                }
+                                val roles = runCatching { response.user.roles }.getOrNull()
+                                val destination = AuthRoleRouter.destinationForRoles(
+                                    roles = roles,
+                                    fallback = AuthDestination.WORKER_DASHBOARD
+                                )
+                                if (destination == AuthDestination.WORKER_DASHBOARD) {
+                                    navigateAfterAuth(AppRoute.WORKER_ONBOARDING)
                                 } else {
-                                    routeAfterAuth(response)
+                                    routeAfterAuth(response, AuthDestination.WORKER_DASHBOARD)
                                 }
                             },
                             onSwitchMode = { navController.navigate(AppRoute.WORKER_LOGIN) }
@@ -425,7 +456,7 @@ class MainActivity : ComponentActivity() {
                             isRegistration = false,
                             userType = "WORKER",
                             onBackClick = { navController.popBackStack() },
-                            onAuthSuccess = { routeAfterAuth(it) },
+                            onAuthSuccess = { routeAfterAuth(it, AuthDestination.WORKER_DASHBOARD) },
                             onSwitchMode = { navController.navigate(AppRoute.WORKER_ACCOUNT_REGISTER) }
                         )
                     }

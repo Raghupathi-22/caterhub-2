@@ -8,6 +8,7 @@ import com.daily.cetaring.data.remote.dto.CustomerBookingSource
 import com.daily.cetaring.data.remote.dto.CustomerBookingUiModel
 import com.daily.cetaring.data.remote.dto.BookingValidationResult
 import com.daily.cetaring.data.remote.dto.BookingValidator
+import com.daily.cetaring.data.remote.dto.BookingOptions
 import com.daily.cetaring.data.remote.dto.CreateMyBookingRequest
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
 import com.daily.cetaring.data.repository.BookingRepository
@@ -56,13 +57,24 @@ class BookingViewModel(
         foodService: String? = null
     ) {
         _uiState.value = BookingUiState.Idle
+        val selectedPlan = BookingOptions.normalizePlanValue(foodService)
+        val selectedFoodType = BookingOptions.planByBackendValue(selectedPlan)?.foodType
+            ?: BookingOptions.foodTypeNonVegetarian
         _draft.value = BookingDraft(
             guestCount = prefillGuests,
             eventType = eventType,
-            cateringPlan = when (foodService) {
-                "Basic", "Classic", "Premium", "Customized" -> foodService
-                else -> ""
-            }
+            guestCountSelection = if (prefillGuests != null && prefillGuests !in BookingOptions.guestQuickOptions) {
+                BookingOptions.guestSelectionCustom
+            } else {
+                BookingOptions.guestSelectionPreset
+            },
+            customGuestCountInput = if (prefillGuests != null && prefillGuests !in BookingOptions.guestQuickOptions) {
+                prefillGuests.toString().take(BookingOptions.maxGuestInputLength)
+            } else {
+                ""
+            },
+            cateringFoodType = selectedFoodType,
+            cateringPlan = selectedPlan
         )
     }
 
@@ -157,6 +169,7 @@ class BookingViewModel(
 
     private fun buildSpecialInstructions(draft: BookingDraft): String? {
         return listOf(
+            "Food services: ${draft.selectedFoodServicesLabel()}",
             "Catering plan: ${draft.cateringPlan}",
             draft.foodRequirements
                 .takeIf { it.isNotBlank() }
@@ -172,14 +185,9 @@ class BookingViewModel(
 
     private fun estimateAmount(draft: BookingDraft): BigDecimal {
         val guests = draft.guestCount ?: 1
-
-        val perGuest = when (draft.cateringPlan) {
-            "Basic" -> 499
-            "Classic" -> 699
-            "Premium" -> 999
-            "Customized" -> 699
-            else -> 699
-        }
+        val perGuest = BookingOptions.planByBackendValue(draft.cateringPlan)?.pricePerPerson
+            ?: BookingOptions.planByBackendValue(BookingOptions.normalizePlanValue(draft.cateringPlan))?.pricePerPerson
+            ?: 699
 
         return BigDecimal(guests * perGuest)
     }

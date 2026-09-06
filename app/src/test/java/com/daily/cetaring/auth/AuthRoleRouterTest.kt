@@ -21,9 +21,20 @@ class AuthRoleRouterTest {
     }
 
     @Test
+    fun emptyRolesUseFallbackDestination() {
+        assertEquals(
+            AuthDestination.WORKER_DASHBOARD,
+            AuthRoleRouter.destinationForRoles(emptyList(), fallback = AuthDestination.WORKER_DASHBOARD)
+        )
+        assertEquals(
+            AuthDestination.CUSTOMER_HOME,
+            AuthRoleRouter.destinationForRoles(null, fallback = AuthDestination.CUSTOMER_HOME)
+        )
+    }
+
+    @Test
     fun storedRoleStringIsParsed() {
         assertEquals(listOf("ROLE_CUSTOMER", "ROLE_WORKER"), AuthRoleRouter.parseStoredRoles(" ROLE_CUSTOMER, ROLE_WORKER "))
         assertTrue(AuthRoleRouter.parseStoredRoles(null).isEmpty())
     }
 }
-

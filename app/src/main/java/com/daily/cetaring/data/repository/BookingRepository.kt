@@ -124,7 +124,8 @@ class BookingRepository(
     }
 
     private fun ServiceRequestBookingResponse.toUiModel(): CustomerBookingUiModel {
-        val category = ServiceCatalog.categories.firstOrNull { it.serviceType == serviceType }
+        val category = ServiceCatalog.customerCategories.firstOrNull { it.serviceType == serviceType }
+            ?: ServiceCatalog.categories.firstOrNull { it.serviceType == serviceType }
             ?: ServiceCatalog.category("other-event-services")
         return CustomerBookingUiModel(
             id = id,

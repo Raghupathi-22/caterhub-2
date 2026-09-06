@@ -13,15 +13,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.EventSeat
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.TableRestaurant
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -105,7 +110,7 @@ private data class SubmittedServiceRequestSummary(
 private fun categoryFor(type: String): ServiceCategory {
     val category = ServiceCatalog.category(type) ?: ServiceCatalog.category("event-support")!!
     val color = categoryUiMeta(category).accent
-    val items = ServiceCatalog.rolesForCategory(category.id).map { role ->
+    val items = ServiceCatalog.customerRolesForCategory(category.id).map { role ->
         ServiceItem(
             id = role.id,
             name = role.title,
@@ -126,6 +131,13 @@ private fun categoryFor(type: String): ServiceCategory {
 }
 
 private fun roleIcon(categoryId: String, roleId: String) = when {
+    roleId == "photographer" -> Icons.Filled.CameraAlt
+    roleId == "videographer" -> Icons.Filled.Videocam
+    roleId == "live-streaming-operator" -> Icons.Filled.LiveTv
+    roleId == "tent-rental" -> Icons.Filled.Celebration
+    roleId == "table-rental" -> Icons.Filled.TableRestaurant
+    roleId == "chair-rental" -> Icons.Filled.EventSeat
+    roleId == "dining-equipment" -> Icons.Filled.Restaurant
     categoryId == "catering-food" -> Icons.Filled.Restaurant
     categoryId == "decoration" && roleId.contains("lighting") -> Icons.Filled.Lightbulb
     categoryId == "religious-ceremony" -> Icons.Filled.Cake

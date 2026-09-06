@@ -19,3 +19,14 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep runtime signatures/annotations needed by Retrofit and Gson reflection.
+-keepattributes Signature, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+
+# Keep endpoint method annotations on Retrofit interfaces in app code.
+-keep interface com.daily.cetaring.data.remote.**ApiService { *; }
+
+# Keep JSON-bound fields while still allowing obfuscation of their symbols.
+-keepclassmembers,allowobfuscation class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}

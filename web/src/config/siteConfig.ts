@@ -1,5 +1,6 @@
 const DEFAULT_SUPPORT_PHONE = '+919959095202'
 const SUPPORT_PHONE_DISPLAY = '99590 95202'
+const PLAY_STORE_URL = import.meta.env.VITE_PLAY_STORE_URL?.trim() || ''
 
 const supportPhone = import.meta.env.VITE_SUPPORT_PHONE?.trim() || DEFAULT_SUPPORT_PHONE
 const sanitizedSupportPhone = supportPhone.replace(/[^\d]/g, '')
@@ -20,4 +21,6 @@ export const siteConfig = {
   callHref,
   whatsappHref,
   adminLoginUrl: resolveAdminLoginUrl(),
+  playStoreUrl: PLAY_STORE_URL,
+  hasPlayStoreUrl: PLAY_STORE_URL.length > 0,
 }

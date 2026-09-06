@@ -22,14 +22,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DinnerDining
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Fastfood
+import androidx.compose.material.icons.filled.FreeBreakfast
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -70,6 +75,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardType
@@ -80,9 +86,9 @@ import com.daily.cetaring.data.remote.dto.BookingResponse
 import com.daily.cetaring.data.remote.dto.CustomerBookingSource
 import com.daily.cetaring.data.remote.dto.CustomerBookingUiModel
 import com.daily.cetaring.data.remote.dto.BookingValidationResult
+import com.daily.cetaring.data.remote.dto.CateringMealServiceType
 import com.daily.cetaring.domain.catalog.EventTypeCatalog
 import com.daily.cetaring.domain.catalog.EventTypeDefinition
-import com.daily.cetaring.presentation.components.CaterHubCategoryChip
 import com.daily.cetaring.presentation.components.CaterHubEmptyState
 import com.daily.cetaring.presentation.components.CaterHubErrorState
 import com.daily.cetaring.presentation.components.CaterHubLoadingState
@@ -119,6 +125,9 @@ private val BookingDateStorageFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val BookingDateDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 private val BookingTimeStorageFormatter = DateTimeFormatter.ofPattern("HH:mm")
 private val BookingTimeDisplayFormatter = DateTimeFormatter.ofPattern("h:mm a")
+private const val CustomGuestValidationMessage = "Enter a guest count between 1 and 2,000."
+private const val BookingFlowStepCount = 5
+private const val BookingFlowReviewStepIndex = BookingFlowStepCount - 1
 
 @Composable
 fun BookingFlowScreen(
@@ -131,6 +140,11 @@ fun BookingFlowScreen(
     val snackbar = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var step by remember { mutableIntStateOf(0) }
+    val currentStepValidation = remember(step, draft) {
+        if (step == BookingFlowReviewStepIndex) BookingValidationResult.Valid else viewModel.validateStep(step)
+    }
+    val canContinue = currentStepValidation is BookingValidationResult.Valid &&
+        uiState !is BookingUiState.Loading
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
@@ -153,7 +167,7 @@ fun BookingFlowScreen(
                 .padding(horizontal = 20.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ProgressHeader(step)
+            ProgressHeader(step, BookingFlowStepCount)
 
             Column(
                 Modifier
@@ -164,26 +178,31 @@ fun BookingFlowScreen(
             ) {
                 when (step) {
                     0 -> EventStep(draft, viewModel)
-                    1 -> CateringPlanAndLocationStep(draft, viewModel)
-                    2 -> DateTimeStep(draft, viewModel)
+                    1 -> FoodServiceSelectionStep(draft, viewModel)
+                    2 -> CateringPlanAndLocationStep(draft, viewModel)
+                    3 -> DateTimeStep(draft, viewModel)
                     else -> ReviewStep(draft) { step = it }
                 }
             }
 
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 CaterHubSecondaryButton(
                     text = if (step == 0) "Cancel" else "Back",
                     onClick = { if (step == 0) onBackClick() else step-- },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    enabled = uiState !is BookingUiState.Loading
                 )
 
                 CaterHubPrimaryButton(
-                    text = if (step == 3) "Submit Booking" else "Continue",
+                    text = if (step == BookingFlowReviewStepIndex) "Submit Booking" else "Continue",
+                    enabled = canContinue,
                     onClick = {
-                        val validation = if (step == 3) {
+                        val validation = if (step == BookingFlowReviewStepIndex) {
                             BookingValidationResult.Valid
                         } else {
                             viewModel.validateStep(step)
@@ -191,7 +210,7 @@ fun BookingFlowScreen(
 
                         if (validation is BookingValidationResult.Invalid) {
                             coroutineScope.launch { snackbar.showSnackbar(validation.message) }
-                        } else if (step < 3) {
+                        } else if (step < BookingFlowReviewStepIndex) {
                             step++
                         } else {
                             viewModel.submitBooking()
@@ -206,10 +225,10 @@ fun BookingFlowScreen(
 }
 
 @Composable
-private fun ProgressHeader(step: Int) {
+private fun ProgressHeader(step: Int, totalSteps: Int) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            "Step ${step + 1} of 4",
+            "Step ${step + 1} of $totalSteps",
             color = Green,
             fontWeight = FontWeight.ExtraBold
         )
@@ -217,14 +236,14 @@ private fun ProgressHeader(step: Int) {
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            repeat(4) { index ->
+            repeat(totalSteps) { index ->
                 Card(
                     modifier = Modifier
                         .weight(1f)
                         .height(5.dp),
                     shape = RoundedCornerShape(50),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (index <= step) Maroon else Border
+                        containerColor = if (index <= step) Green else Border
                     )
                 ) {}
             }
@@ -276,29 +295,194 @@ private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         BookingOptions.guestQuickOptions.forEach { guests ->
-            CaterHubCategoryChip(
-                text = "$guests guests",
-                selected = draft.guestCount == guests,
-                onClick = { viewModel.updateDraft { it.copy(guestCount = guests) } },
-                icon = Icons.Filled.Groups
+            GuestCountOptionCard(
+                label = "$guests guests",
+                selected = draft.guestCountSelection == BookingOptions.guestSelectionPreset && draft.guestCount == guests,
+                onClick = {
+                    viewModel.updateDraft {
+                        it.copy(
+                            guestCount = guests,
+                            guestCountSelection = BookingOptions.guestSelectionPreset,
+                            customGuestCountInput = ""
+                        )
+                    }
+                }
             )
+        }
+        GuestCountOptionCard(
+            label = "Custom guest count",
+            selected = draft.guestCountSelection == BookingOptions.guestSelectionCustom,
+            onClick = {
+                viewModel.updateDraft {
+                    it.copy(
+                        guestCountSelection = BookingOptions.guestSelectionCustom,
+                        guestCount = if (it.customGuestCountInput.isBlank()) null else it.guestCount
+                    )
+                }
+            }
+        )
+    }
+
+    if (draft.guestCountSelection == BookingOptions.guestSelectionCustom) {
+        val invalidCustomGuestCount = draft.customGuestCountInput.isNotBlank() && draft.guestCount == null
+        OutlinedTextField(
+            value = draft.customGuestCountInput,
+            onValueChange = { value ->
+                if (value.length > BookingOptions.maxGuestInputLength) return@OutlinedTextField
+                if (value.isNotEmpty() && !value.all(Char::isDigit)) return@OutlinedTextField
+                val parsed = value.toIntOrNull()?.takeIf { it in 1..BookingOptions.maxGuestCount }
+                viewModel.updateDraft {
+                    it.copy(
+                        guestCountSelection = BookingOptions.guestSelectionCustom,
+                        customGuestCountInput = value,
+                        guestCount = parsed
+                    )
+                }
+            },
+            label = { Text("Custom guest count") },
+            placeholder = { Text("Enter number of guests") },
+            supportingText = {
+                if (invalidCustomGuestCount) {
+                    Text(CustomGuestValidationMessage)
+                }
+            },
+            isError = invalidCustomGuestCount,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
+            ),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun FoodServiceSelectionStep(
+    draft: BookingDraft,
+    viewModel: BookingViewModel
+) {
+    Text(
+        "What would you like to serve?",
+        color = Maroon,
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.ExtraBold
+    )
+    Text(
+        "Select one or more food services for your event.",
+        color = Muted
+    )
+
+    BookingOptions.cateringMealServiceOptions.forEach { option ->
+        val selected = option.type in draft.selectedFoodServices
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    viewModel.updateDraft { current ->
+                        val updated = current.selectedFoodServices.toMutableSet()
+                        if (!updated.add(option.type)) {
+                            updated.remove(option.type)
+                        }
+                        current.copy(selectedFoodServices = updated)
+                    }
+                },
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (selected) SoftGreen.copy(alpha = 0.65f) else Color.White
+            ),
+            border = BorderStroke(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) Green else Border
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 4.dp else 1.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selected) Green else Color(0xFFFFF7E6)
+                    )
+                ) {
+                    Icon(
+                        imageVector = mealServiceIcon(option.type),
+                        contentDescription = option.displayName,
+                        tint = if (selected) Color.White else Green,
+                        modifier = Modifier.padding(9.dp)
+                    )
+                }
+                Spacer(Modifier.size(10.dp))
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        option.displayName,
+                        color = TextDark,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        option.description,
+                        color = Muted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                if (selected) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = "Selected",
+                        tint = Green,
+                        modifier = Modifier.size(22.dp)
+                    )
+                } else {
+                    Icon(
+                        Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = Border,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
         }
     }
 
-    OutlinedTextField(
-        value = if (draft.guestCount in BookingOptions.guestQuickOptions) ""
-        else draft.guestCount?.toString().orEmpty(),
-        onValueChange = { value ->
-            viewModel.updateDraft {
-                it.copy(guestCount = value.filter(Char::isDigit).toIntOrNull())
-            }
-        },
-        label = { Text("Custom guest count") },
-        supportingText = { Text("Enter a positive whole number.") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
-    )
+    val selectedServices = draft.selectedFoodServices
+        .sortedBy { it.sortOrder }
+        .map { it.backendLabel }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9EC)),
+        border = BorderStroke(1.dp, Border)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                "${selectedServices.size} services selected",
+                color = Green,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                if (selectedServices.isEmpty()) "Select at least one service to continue."
+                else "Selected: ${selectedServices.joinToString(" • ")}",
+                color = if (selectedServices.isEmpty()) Muted else TextDark,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+private fun mealServiceIcon(type: CateringMealServiceType): ImageVector = when (type) {
+    CateringMealServiceType.BREAKFAST -> Icons.Filled.FreeBreakfast
+    CateringMealServiceType.LUNCH -> Icons.Filled.LunchDining
+    CateringMealServiceType.SNACKS -> Icons.Filled.Fastfood
+    CateringMealServiceType.BEVERAGES -> Icons.Filled.LocalCafe
+    CateringMealServiceType.DINNER -> Icons.Filled.DinnerDining
 }
 
 @Composable
@@ -322,11 +506,14 @@ private fun EventTypeCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(17.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) Maroon else Color.White
+            containerColor = if (selected) Green else Color(0xFFFFFCF7)
         ),
         border = BorderStroke(
-            1.dp,
-            if (selected) Maroon else Border
+            if (selected) 2.dp else 1.dp,
+            if (selected) Green else Border
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (selected) 5.dp else 1.dp
         )
     ) {
         Row(
@@ -336,12 +523,52 @@ private fun EventTypeCard(
             Icon(
                 icon,
                 contentDescription = null,
-                tint = if (selected) Color.White else Maroon,
+                tint = if (selected) Color.White else Green,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.size(7.dp))
             Text(
                 event.displayName,
+                color = if (selected) Color.White else TextDark,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun GuestCountOptionCard(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(17.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) Green else Color(0xFFFFFCF7)
+        ),
+        border = BorderStroke(
+            width = if (selected) 2.dp else 1.dp,
+            color = if (selected) Green else Border
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (selected) 5.dp else 1.dp
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Filled.Groups,
+                contentDescription = null,
+                tint = if (selected) Color.White else Green,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.size(7.dp))
+            Text(
+                label,
                 color = if (selected) Color.White else TextDark,
                 fontWeight = FontWeight.Bold
             )
@@ -361,51 +588,74 @@ private fun CateringPlanAndLocationStep(
         fontWeight = FontWeight.ExtraBold
     )
     Text(
-        "CaterHub provides full catering. Choose a package or customize your menu.",
+        "Choose a vegetarian or non-vegetarian package, or customize your menu.",
         color = Muted
     )
 
-    PlanCard(
-        "BASIC",
-        "₹499 / person",
-        "Biryani • 2 Curries • Rice • Raita • Sweet",
-        Green,
-        draft.cateringPlan == "Basic"
+    val selectedFoodType = draft.cateringFoodType.ifBlank { BookingOptions.foodTypeNonVegetarian }
+    val visiblePlans = BookingOptions.plansByFoodType(selectedFoodType)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        viewModel.updateDraft { it.copy(cateringPlan = "Basic") }
+        FoodTypeSelectorOption(
+            emoji = "🥬",
+            label = "Vegetarian",
+            selected = selectedFoodType == BookingOptions.foodTypeVegetarian,
+            onClick = {
+                val defaultPlan = BookingOptions.defaultPlanForFoodType(BookingOptions.foodTypeVegetarian)
+                viewModel.updateDraft {
+                    it.copy(
+                        cateringFoodType = BookingOptions.foodTypeVegetarian,
+                        cateringPlan = defaultPlan.backendValue
+                    )
+                }
+            },
+            modifier = Modifier.weight(1f)
+        )
+        FoodTypeSelectorOption(
+            emoji = "🍗",
+            label = "Non-Vegetarian",
+            selected = selectedFoodType == BookingOptions.foodTypeNonVegetarian,
+            onClick = {
+                val defaultPlan = BookingOptions.defaultPlanForFoodType(BookingOptions.foodTypeNonVegetarian)
+                viewModel.updateDraft {
+                    it.copy(
+                        cateringFoodType = BookingOptions.foodTypeNonVegetarian,
+                        cateringPlan = defaultPlan.backendValue
+                    )
+                }
+            },
+            modifier = Modifier.weight(1f)
+        )
+        FoodTypeSelectorOption(
+            emoji = "✨",
+            label = "Custom",
+            selected = selectedFoodType == BookingOptions.foodTypeCustom,
+            onClick = {
+                val defaultPlan = BookingOptions.defaultPlanForFoodType(BookingOptions.foodTypeCustom)
+                viewModel.updateDraft {
+                    it.copy(
+                        cateringFoodType = BookingOptions.foodTypeCustom,
+                        cateringPlan = defaultPlan.backendValue
+                    )
+                }
+            },
+            modifier = Modifier.weight(1f)
+        )
     }
 
-    PlanCard(
-        "CLASSIC",
-        "₹699 / person",
-        "2 Starters • Biryani • 3 Curries • Dal • Raita • Sweet",
-        Maroon,
-        draft.cateringPlan == "Classic"
-    ) {
-        viewModel.updateDraft { it.copy(cateringPlan = "Classic") }
+    visiblePlans.forEach { plan ->
+        PlanCard(
+            option = plan,
+            selected = draft.cateringPlan == plan.backendValue
+        ) {
+            viewModel.updateDraft { it.copy(cateringPlan = plan.backendValue) }
+        }
     }
 
-    PlanCard(
-        "PREMIUM",
-        "₹999 / person",
-        "2 Starters • Biryani • 4 Curries • Dal • Raita • 2 Desserts • Beverages",
-        Gold,
-        draft.cateringPlan == "Premium"
-    ) {
-        viewModel.updateDraft { it.copy(cateringPlan = "Premium") }
-    }
-
-    PlanCard(
-        "CUSTOMIZED",
-        "Build your own menu",
-        "Choose starters, biryani, curries, rice, sweets, beverages and more.",
-        Green,
-        draft.cateringPlan == "Customized"
-    ) {
-        viewModel.updateDraft { it.copy(cateringPlan = "Customized") }
-    }
-
-    if (draft.cateringPlan == "Customized") {
+    if (draft.cateringPlan == BookingOptions.planCustomMenu) {
         OutlinedTextField(
             value = draft.foodRequirements,
             onValueChange = {
@@ -456,11 +706,49 @@ private fun CateringPlanAndLocationStep(
 }
 
 @Composable
+private fun FoodTypeSelectorOption(
+    emoji: String,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) Green else Color(0xFFFFFCF7)
+        ),
+        border = BorderStroke(
+            width = if (selected) 2.dp else 1.dp,
+            color = if (selected) Green else Border
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (selected) 4.dp else 1.dp
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 11.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(emoji, fontSize = 16.sp)
+            Spacer(Modifier.size(6.dp))
+            Text(
+                label,
+                color = if (selected) Color.White else TextDark,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp
+            )
+        }
+    }
+}
+
+@Composable
 private fun PlanCard(
-    title: String,
-    subtitle: String,
-    description: String,
-    accent: Color,
+    option: BookingOptions.CateringPlanOption,
     selected: Boolean,
     onClick: () -> Unit
 ) {
@@ -468,13 +756,16 @@ private fun PlanCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) accent.copy(alpha = 0.10f) else Color.White
+            containerColor = if (selected) SoftGreen.copy(alpha = 0.60f) else Color.White
         ),
         border = BorderStroke(
             width = if (selected) 2.dp else 1.dp,
-            color = if (selected) accent else Border
+            color = if (selected) Green else Border
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (selected) 5.dp else 2.dp
         )
     ) {
         Column(Modifier.padding(17.dp)) {
@@ -483,23 +774,62 @@ private fun PlanCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(title, color = accent, fontWeight = FontWeight.ExtraBold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = when (option.foodType) {
+                            BookingOptions.foodTypeVegetarian -> "🥬"
+                            BookingOptions.foodTypeNonVegetarian -> "🍗"
+                            else -> "✨"
+                        },
+                        fontSize = 16.sp
+                    )
+                    Text(option.title, color = if (selected) Green else TextDark, fontWeight = FontWeight.ExtraBold)
+                }
+                if (option.popular) {
+                    Card(
+                        shape = RoundedCornerShape(999.dp),
+                        colors = CardDefaults.cardColors(containerColor = SoftGold)
+                    ) {
+                        Text(
+                            text = "POPULAR",
+                            color = Gold,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
                 if (selected) {
                     Icon(
                         Icons.Filled.CheckCircle,
                         contentDescription = "Selected",
-                        tint = accent
+                        tint = Green
                     )
                 }
             }
             Text(
-                subtitle,
+                option.pricePerPerson?.let { "₹$it / person" } ?: "Build your own menu",
                 color = TextDark,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(4.dp))
-            Text(description, color = Muted, lineHeight = 20.sp)
+            option.description?.let {
+                Text(it, color = Muted, lineHeight = 20.sp)
+                Spacer(Modifier.height(2.dp))
+            }
+            option.menuItems.forEach { item ->
+                Text("• $item", color = Muted, lineHeight = 20.sp)
+            }
+            if (option.backendValue == BookingOptions.planCustomMenu) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Customize Menu",
+                    color = Green,
+                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
         }
     }
 }
@@ -713,8 +1043,13 @@ private fun ReviewStep(draft: BookingDraft, onEdit: (Int) -> Unit) {
         location = draft.deliveryAddress(),
         services = listOf(
             ReviewLineItem(
+                title = "Food Services",
+                subtitle = draft.selectedFoodServicesLabel(),
+                amountText = null
+            ),
+            ReviewLineItem(
                 title = "Catering Plan",
-                subtitle = "Full Catering • ${draft.cateringPlan}",
+                subtitle = draft.cateringPlan.ifBlank { BookingOptions.fullCatering },
                 amountText = null
             ),
             ReviewLineItem(
@@ -870,7 +1205,7 @@ fun BookingHistoryScreen(
                         }
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val categories = listOf("all" to "All") + ServiceCatalog.categories.map { it.id to it.title }
+                        val categories = listOf("all" to "All") + ServiceCatalog.customerCategories.map { it.id to it.title }
                         categories.forEach { option ->
                             AssistChip(
                                 onClick = { categoryFilter = option.first },

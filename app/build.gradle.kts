@@ -14,8 +14,8 @@ android {
         applicationId = "com.caterhub.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.1.2"
+        versionCode = 5
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["usesCleartextTraffic"] = "false"
@@ -70,7 +70,8 @@ android {
         }
 
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             buildConfigField("String", "ENVIRONMENT", "\"PRODUCTION\"")
             buildConfigField("String", "API_BASE_URL", "\"$prodApiBaseUrl\"")
             buildConfigField("boolean", "ALLOW_CLEARTEXT_LOCAL_TRAFFIC", "false")
@@ -139,6 +140,7 @@ dependencies {
     // Google Maps
     implementation("com.google.maps.android:maps-compose:4.3.1")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.gms:play-services-auth-api-phone:18.1.0")
 
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.6.0")

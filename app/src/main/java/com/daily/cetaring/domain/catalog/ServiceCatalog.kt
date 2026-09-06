@@ -35,6 +35,16 @@ data class ServiceRoleDefinition(
 }
 
 object ServiceCatalog {
+    private val customerOnlyCategories = listOf(
+        ServiceCategoryDefinition(
+            "tent-tables-equipment",
+            "Tent, Tables & Equipment",
+            "Tents, tables, chairs, serving equipment and essential event rentals.",
+            "RENTALS",
+            CategoryVisualTone.RENTALS
+        )
+    )
+
     val categories = listOf(
         ServiceCategoryDefinition(
             "catering-food",
@@ -46,7 +56,7 @@ object ServiceCatalog {
         ServiceCategoryDefinition(
             "decoration",
             "Decoration",
-            "Stage, flowers, lighting, tents & seating",
+            "Stage, mandap, entrance and backdrop decoration",
             "DECORATION",
             CategoryVisualTone.DECORATION
         ),
@@ -67,7 +77,7 @@ object ServiceCatalog {
         ServiceCategoryDefinition(
             "photography-video",
             "Photography & Video",
-            "Photography, videography & event coverage",
+            "Photography, videography & live event coverage",
             "PHOTOGRAPHY_VIDEO",
             CategoryVisualTone.PHOTOGRAPHY
         ),
@@ -150,8 +160,15 @@ object ServiceCatalog {
         ServiceRoleDefinition("entrance-decorator", "decoration", "Entrance Decorator", WorkerType.ENTRANCE_DECORATOR),
         ServiceRoleDefinition("backdrop-decorator", "decoration", "Backdrop Decorator", WorkerType.BACKDROP_DECORATOR),
         ServiceRoleDefinition("decoration-supervisor", "decoration", "Decoration Supervisor", WorkerType.DECORATION_SUPERVISOR),
-        ServiceRoleDefinition("chair-rental", "decoration", "Chair Rental", WorkerType.CHAIR_RENTAL, 50),
-        ServiceRoleDefinition("table-rental", "decoration", "Table Rental", WorkerType.TABLE_RENTAL, 60),
+        ServiceRoleDefinition(
+            "chair-rental",
+            "rentals",
+            "Chair Rental",
+            WorkerType.CHAIR_RENTAL,
+            50,
+            skillSuggestions = listOf("Chairs", "Tables", "Event furniture setup")
+        ),
+        ServiceRoleDefinition("table-rental", "rentals", "Table Rental", WorkerType.TABLE_RENTAL, 60),
 
         ServiceRoleDefinition(
             "dj",
@@ -250,15 +267,6 @@ object ServiceCatalog {
         ServiceRoleDefinition("general-helper", "event-support", "General Helper", WorkerType.GENERAL_HELPER),
         ServiceRoleDefinition("cleaning-staff", "event-support", "Cleaning Staff", WorkerType.CLEANING_STAFF),
 
-        ServiceRoleDefinition(
-            "chair-rental-main",
-            "rentals",
-            "Chair Rental",
-            WorkerType.CHAIR_RENTAL,
-            50,
-            skillSuggestions = listOf("Chairs", "Tables", "Event furniture setup")
-        ),
-        ServiceRoleDefinition("table-rental-main", "rentals", "Table Rental", WorkerType.TABLE_RENTAL, 60),
         ServiceRoleDefinition("sofa-rental", "rentals", "Sofa Rental", WorkerType.SOFA_RENTAL),
         ServiceRoleDefinition("crockery-rental", "rentals", "Crockery Rental", WorkerType.CROCKERY_RENTAL),
         ServiceRoleDefinition("dining-equipment", "rentals", "Dining Equipment", WorkerType.DINING_EQUIPMENT),
@@ -291,10 +299,73 @@ object ServiceCatalog {
         ServiceRoleDefinition("custom-event-professional", "other-event-services", "Custom Event Professional", WorkerType.CUSTOM_EVENT_PROFESSIONAL)
     )
 
-    fun category(id: String): ServiceCategoryDefinition? = categories.firstOrNull { it.id == id }
+    val customerCategories: List<ServiceCategoryDefinition> = listOfNotNull(
+        category("catering-food"),
+        category("decoration"),
+        category("tent-tables-equipment"),
+        category("entertainment"),
+        category("photography-video"),
+        category("beauty"),
+        category("religious-ceremony")
+    )
+
+    fun category(id: String): ServiceCategoryDefinition? =
+        categories.firstOrNull { it.id == id } ?: customerOnlyCategories.firstOrNull { it.id == id }
 
     fun rolesForCategory(categoryId: String): List<ServiceRoleDefinition> =
         roles.filter { it.categoryId == categoryId }
+
+    fun customerRolesForCategory(categoryId: String): List<ServiceRoleDefinition> = when (categoryId) {
+        "decoration" -> roles.filter {
+            it.id in setOf(
+                "stage-setup-worker",
+                "mandap-decorator",
+                "entrance-decorator",
+                "backdrop-decorator",
+                "decoration-supervisor"
+            )
+        }
+
+        "photography-video" -> listOfNotNull(
+            roles.firstOrNull { it.id == "photographer" }?.copy(
+                title = "Photography",
+                defaultUnitPrice = null
+            ),
+            roles.firstOrNull { it.id == "videographer" }?.copy(
+                title = "Videography",
+                defaultUnitPrice = null
+            ),
+            roles.firstOrNull { it.id == "live-streaming-operator" }?.copy(
+                title = "Live Streaming",
+                defaultUnitPrice = null
+            )
+        )
+
+        "tent-tables-equipment" -> listOfNotNull(
+            roles.firstOrNull { it.id == "tent-rental" }?.copy(
+                categoryId = "tent-tables-equipment",
+                title = "Tent Setup",
+                defaultUnitPrice = null
+            ),
+            roles.firstOrNull { it.id == "table-rental" }?.copy(
+                categoryId = "tent-tables-equipment",
+                title = "Table Rental",
+                defaultUnitPrice = 60
+            ),
+            roles.firstOrNull { it.id == "chair-rental" }?.copy(
+                categoryId = "tent-tables-equipment",
+                title = "Chair Rental",
+                defaultUnitPrice = 50
+            ),
+            roles.firstOrNull { it.id == "dining-equipment" }?.copy(
+                categoryId = "tent-tables-equipment",
+                title = "Dish & Serving Equipment",
+                defaultUnitPrice = null
+            )
+        )
+
+        else -> rolesForCategory(categoryId)
+    }
 
     fun categoryForWorkerType(workerType: WorkerType): ServiceCategoryDefinition? {
         val role = roles.firstOrNull { it.workerType == workerType } ?: return null

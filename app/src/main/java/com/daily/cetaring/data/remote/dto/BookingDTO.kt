@@ -98,10 +98,14 @@ data class CustomerBookingUiModel(
 data class BookingDraft(
     val eventType: String? = null,
     val guestCount: Int? = null,
+    val guestCountSelection: String = BookingOptions.guestSelectionPreset,
+    val customGuestCountInput: String = "",
     // Legacy fields kept for source/test compatibility. The new UI does not expose them.
     val foodService: String = "",
+    val selectedFoodServices: Set<CateringMealServiceType> = emptySet(),
     val staffingRequirements: Map<WorkerType, StaffingRequirement> = emptyMap(),
     val staffingEndTime: String = "",
+    val cateringFoodType: String = BookingOptions.foodTypeNonVegetarian,
     val cateringPlan: String = "",
     val foodRequirements: String = "",
     val eventDate: String = "",
@@ -123,12 +127,70 @@ data class BookingDraft(
         val plan = cateringPlan.ifBlank {
             if (foodService.isNotBlank()) foodService else BookingOptions.fullCatering
         }
-        return if (plan == BookingOptions.fullCatering) {
-            BookingOptions.fullCatering
-        } else {
-            "Full Catering - $plan"
+        val selectedServices = selectedFoodServices.takeIf { it.isNotEmpty() }
+            ?.sortedBy { it.sortOrder }
+            ?.joinToString(" + ") { it.backendLabel }
+
+        return when {
+            selectedServices != null && plan == BookingOptions.fullCatering -> selectedServices
+            selectedServices != null -> "$selectedServices | $plan"
+            plan == BookingOptions.fullCatering -> BookingOptions.fullCatering
+            else -> "Full Catering - $plan"
         }
     }
+
+    fun selectedFoodServicesLabel(): String {
+        if (selectedFoodServices.isEmpty()) return "Not selected"
+        return selectedFoodServices
+            .sortedBy { it.sortOrder }
+            .joinToString(" • ") { it.displayName }
+    }
+}
+
+enum class CateringMealServiceType(
+    val displayName: String,
+    val backendLabel: String,
+    val description: String,
+    val sortOrder: Int
+) {
+    BREAKFAST(
+        displayName = "Tiffin / Breakfast",
+        backendLabel = "Breakfast",
+        description = "Breakfast and morning tiffin service",
+        sortOrder = 0
+    ),
+    LUNCH(
+        displayName = "Lunch",
+        backendLabel = "Lunch",
+        description = "Complete lunch catering service",
+        sortOrder = 1
+    ),
+    SNACKS(
+        displayName = "Snacks",
+        backendLabel = "Snacks",
+        description = "Evening snacks and refreshments",
+        sortOrder = 2
+    ),
+    BEVERAGES(
+        displayName = "Beverages",
+        backendLabel = "Beverages",
+        description = "Tea, coffee, juices and refreshments",
+        sortOrder = 3
+    ),
+    DINNER(
+        displayName = "Dinner",
+        backendLabel = "Dinner",
+        description = "Complete dinner catering service",
+        sortOrder = 4
+    )
+}
+
+data class CateringMealServiceOption(
+    val type: CateringMealServiceType,
+    val emoji: String
+) {
+    val displayName: String = type.displayName
+    val description: String = type.description
 }
 
 data class StaffingRequirement(
@@ -141,12 +203,95 @@ object BookingOptions {
 
     const val fullCatering = "Full Catering"
 
-    val cateringPlans = listOf(
-        "Basic",
-        "Classic",
-        "Premium",
-        "Customized"
+    const val guestSelectionPreset = "PRESET"
+    const val guestSelectionCustom = "CUSTOM"
+    const val foodTypeVegetarian = "VEGETARIAN"
+    const val foodTypeNonVegetarian = "NON_VEGETARIAN"
+    const val foodTypeCustom = "CUSTOM"
+    const val planVegBasic = "Veg Basic"
+    const val planVegClassic = "Veg Classic"
+    const val planVegPremium = "Veg Premium"
+    const val planNonVegBasic = "Non-Veg Basic"
+    const val planNonVegClassic = "Non-Veg Classic"
+    const val planNonVegPremium = "Non-Veg Premium"
+    const val planCustomMenu = "Custom Menu"
+
+    val cateringMealServiceOptions = listOf(
+        CateringMealServiceOption(CateringMealServiceType.BREAKFAST, "🍳"),
+        CateringMealServiceOption(CateringMealServiceType.LUNCH, "🍛"),
+        CateringMealServiceOption(CateringMealServiceType.SNACKS, "🍿"),
+        CateringMealServiceOption(CateringMealServiceType.BEVERAGES, "🥤"),
+        CateringMealServiceOption(CateringMealServiceType.DINNER, "🍽")
     )
+
+    fun defaultMealServices(): Set<CateringMealServiceType> = setOf(CateringMealServiceType.LUNCH)
+
+    data class CateringPlanOption(
+        val backendValue: String,
+        val foodType: String,
+        val title: String,
+        val pricePerPerson: Int?,
+        val menuItems: List<String>,
+        val description: String? = null,
+        val popular: Boolean = false
+    )
+
+    val cateringPlanOptions = listOf(
+        CateringPlanOption(
+            backendValue = planVegBasic,
+            foodType = foodTypeVegetarian,
+            title = "VEG BASIC",
+            pricePerPerson = 399,
+            menuItems = listOf("Rice", "2 Curries", "Dal", "Raita", "Sweet")
+        ),
+        CateringPlanOption(
+            backendValue = planVegClassic,
+            foodType = foodTypeVegetarian,
+            title = "VEG CLASSIC",
+            pricePerPerson = 599,
+            menuItems = listOf("2 Starters", "Rice", "3 Curries", "Dal", "Raita", "Sweet"),
+            popular = true
+        ),
+        CateringPlanOption(
+            backendValue = planVegPremium,
+            foodType = foodTypeVegetarian,
+            title = "VEG PREMIUM",
+            pricePerPerson = 899,
+            menuItems = listOf("2 Starters", "Rice", "4 Curries", "Dal", "Raita", "2 Desserts", "Beverages")
+        ),
+        CateringPlanOption(
+            backendValue = planNonVegBasic,
+            foodType = foodTypeNonVegetarian,
+            title = "NON-VEG BASIC",
+            pricePerPerson = 499,
+            menuItems = listOf("Chicken Biryani", "2 Curries", "Rice", "Raita", "Sweet")
+        ),
+        CateringPlanOption(
+            backendValue = planNonVegClassic,
+            foodType = foodTypeNonVegetarian,
+            title = "NON-VEG CLASSIC",
+            pricePerPerson = 699,
+            menuItems = listOf("2 Starters", "Chicken Biryani", "3 Curries", "Dal", "Raita", "Sweet"),
+            popular = true
+        ),
+        CateringPlanOption(
+            backendValue = planNonVegPremium,
+            foodType = foodTypeNonVegetarian,
+            title = "NON-VEG PREMIUM",
+            pricePerPerson = 999,
+            menuItems = listOf("2 Starters", "Biryani", "4 Curries", "Dal", "Raita", "2 Desserts", "Beverages")
+        ),
+        CateringPlanOption(
+            backendValue = planCustomMenu,
+            foodType = foodTypeCustom,
+            title = "CUSTOM MENU",
+            pricePerPerson = null,
+            menuItems = listOf("Choose starters, biryani, curries, rice, sweets, beverages and more."),
+            description = "Build your own menu"
+        )
+    )
+
+    val cateringPlans = cateringPlanOptions.map { it.backendValue }
 
     val menuCategories = listOf(
         "Breakfast & Tiffin",
@@ -164,7 +309,29 @@ object BookingOptions {
     )
 
     val guestQuickOptions = listOf(20, 50, 100, 150, 200)
-    const val maxGuestCount = 5000
+    const val maxGuestCount = 2000
+    const val maxGuestInputLength = 4
+
+    fun plansByFoodType(foodType: String): List<CateringPlanOption> =
+        cateringPlanOptions.filter { it.foodType == foodType }
+
+    fun defaultPlanForFoodType(foodType: String): CateringPlanOption =
+        plansByFoodType(foodType).firstOrNull() ?: cateringPlanOptions.first()
+
+    fun planByBackendValue(value: String?): CateringPlanOption? =
+        cateringPlanOptions.firstOrNull { it.backendValue == value }
+
+    fun normalizePlanValue(value: String?): String {
+        val normalized = value?.trim().orEmpty()
+        return when (normalized) {
+            "Basic" -> planNonVegBasic
+            "Classic" -> planNonVegClassic
+            "Premium" -> planNonVegPremium
+            "Customized" -> planCustomMenu
+            in cateringPlans -> normalized
+            else -> ""
+        }
+    }
 }
 
 sealed class BookingValidationResult {
@@ -175,13 +342,14 @@ sealed class BookingValidationResult {
 object BookingValidator {
     fun validateStep(step: Int, draft: BookingDraft): BookingValidationResult = when (step) {
         0 -> validateEvent(draft)
-        1 -> validatePlanAndLocation(draft)
-        2 -> validateDateTime(draft)
+        1 -> validateFoodServices(draft)
+        2 -> validatePlanAndLocation(draft)
+        3 -> validateDateTime(draft)
         else -> BookingValidationResult.Valid
     }
 
     fun validateForSubmit(draft: BookingDraft): BookingValidationResult {
-        for (step in 0..2) {
+        for (step in 0..3) {
             val result = validateStep(step, draft)
             if (result is BookingValidationResult.Invalid) return result
         }
@@ -190,9 +358,8 @@ object BookingValidator {
 
     fun validateGuests(guestCount: Int?): BookingValidationResult = when {
         guestCount == null -> BookingValidationResult.Invalid("Please enter guest count.")
-        guestCount <= 0 -> BookingValidationResult.Invalid("Guest count must be a positive number.")
-        guestCount > BookingOptions.maxGuestCount ->
-            BookingValidationResult.Invalid("Guest count cannot exceed ${BookingOptions.maxGuestCount}.")
+        guestCount <= 0 || guestCount > BookingOptions.maxGuestCount ->
+            BookingValidationResult.Invalid("Enter a guest count between 1 and 2,000.")
         else -> BookingValidationResult.Valid
     }
 
@@ -204,6 +371,14 @@ object BookingValidator {
         }
         return if (eventType is BookingValidationResult.Invalid) eventType
         else validateGuests(draft.guestCount)
+    }
+
+    private fun validateFoodServices(draft: BookingDraft): BookingValidationResult {
+        return if (draft.selectedFoodServices.isEmpty()) {
+            BookingValidationResult.Invalid("Please select at least one food service.")
+        } else {
+            BookingValidationResult.Valid
+        }
     }
 
     private fun validatePlanAndLocation(draft: BookingDraft): BookingValidationResult = when {

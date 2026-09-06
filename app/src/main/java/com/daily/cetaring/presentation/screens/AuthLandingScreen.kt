@@ -80,7 +80,8 @@ fun AuthLandingScreen(
     onCreateAccountClick: () -> Unit,
     onCustomerLoginClick: () -> Unit,
     onWorkerRegisterClick: () -> Unit,
-    onWorkerLoginClick: () -> Unit
+    onWorkerLoginClick: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -96,7 +97,8 @@ fun AuthLandingScreen(
                 onBook = onCreateAccountClick,
                 onCustomerLogin = onCustomerLoginClick,
                 onWorkerRegister = onWorkerRegisterClick,
-                onWorkerLogin = onWorkerLoginClick
+                onWorkerLogin = onWorkerLoginClick,
+                onMenuClick = onMenuClick
             )
             1 -> OffersScreenContent(
                 padding = padding,
@@ -113,7 +115,8 @@ private fun PublicHomeContent(
     onBook: () -> Unit,
     onCustomerLogin: () -> Unit,
     onWorkerRegister: () -> Unit,
-    onWorkerLogin: () -> Unit
+    onWorkerLogin: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -155,6 +158,14 @@ private fun PublicHomeContent(
             color = Maroon,
             icon = Icons.Filled.RestaurantMenu,
             onClick = onBook
+        )
+        ActionCard(
+            modifier = Modifier.fillMaxWidth(),
+            title = "Menu",
+            subtitle = "Explore our delicious catering options",
+            color = Gold,
+            icon = Icons.Filled.Restaurant,
+            onClick = onMenuClick
         )
         PublicJoinCtaSection(onWorkerRegister = onWorkerRegister)
 

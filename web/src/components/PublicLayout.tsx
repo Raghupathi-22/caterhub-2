@@ -204,6 +204,18 @@ export function PublicLayout() {
                     <Typography component={RouterLink} to="/contact" sx={{ color: 'rgba(250,250,250,0.78)', textDecoration: 'none' }}>
                       Contact
                     </Typography>
+                    <Typography sx={{ color: 'rgba(250,250,250,0.78)' }}>
+                      Get the CaterHub App
+                    </Typography>
+                    <Typography
+                      component={siteConfig.hasPlayStoreUrl ? 'a' : 'span'}
+                      href={siteConfig.hasPlayStoreUrl ? siteConfig.playStoreUrl : undefined}
+                      target={siteConfig.hasPlayStoreUrl ? '_blank' : undefined}
+                      rel={siteConfig.hasPlayStoreUrl ? 'noopener noreferrer' : undefined}
+                      sx={{ color: 'rgba(250,250,250,0.78)', textDecoration: 'none' }}
+                    >
+                      Download on Google Play
+                    </Typography>
                   </Stack>
                 </Box>
                 <Box>

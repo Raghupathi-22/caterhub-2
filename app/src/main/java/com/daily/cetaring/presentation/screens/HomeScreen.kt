@@ -27,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.LocationOn
@@ -66,6 +67,7 @@ private val Border = Color(0xFFE4D9C6)
 fun HomeScreen(
     viewModel: HomeViewModel,
     onBookCateringClick: () -> Unit,
+    onMenuClick: () -> Unit,
     onServiceCategoryClick: (String) -> Unit,
     onBookingsClick: () -> Unit,
     onBookingClick: (Long) -> Unit,
@@ -129,6 +131,7 @@ fun HomeScreen(
         ) {
             HomeHeader(onNotificationsClick = onNotificationsClick, onProfileClick = onProfileClick)
             HomeHero(onBookCateringClick = onBookCateringClick)
+            MenuDiscoveryCard(onMenuClick = onMenuClick)
             HomeCategories(onCategoryClick = onServiceCategoryClick)
             CaterHubSupportCard(
                 onCallClick = ::openDialer,
@@ -193,7 +196,7 @@ private fun HomeHero(onBookCateringClick: () -> Unit) {
 private fun HomeCategories(onCategoryClick: (String) -> Unit) {
     SectionTitle("Service Categories")
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ServiceCatalog.categories.forEach { category ->
+        ServiceCatalog.customerCategories.forEach { category ->
             val visual = categoryUiMeta(category)
             Card(
                 modifier = Modifier
@@ -221,6 +224,64 @@ private fun HomeCategories(onCategoryClick: (String) -> Unit) {
                         Text(category.subtitle, color = Muted, style = MaterialTheme.typography.bodySmall)
                     }
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = visual.accent)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MenuDiscoveryCard(onMenuClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 100.dp)
+            .clickable(onClick = onMenuClick),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Border),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Gold.copy(alpha = 0.16f), RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.RestaurantMenu,
+                    contentDescription = "Menu",
+                    tint = Gold,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Menu", color = Ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    "Explore our delicious catering options",
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Red,
+                modifier = Modifier.clickable(onClick = onMenuClick)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("View Menu", color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                 }
             }
         }

@@ -306,6 +306,16 @@ class AuthViewModel(
             ) ->
                 message
 
+            (
+                message.contains("otp", ignoreCase = true) &&
+                    (
+                        message.contains("expired", ignoreCase = true) ||
+                            message.contains("invalid", ignoreCase = true) ||
+                            message.contains("incorrect", ignoreCase = true)
+                        )
+                ) ->
+                "OTP expired or invalid. Please request a new OTP."
+
             message.contains(
                 "session has expired",
                 ignoreCase = true
