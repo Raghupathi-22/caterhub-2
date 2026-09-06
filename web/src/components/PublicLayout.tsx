@@ -43,8 +43,8 @@ export function PublicLayout() {
   const logout = useAuthStore((state) => state.logout)
 
   const adminIsExternal = isExternal(siteConfig.adminLoginUrl)
-  const cleanPhoneHref = `tel:${siteConfig.supportPhone}`
-  const whatsappHref = `https://wa.me/${siteConfig.sanitizedSupportPhone}`
+  const cleanPhoneHref = siteConfig.callHref
+  const whatsappHref = siteConfig.whatsappHref
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
@@ -196,6 +196,9 @@ export function PublicLayout() {
                 </Box>
                 <Box>
                   <Typography sx={{ fontWeight: 700, mb: 1 }}>Support</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
+                    {siteConfig.supportPhoneDisplay}
+                  </Typography>
                   <Stack spacing={1}>
                     <Button startIcon={<Phone />} href={cleanPhoneHref} variant="outlined">Call Us</Button>
                     <Button
@@ -221,4 +224,3 @@ export function PublicLayout() {
     </Box>
   )
 }
-

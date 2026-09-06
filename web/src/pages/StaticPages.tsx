@@ -14,6 +14,7 @@ import { useEffect } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { publicOffersApi } from '../api/publicOffersApi'
+import { FirstBookingOfferCard } from '../components/FirstBookingOfferCard'
 import { siteConfig } from '../config/siteConfig'
 
 export function OffersPublicPage() {
@@ -35,6 +36,7 @@ export function OffersPublicPage() {
       <Typography color="text.secondary">
         Explore the latest promotions available for your event services.
       </Typography>
+      <FirstBookingOfferCard />
 
       {isError ? (
         <Alert action={<Button color="inherit" size="small" onClick={() => void refetch()}>Retry</Button>} severity="error">
@@ -169,13 +171,16 @@ export function ContactPage() {
             <Typography color="text.secondary">
               Reach our support team through call or WhatsApp.
             </Typography>
+            <Typography sx={{ fontWeight: 700 }}>
+              Call/WhatsApp: {siteConfig.supportPhoneDisplay}
+            </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-              <Button startIcon={<Phone />} href={`tel:${siteConfig.supportPhone}`} variant="outlined" size="large">
+              <Button startIcon={<Phone />} href={siteConfig.callHref} variant="outlined" size="large">
                 Call Us
               </Button>
               <Button
                 startIcon={<WhatsApp />}
-                href={`https://wa.me/${siteConfig.sanitizedSupportPhone}`}
+                href={siteConfig.whatsappHref}
                 target="_blank"
                 rel="noreferrer"
                 variant="contained"

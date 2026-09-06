@@ -13,7 +13,7 @@ Create `.env` from `.env.example`:
 
 ```env
 VITE_API_BASE_URL=https://caterhub-2-production.up.railway.app/api/v1
-VITE_SUPPORT_PHONE=+919999999999
+VITE_SUPPORT_PHONE=+919959095202
 VITE_ADMIN_WEB_URL=
 ```
 

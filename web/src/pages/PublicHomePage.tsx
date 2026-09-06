@@ -1,6 +1,7 @@
 import { ArrowForward } from '@mui/icons-material'
 import { Alert, Box, Button, Card, CardContent, Grid, Skeleton, Stack, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
+import { FirstBookingOfferCard } from '../components/FirstBookingOfferCard'
 import { useCatalogCategories } from '../hooks/useCatalogCategories'
 import { getCategoryIcon } from '../utils/catalogVisuals'
 
@@ -35,6 +36,8 @@ export function PublicHomePage() {
           </Button>
         </Stack>
       </Box>
+
+      <FirstBookingOfferCard />
 
       <Stack spacing={1}>
         <Typography variant="h4" sx={{ fontWeight: 800 }}>
