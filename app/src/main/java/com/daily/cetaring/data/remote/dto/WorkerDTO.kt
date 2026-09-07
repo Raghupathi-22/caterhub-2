@@ -190,7 +190,7 @@ data class WorkerProfileResponse(
     val userId: Long,
     val username: String,
     val fullName: String,
-    val workerType: WorkerType,
+    val workerType: WorkerType?,
     val status: WorkerStatus,
     val experienceYears: Int,
     val skills: String?,

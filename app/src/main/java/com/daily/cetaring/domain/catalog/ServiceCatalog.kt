@@ -367,8 +367,9 @@ object ServiceCatalog {
         else -> rolesForCategory(categoryId)
     }
 
-    fun categoryForWorkerType(workerType: WorkerType): ServiceCategoryDefinition? {
-        val role = roles.firstOrNull { it.workerType == workerType } ?: return null
+    fun categoryForWorkerType(workerType: WorkerType?): ServiceCategoryDefinition? {
+        val resolvedWorkerType = workerType ?: return null
+        val role = roles.firstOrNull { it.workerType == resolvedWorkerType } ?: return null
         return category(role.categoryId)
     }
 

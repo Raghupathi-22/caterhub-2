@@ -165,6 +165,8 @@ fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobC
         val roleId = role?.id
         val category = ServiceCatalog.category(categoryId)
         val visual = category?.let(::categoryUiMeta)
+        val workerTypeLabel = workerProfile.workerType?.label ?: "Role not selected"
+        val workerCategoryLabel = category?.title ?: workerProfile.workerType?.category ?: "Category not selected"
         val skillSuggestions = ServiceCatalog.skillSuggestionsFor(categoryId, roleId)
         val isVerified = workerProfile.status == WorkerStatus.ACTIVE
         val filteredJobs = jobs.filter { job ->
@@ -199,9 +201,9 @@ fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobC
                             contentDescription = null,
                             tint = visual?.accent ?: Red
                         )
-                        Text("  ${workerProfile.workerType.label}", color = Ink, fontWeight = FontWeight.ExtraBold)
+                        Text("  $workerTypeLabel", color = Ink, fontWeight = FontWeight.ExtraBold)
                     }
-                    Text(category?.title ?: workerProfile.workerType.category, color = Muted)
+                    Text(workerCategoryLabel, color = Muted)
 
                     if (!isVerified) {
                         WorkerVerificationGateCard(workerProfile.status, workerProfile.rejectionReason)
@@ -508,14 +510,14 @@ private fun ProfileContent(profile: WorkerProfileResponse, onLogout: () -> Unit,
                     }
                     Column(Modifier.padding(start = 14.dp).weight(1f)) {
                         Text(profile.fullName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Ink)
-                        Text(ServiceCatalog.categoryForWorkerType(profile.workerType)?.title ?: profile.workerType.category, color = Green)
+                        Text(ServiceCatalog.categoryForWorkerType(profile.workerType)?.title ?: profile.workerType?.category ?: "Category not selected", color = Green)
                     }
                     CaterHubStatusChip(profile.status.label)
                 }
                 androidx.compose.material3.HorizontalDivider(color = Border)
                 ProfileRow("Verification status", profile.status.label)
-                ProfileRow("Service category", ServiceCatalog.categoryForWorkerType(profile.workerType)?.title ?: profile.workerType.category)
-                ProfileRow("Service role", profile.workerType.label)
+                ProfileRow("Service category", ServiceCatalog.categoryForWorkerType(profile.workerType)?.title ?: profile.workerType?.category ?: "Not selected")
+                ProfileRow("Service role", profile.workerType?.label ?: "Not selected")
                 ProfileRow("Experience", "${profile.experienceYears} years")
                 ProfileRow("Skills", profile.skills.orEmpty().ifBlank { "Not added" })
                 ProfileRow("Languages", profile.languages.orEmpty().ifBlank { "Not added" })

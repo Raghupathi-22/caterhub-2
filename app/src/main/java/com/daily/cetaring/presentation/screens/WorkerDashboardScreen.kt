@@ -97,6 +97,8 @@ fun WorkerDashboardScreen(
                 val d = state.dashboard
                 val category = ServiceCatalog.categoryForWorkerType(d.profile.workerType)
                 val visual = category?.let(::categoryUiMeta)
+                val workerTypeLabel = d.profile.workerType?.label ?: "Role not selected"
+                val workerCategoryLabel = category?.title ?: d.profile.workerType?.category ?: "Category not selected"
                 val isVerified = d.profile.status == WorkerStatus.ACTIVE
                 val isRejected = d.profile.status == WorkerStatus.REJECTED
                 Column(
@@ -129,9 +131,9 @@ fun WorkerDashboardScreen(
                                     )
                                 }
                                 Column(Modifier.weight(1f)) {
-                                    Text(d.profile.workerType.label, style = MaterialTheme.typography.titleLarge,
+                                    Text(workerTypeLabel, style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.ExtraBold, color = Ink)
-                                    Text(category?.title ?: d.profile.workerType.category, color = visual?.accent ?: Green, fontWeight = FontWeight.Bold)
+                                    Text(workerCategoryLabel, color = visual?.accent ?: Green, fontWeight = FontWeight.Bold)
                                 }
                                 CaterHubStatusChip(d.profile.status.label)
                             }

@@ -2,6 +2,7 @@ package com.daily.cetaring.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.daily.cetaring.auth.AuthRoleRouter
 import com.daily.cetaring.data.remote.dto.BookingDraft
 import com.daily.cetaring.data.remote.dto.BookingResponse
 import com.daily.cetaring.data.remote.dto.CustomerBookingSource
@@ -11,17 +12,24 @@ import com.daily.cetaring.data.remote.dto.BookingValidator
 import com.daily.cetaring.data.remote.dto.BookingOptions
 import com.daily.cetaring.data.remote.dto.CreateMyBookingRequest
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
+import com.daily.cetaring.data.repository.AuthRepository
+import com.daily.cetaring.data.repository.BookingAuthenticationRequiredException
 import com.daily.cetaring.data.repository.BookingRepository
+import com.daily.cetaring.data.repository.BookingSessionExpiredException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 
 sealed class BookingUiState {
     data object Idle : BookingUiState()
     data object Loading : BookingUiState()
-    data class AuthRequired(val message: String) : BookingUiState()
+    data class AuthRequired(
+        val message: String,
+        val isSessionExpired: Boolean = false
+    ) : BookingUiState()
     data class ListLoaded(val bookings: List<CustomerBookingUiModel>) : BookingUiState()
     data class DetailsLoaded(val booking: CustomerBookingUiModel) : BookingUiState()
 
@@ -37,6 +45,7 @@ sealed class BookingUiState {
 
 class BookingViewModel(
     private val bookingRepository: BookingRepository,
+    private val authRepository: AuthRepository,
     // Kept in the constructor so MainActivity and existing DI wiring do not
     // have to change. Staff requests are intentionally not created here.
     private val workerRepository: com.daily.cetaring.data.repository.WorkerRepository
@@ -48,6 +57,7 @@ class BookingViewModel(
     private val _draft = MutableStateFlow(BookingDraft())
     val draft: StateFlow<BookingDraft> = _draft.asStateFlow()
     private var pendingSubmissionAfterAuth: Boolean = false
+    private var submissionInProgress: Boolean = false
 
     fun updateDraft(transform: (BookingDraft) -> BookingDraft) {
         _draft.value = transform(_draft.value)
@@ -92,24 +102,28 @@ class BookingViewModel(
             return
         }
 
-        if (_uiState.value is BookingUiState.Loading) return
+        if (_uiState.value is BookingUiState.Loading || submissionInProgress) return
+        submissionInProgress = true
 
         viewModelScope.launch {
-            if (!bookingRepository.hasActiveSession()) {
-                pendingSubmissionAfterAuth = true
-                _uiState.value = BookingUiState.AuthRequired(
-                    "Login to submit your booking."
-                )
-                return@launch
+            when (ensureCustomerSessionForBookingSubmission()) {
+                CustomerBookingAuthState.READY -> submitBookingInternal(currentDraft)
+                CustomerBookingAuthState.LOGIN_REQUIRED -> {
+                    promptCustomerLogin(isSessionExpired = false)
+                    submissionInProgress = false
+                }
+                CustomerBookingAuthState.SESSION_EXPIRED -> {
+                    promptCustomerLogin(isSessionExpired = true)
+                    submissionInProgress = false
+                }
             }
-
-            submitBookingInternal(currentDraft)
         }
     }
 
     fun resumePendingSubmissionAfterAuth() {
-        if (!pendingSubmissionAfterAuth || _uiState.value is BookingUiState.Loading) return
+        if (!pendingSubmissionAfterAuth || _uiState.value is BookingUiState.Loading || submissionInProgress) return
         pendingSubmissionAfterAuth = false
+        submissionInProgress = true
         viewModelScope.launch {
             submitBookingInternal(_draft.value)
         }
@@ -200,19 +214,77 @@ class BookingViewModel(
             // Important: customer catering booking does NOT create staff jobs.
             _uiState.value = BookingUiState.Submitted(response)
         } catch (exception: Exception) {
-            val message = exception.message ?: "Something went wrong. Please try again."
-            if (message.contains("session expired", ignoreCase = true) ||
-                message.contains("sign in again", ignoreCase = true) ||
-                message.contains("login again", ignoreCase = true)
-            ) {
-                pendingSubmissionAfterAuth = true
-                _uiState.value = BookingUiState.AuthRequired(
-                    "Your session has expired. Please sign in again to submit your booking."
-                )
-            } else {
-                _uiState.value = BookingUiState.Error(message)
+            when (exception) {
+                is BookingAuthenticationRequiredException -> promptCustomerLogin(isSessionExpired = false)
+                is BookingSessionExpiredException -> promptCustomerLogin(isSessionExpired = true)
+                else -> {
+                    val message = exception.message ?: "Something went wrong. Please try again."
+                    _uiState.value = BookingUiState.Error(message)
+                }
+            }
+        } finally {
+            submissionInProgress = false
+        }
+    }
+
+    private suspend fun ensureCustomerSessionForBookingSubmission(): CustomerBookingAuthState {
+        val accessToken = authRepository.getAccessToken()?.takeIf { it.isNotBlank() }
+        val refreshToken = authRepository.getRefreshToken()?.takeIf { it.isNotBlank() }
+        val storedRoles = AuthRoleRouter.parseStoredRoles(authRepository.rolesFlow.first())
+        val hasCustomerRole = storedRoles.any { it.contains("CUSTOMER", ignoreCase = true) }
+        val hasKnownNonCustomerRole = storedRoles.isNotEmpty() && !hasCustomerRole
+
+        if (accessToken != null && hasCustomerRole) {
+            return CustomerBookingAuthState.READY
+        }
+        if (accessToken != null && storedRoles.isEmpty()) {
+            return CustomerBookingAuthState.READY
+        }
+        if (accessToken == null && refreshToken == null) {
+            return CustomerBookingAuthState.LOGIN_REQUIRED
+        }
+        if (accessToken != null && hasKnownNonCustomerRole) {
+            return CustomerBookingAuthState.LOGIN_REQUIRED
+        }
+        if (refreshToken != null) {
+            return try {
+                val response = authRepository.refreshToken(refreshToken)
+                val refreshedHasCustomerRole = response.user.roles
+                    .filterNotNull()
+                    .any { it.contains("CUSTOMER", ignoreCase = true) }
+                if (refreshedHasCustomerRole) {
+                    CustomerBookingAuthState.READY
+                } else {
+                    CustomerBookingAuthState.LOGIN_REQUIRED
+                }
+            } catch (_: Exception) {
+                if (accessToken != null) {
+                    CustomerBookingAuthState.SESSION_EXPIRED
+                } else {
+                    CustomerBookingAuthState.LOGIN_REQUIRED
+                }
             }
         }
+
+        return CustomerBookingAuthState.LOGIN_REQUIRED
+    }
+
+    private fun promptCustomerLogin(isSessionExpired: Boolean) {
+        pendingSubmissionAfterAuth = true
+        _uiState.value = BookingUiState.AuthRequired(
+            message = if (isSessionExpired) {
+                "Your session has expired. Please sign in again to submit your booking."
+            } else {
+                "Login to confirm your booking."
+            },
+            isSessionExpired = isSessionExpired
+        )
+    }
+
+    private enum class CustomerBookingAuthState {
+        READY,
+        LOGIN_REQUIRED,
+        SESSION_EXPIRED
     }
 
     private fun buildSpecialInstructions(draft: BookingDraft): String? {

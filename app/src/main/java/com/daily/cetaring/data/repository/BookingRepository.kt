@@ -14,6 +14,9 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import retrofit2.HttpException
 
+class BookingAuthenticationRequiredException(message: String) : IllegalStateException(message)
+class BookingSessionExpiredException(message: String) : IllegalStateException(message)
+
 class BookingRepository(
     private val bookingApiService: BookingApiService,
     private val healthApiService: HealthApiService,
@@ -53,12 +56,11 @@ class BookingRepository(
         executeNetworkCall { bookingApiService.cancelBooking(bearerToken(), id) }
     }
 
-    suspend fun hasActiveSession(): Boolean =
-        !authLocalDataSource.accessTokenFlow.first().isNullOrBlank()
-
     private suspend fun bearerToken(): String {
         val token = authLocalDataSource.accessTokenFlow.first()
-        if (token.isNullOrBlank()) throw IllegalStateException("Your session has expired. Please sign in again.")
+        if (token.isNullOrBlank()) {
+            throw BookingAuthenticationRequiredException("Please sign in to continue.")
+        }
         return "Bearer $token"
     }
 
@@ -74,7 +76,7 @@ class BookingRepository(
     private fun mapNetworkException(exception: Exception, operation: ApiOperation): Exception =
         when {
             exception is HttpException && exception.code() == 401 ->
-                IllegalStateException("Session expired. Please login again.")
+                BookingSessionExpiredException("Your session has expired. Please sign in again.")
             exception is HttpException && exception.code() == 403 ->
                 IllegalArgumentException("You don't have permission to view these bookings.")
             exception is HttpException && exception.code() == 404 ->

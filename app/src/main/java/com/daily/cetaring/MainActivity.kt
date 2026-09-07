@@ -108,7 +108,7 @@ class MainActivity : ComponentActivity() {
             authLocalDataSource = authLocalDataSource
         )
         val authViewModel = AuthViewModel(authRepository)
-        val bookingViewModel = BookingViewModel(bookingRepository, workerRepository)
+        val bookingViewModel = BookingViewModel(bookingRepository, authRepository, workerRepository)
         val homeViewModel = HomeViewModel(bookingRepository, authLocalDataSource)
         val workerViewModel = WorkerViewModel(workerRepository)
         val customerProfileViewModel = CustomerProfileViewModel(userRepository, authRepository)
@@ -321,6 +321,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onAuthRequired = {
+                                authViewModel.resetOtpState()
                                 navController.navigate(AppRoute.BOOKING_AUTH)
                             }
                         )
@@ -333,6 +334,7 @@ class MainActivity : ComponentActivity() {
                             userType = "CUSTOMER",
                             onBackClick = {
                                 bookingViewModel.clearPendingSubmissionAfterAuth()
+                                authViewModel.resetOtpState()
                                 navController.popBackStack()
                             },
                             onAuthSuccess = { response ->
@@ -343,20 +345,22 @@ class MainActivity : ComponentActivity() {
                                 if (destination != AuthDestination.CUSTOMER_HOME) {
                                     bookingViewModel.clearPendingSubmissionAfterAuth()
                                     bookingViewModel.showError("Please sign in with a customer account to submit this booking.")
+                                    authViewModel.resetOtpState()
                                     navController.popBackStack()
                                 } else {
                                     Toast.makeText(
                                         this@MainActivity,
-                                        "Verified successfully. Submitting your booking...",
+                                        "Verified successfully. Confirming your booking...",
                                         Toast.LENGTH_SHORT
                                     ).show()
+                                    authViewModel.resetOtpState()
                                     navController.popBackStack()
                                     bookingViewModel.resumePendingSubmissionAfterAuth()
                                 }
                             },
                             onSwitchMode = { },
-                            titleOverride = "Login to submit your booking",
-                            subtitleOverride = "Securely verify your mobile number to confirm your booking.",
+                            titleOverride = "Login to confirm your booking",
+                            subtitleOverride = "Enter your mobile number to securely confirm your booking.",
                             showModeSwitch = false
                         )
                     }
