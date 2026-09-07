@@ -53,6 +53,9 @@ class BookingRepository(
         executeNetworkCall { bookingApiService.cancelBooking(bearerToken(), id) }
     }
 
+    suspend fun hasActiveSession(): Boolean =
+        !authLocalDataSource.accessTokenFlow.first().isNullOrBlank()
+
     private suspend fun bearerToken(): String {
         val token = authLocalDataSource.accessTokenFlow.first()
         if (token.isNullOrBlank()) throw IllegalStateException("Your session has expired. Please sign in again.")

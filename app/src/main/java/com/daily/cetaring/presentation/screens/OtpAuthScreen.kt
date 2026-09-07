@@ -100,7 +100,10 @@ fun OtpAuthScreen(
     userType: String,
     onBackClick: () -> Unit,
     onAuthSuccess: (AuthResponse) -> Unit,
-    onSwitchMode: () -> Unit
+    onSwitchMode: () -> Unit,
+    titleOverride: String? = null,
+    subtitleOverride: String? = null,
+    showModeSwitch: Boolean = true
 ) {
     val context = LocalContext.current
     val smsRetrieverClient = remember(context) { SmsRetriever.getClient(context) }
@@ -119,8 +122,8 @@ fun OtpAuthScreen(
     var lastSubmittedOtpKey by rememberSaveable { mutableStateOf("") }
     var authSuccessHandled by rememberSaveable { mutableStateOf(false) }
 
-    val title = if (isRegistration) "Create an account" else "Login with OTP"
-    val subtitle = if (isRegistration) {
+    val title = titleOverride ?: if (isRegistration) "Create an account" else "Login with OTP"
+    val subtitle = subtitleOverride ?: if (isRegistration) {
         "Verify your mobile number to get started."
     } else {
         "Use your mobile number to sign in securely."
@@ -454,17 +457,19 @@ fun OtpAuthScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            TextButton(onClick = onSwitchMode) {
-                Text(
-                    text = if (isRegistration) {
-                        "Already have an account? Login"
-                    } else {
-                        "New to CaterHub? Create an account"
-                    },
-                    color = Green,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            if (showModeSwitch) {
+                TextButton(onClick = onSwitchMode) {
+                    Text(
+                        text = if (isRegistration) {
+                            "Already have an account? Login"
+                        } else {
+                            "New to CaterHub? Create an account"
+                        },
+                        color = Green,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             if (hasSmsSession) {

@@ -1,6 +1,7 @@
 package com.daily.cetaring
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -47,6 +48,7 @@ import com.daily.cetaring.presentation.viewmodel.HomeViewModel
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 import com.daily.cetaring.ui.theme.CetaringTheme
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import com.daily.cetaring.presentation.screens.ServiceRequestScreen
 import com.daily.cetaring.domain.catalog.ServiceCatalog
 
@@ -56,6 +58,7 @@ private object AppRoute {
     const val CUSTOMER_LOGIN = "customer_login"
     const val HOME = "home"
     const val BOOKING_FLOW = "booking_flow"
+    const val BOOKING_AUTH = "booking_auth"
     const val MENU = "menu"
     const val SERVICE_REQUEST = "service_request/{categoryId}"
     const val BOOKINGS = "bookings"
@@ -113,6 +116,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             CetaringTheme {
                 val navController = rememberNavController()
+                val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
                 val session by combine(
                     authLocalDataSource.accessTokenFlow,
                     authLocalDataSource.rolesFlow
@@ -162,6 +166,35 @@ class MainActivity : ComponentActivity() {
                         fallback = preferredDestination
                     )
                     navigateAfterAuth(routeForDestination(destination))
+                }
+
+                fun routeWorkerAfterAuth(response: com.daily.cetaring.data.remote.dto.AuthResponse) {
+                    val roles = runCatching { response.user.roles }.getOrNull()
+                    val destination = AuthRoleRouter.destinationForRoles(
+                        roles = roles,
+                        fallback = AuthDestination.WORKER_DASHBOARD
+                    )
+                    if (destination != AuthDestination.WORKER_DASHBOARD) {
+                        routeAfterAuth(response, AuthDestination.WORKER_DASHBOARD)
+                        return
+                    }
+                    coroutineScope.launch {
+                        val workerRoute = runCatching {
+                            workerRepository.getMyProfile()
+                            AppRoute.WORKER_DASHBOARD
+                        }.getOrElse { exception ->
+                            val message = exception.message.orEmpty()
+                            if (
+                                message.contains("couldn't find", ignoreCase = true) ||
+                                message.contains("not found", ignoreCase = true)
+                            ) {
+                                AppRoute.WORKER_ONBOARDING
+                            } else {
+                                AppRoute.WORKER_DASHBOARD
+                            }
+                        }
+                        navigateAfterAuth(workerRoute)
+                    }
                 }
 
                 NavHost(
@@ -286,7 +319,45 @@ class MainActivity : ComponentActivity() {
                                 navController.navigate("booking_success/$bookingId") {
                                     popUpTo(AppRoute.BOOKING_FLOW) { inclusive = true }
                                 }
+                            },
+                            onAuthRequired = {
+                                navController.navigate(AppRoute.BOOKING_AUTH)
                             }
+                        )
+                    }
+
+                    composable(AppRoute.BOOKING_AUTH) {
+                        OtpAuthScreen(
+                            viewModel = authViewModel,
+                            isRegistration = false,
+                            userType = "CUSTOMER",
+                            onBackClick = {
+                                bookingViewModel.clearPendingSubmissionAfterAuth()
+                                navController.popBackStack()
+                            },
+                            onAuthSuccess = { response ->
+                                val destination = AuthRoleRouter.destinationForRoles(
+                                    roles = runCatching { response.user.roles }.getOrNull(),
+                                    fallback = AuthDestination.CUSTOMER_HOME
+                                )
+                                if (destination != AuthDestination.CUSTOMER_HOME) {
+                                    bookingViewModel.clearPendingSubmissionAfterAuth()
+                                    bookingViewModel.showError("Please sign in with a customer account to submit this booking.")
+                                    navController.popBackStack()
+                                } else {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Verified successfully. Submitting your booking...",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    navController.popBackStack()
+                                    bookingViewModel.resumePendingSubmissionAfterAuth()
+                                }
+                            },
+                            onSwitchMode = { },
+                            titleOverride = "Login to submit your booking",
+                            subtitleOverride = "Securely verify your mobile number to confirm your booking.",
+                            showModeSwitch = false
                         )
                     }
 
@@ -456,7 +527,7 @@ class MainActivity : ComponentActivity() {
                             isRegistration = false,
                             userType = "WORKER",
                             onBackClick = { navController.popBackStack() },
-                            onAuthSuccess = { routeAfterAuth(it, AuthDestination.WORKER_DASHBOARD) },
+                            onAuthSuccess = { routeWorkerAfterAuth(it) },
                             onSwitchMode = { navController.navigate(AppRoute.WORKER_ACCOUNT_REGISTER) }
                         )
                     }

@@ -8,12 +8,12 @@ enum class AuthDestination {
 
 object AuthRoleRouter {
     fun destinationForRoles(
-        roles: List<String>?,
+        roles: List<String?>?,
         fallback: AuthDestination = AuthDestination.CUSTOMER_HOME
     ): AuthDestination {
         val normalized = roles.orEmpty()
             .mapNotNull { raw ->
-                raw.trim().takeIf { it.isNotBlank() }?.uppercase()
+                raw?.trim()?.takeIf { it.isNotBlank() }?.uppercase()
             }
         if (normalized.isEmpty()) return fallback
         return when {

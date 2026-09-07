@@ -133,7 +133,8 @@ private const val BookingFlowReviewStepIndex = BookingFlowStepCount - 1
 fun BookingFlowScreen(
     viewModel: BookingViewModel,
     onBackClick: () -> Unit,
-    onSubmitted: (Long) -> Unit
+    onSubmitted: (Long) -> Unit,
+    onAuthRequired: () -> Unit
 ) {
     val draft by viewModel.draft.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
@@ -150,6 +151,11 @@ fun BookingFlowScreen(
         when (val state = uiState) {
             is BookingUiState.Error -> snackbar.showSnackbar(state.message)
             is BookingUiState.Submitted -> onSubmitted(state.booking.id)
+            is BookingUiState.AuthRequired -> {
+                snackbar.showSnackbar(state.message)
+                viewModel.markAuthPromptHandled()
+                onAuthRequired()
+            }
             else -> Unit
         }
     }

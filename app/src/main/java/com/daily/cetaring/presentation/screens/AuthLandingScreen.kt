@@ -23,7 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.CheckCircle
@@ -154,9 +154,11 @@ private fun PublicHomeContent(
         ActionCard(
             modifier = Modifier.fillMaxWidth(),
             title = "Book Catering",
-            subtitle = "Plan your event\nin a few easy steps",
+            subtitle = "Plan your event with delicious food and professional catering",
             color = Maroon,
             icon = Icons.Filled.RestaurantMenu,
+            ctaText = "Start Booking",
+            primary = true,
             onClick = onBook
         )
         ActionCard(
@@ -165,6 +167,8 @@ private fun PublicHomeContent(
             subtitle = "Explore our delicious catering options",
             color = Gold,
             icon = Icons.Filled.Restaurant,
+            ctaText = "View Menu",
+            primary = false,
             onClick = onMenuClick
         )
         PublicJoinCtaSection(onWorkerRegister = onWorkerRegister)
@@ -255,38 +259,51 @@ private fun ActionCard(
     subtitle: String,
     color: Color,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    ctaText: String,
+    primary: Boolean,
     onClick: () -> Unit
 ) {
     Card(
         modifier = modifier
-            .height(178.dp)
+            .height(172.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = color),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(14.dp),
+                .padding(16.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(100))
+                    .background(if (primary) Gold.copy(alpha = 0.75f) else Maroon.copy(alpha = 0.75f))
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
             ) {
                 Box(
                     modifier = Modifier
-                        .size(58.dp)
-                        .clip(CircleShape)
-                        .background(Color.White),
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            if (primary) Color(0xFFFFF4DB) else Color(0xFFFFF3F4),
+                            RoundedCornerShape(16.dp)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         icon,
-                        contentDescription = null,
-                        tint = color,
-                        modifier = Modifier.size(32.dp)
+                        contentDescription = "$title icon",
+                        tint = if (primary) Maroon else color,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
 
@@ -294,16 +311,16 @@ private fun ActionCard(
 
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.96f)),
+                        .background(if (primary) Color(0xFFFFF4DB) else Color(0xFFFCEBED)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Filled.ArrowForward,
+                        Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Open",
-                        tint = color,
-                        modifier = Modifier.size(20.dp)
+                        tint = if (primary) Maroon else color,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -311,19 +328,45 @@ private fun ActionCard(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     title,
-                    color = Color.White,
-                    fontWeight = FontWeight.ExtraBold,
+                    color = if (primary) Maroon else TextDark,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                     maxLines = 1
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     subtitle,
-                    color = Color.White.copy(alpha = 0.92f),
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
-                    maxLines = 2
+                    color = Muted,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
+            }
+
+            Card(
+                modifier = Modifier,
+                shape = RoundedCornerShape(999.dp),
+                colors = CardDefaults.cardColors(containerColor = if (primary) Maroon else Gold)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        ctaText,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
     }
@@ -341,10 +384,10 @@ private fun PublicJoinCtaSection(onWorkerRegister: () -> Unit) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Join CaterHub", color = Maroon, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
-            Text("Work with us and earn with your skills", color = Green, fontWeight = FontWeight.Bold)
+            Text("Become a CaterHub Partner", color = Maroon, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
+            Text("Work with CaterHub and earn with your skills", color = Green, fontWeight = FontWeight.Bold)
             Text(
-                "Join as a catering professional, decorator,\nDJ, singer, photographer, beauty professional,\nor other event service provider.",
+                "Join as a catering professional, chef, decorator, DJ, photographer, beauty professional, or other event service provider.",
                 color = TextDark,
                 fontSize = 13.sp,
                 lineHeight = 19.sp
@@ -359,7 +402,7 @@ private fun PublicJoinCtaSection(onWorkerRegister: () -> Unit) {
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Join CaterHub →", color = Color.White, fontWeight = FontWeight.ExtraBold)
+                    Text("Become a Partner →", color = Color.White, fontWeight = FontWeight.ExtraBold)
                 }
             }
         }

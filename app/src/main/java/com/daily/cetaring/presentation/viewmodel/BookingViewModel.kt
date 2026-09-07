@@ -21,6 +21,7 @@ import java.math.BigDecimal
 sealed class BookingUiState {
     data object Idle : BookingUiState()
     data object Loading : BookingUiState()
+    data class AuthRequired(val message: String) : BookingUiState()
     data class ListLoaded(val bookings: List<CustomerBookingUiModel>) : BookingUiState()
     data class DetailsLoaded(val booking: CustomerBookingUiModel) : BookingUiState()
 
@@ -46,6 +47,7 @@ class BookingViewModel(
 
     private val _draft = MutableStateFlow(BookingDraft())
     val draft: StateFlow<BookingDraft> = _draft.asStateFlow()
+    private var pendingSubmissionAfterAuth: Boolean = false
 
     fun updateDraft(transform: (BookingDraft) -> BookingDraft) {
         _draft.value = transform(_draft.value)
@@ -93,29 +95,41 @@ class BookingViewModel(
         if (_uiState.value is BookingUiState.Loading) return
 
         viewModelScope.launch {
-            _uiState.value = BookingUiState.Loading
-
-            try {
-                val response = bookingRepository.createBooking(
-                    CreateMyBookingRequest(
-                        eventType = currentDraft.eventType.orEmpty(),
-                        guestCount = currentDraft.guestCount ?: 0,
-                        mealType = currentDraft.mealTypeForBackend(),
-                        eventDateTime = currentDraft.eventDateTimeIso(),
-                        deliveryAddress = currentDraft.deliveryAddress(),
-                        specialInstructions = buildSpecialInstructions(currentDraft),
-                        estimatedAmount = estimateAmount(currentDraft)
-                    )
+            if (!bookingRepository.hasActiveSession()) {
+                pendingSubmissionAfterAuth = true
+                _uiState.value = BookingUiState.AuthRequired(
+                    "Login to submit your booking."
                 )
-
-                // Important: customer catering booking does NOT create staff jobs.
-                _uiState.value = BookingUiState.Submitted(response)
-            } catch (exception: Exception) {
-                _uiState.value = BookingUiState.Error(
-                    exception.message ?: "Something went wrong. Please try again."
-                )
+                return@launch
             }
+
+            submitBookingInternal(currentDraft)
         }
+    }
+
+    fun resumePendingSubmissionAfterAuth() {
+        if (!pendingSubmissionAfterAuth || _uiState.value is BookingUiState.Loading) return
+        pendingSubmissionAfterAuth = false
+        viewModelScope.launch {
+            submitBookingInternal(_draft.value)
+        }
+    }
+
+    fun clearPendingSubmissionAfterAuth() {
+        pendingSubmissionAfterAuth = false
+        if (_uiState.value is BookingUiState.AuthRequired) {
+            _uiState.value = BookingUiState.Idle
+        }
+    }
+
+    fun markAuthPromptHandled() {
+        if (_uiState.value is BookingUiState.AuthRequired) {
+            _uiState.value = BookingUiState.Idle
+        }
+    }
+
+    fun showError(message: String) {
+        _uiState.value = BookingUiState.Error(message)
     }
 
     fun loadBookings() {
@@ -165,6 +179,40 @@ class BookingViewModel(
 
     fun resetState() {
         _uiState.value = BookingUiState.Idle
+    }
+
+    private suspend fun submitBookingInternal(currentDraft: BookingDraft) {
+        _uiState.value = BookingUiState.Loading
+
+        try {
+            val response = bookingRepository.createBooking(
+                CreateMyBookingRequest(
+                    eventType = currentDraft.eventType.orEmpty(),
+                    guestCount = currentDraft.guestCount ?: 0,
+                    mealType = currentDraft.mealTypeForBackend(),
+                    eventDateTime = currentDraft.eventDateTimeIso(),
+                    deliveryAddress = currentDraft.deliveryAddress(),
+                    specialInstructions = buildSpecialInstructions(currentDraft),
+                    estimatedAmount = estimateAmount(currentDraft)
+                )
+            )
+
+            // Important: customer catering booking does NOT create staff jobs.
+            _uiState.value = BookingUiState.Submitted(response)
+        } catch (exception: Exception) {
+            val message = exception.message ?: "Something went wrong. Please try again."
+            if (message.contains("session expired", ignoreCase = true) ||
+                message.contains("sign in again", ignoreCase = true) ||
+                message.contains("login again", ignoreCase = true)
+            ) {
+                pendingSubmissionAfterAuth = true
+                _uiState.value = BookingUiState.AuthRequired(
+                    "Your session has expired. Please sign in again to submit your booking."
+                )
+            } else {
+                _uiState.value = BookingUiState.Error(message)
+            }
+        }
     }
 
     private fun buildSpecialInstructions(draft: BookingDraft): String? {

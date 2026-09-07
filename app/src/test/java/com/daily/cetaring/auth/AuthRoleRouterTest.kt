@@ -37,4 +37,13 @@ class AuthRoleRouterTest {
         assertEquals(listOf("ROLE_CUSTOMER", "ROLE_WORKER"), AuthRoleRouter.parseStoredRoles(" ROLE_CUSTOMER, ROLE_WORKER "))
         assertTrue(AuthRoleRouter.parseStoredRoles(null).isEmpty())
     }
+
+    @Test
+    fun nullRoleEntriesAreIgnoredSafely() {
+        val roles: List<String?> = listOf(null, " ", "ROLE_WORKER")
+        assertEquals(
+            AuthDestination.WORKER_DASHBOARD,
+            AuthRoleRouter.destinationForRoles(roles, fallback = AuthDestination.CUSTOMER_HOME)
+        )
+    }
 }
