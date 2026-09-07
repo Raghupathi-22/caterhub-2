@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -15,11 +16,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
@@ -59,11 +64,18 @@ fun CustomerProfileScreen(
     onBackClick: () -> Unit,
     onBookingsClick: () -> Unit,
     onHelpClick: () -> Unit,
-    onLoggedOut: () -> Unit
+    onLoggedOut: () -> Unit,
+    onAccountDeleted: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     LaunchedEffect(Unit) { viewModel.loadProfile() }
     LaunchedEffect(uiState) { if (uiState is CustomerProfileUiState.LoggedOut) onLoggedOut() }
+    LaunchedEffect(uiState) {
+        val state = uiState
+        if (state is CustomerProfileUiState.AccountDeleted) {
+            onAccountDeleted(state.message)
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFFFFFCF5),
@@ -86,9 +98,10 @@ fun CustomerProfileScreen(
                 onBookingsClick = onBookingsClick,
                 onHelpClick = onHelpClick,
                 onLogout = { viewModel.logout() },
+                onDeleteAccount = { viewModel.deleteAccount() },
                 modifier = Modifier.padding(padding)
             )
-            CustomerProfileUiState.LoggedOut -> Unit
+            CustomerProfileUiState.LoggedOut, is CustomerProfileUiState.AccountDeleted -> Unit
         }
     }
 }
@@ -101,6 +114,7 @@ private fun ProfileContent(
     onBookingsClick: () -> Unit,
     onHelpClick: () -> Unit,
     onLogout: () -> Unit,
+    onDeleteAccount: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var editMode by remember(user.id) { mutableStateOf(false) }
@@ -108,6 +122,7 @@ private fun ProfileContent(
     var lastName by remember(user.id) { mutableStateOf(user.lastName.orEmpty()) }
     var email by remember(user.id) { mutableStateOf(user.email.orEmpty()) }
     var phone by remember(user.id) { mutableStateOf(user.phoneNumber) }
+    var showDeleteDialog by remember(user.id) { mutableStateOf(false) }
 
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -158,6 +173,15 @@ private fun ProfileContent(
                 CaterHubSecondaryButton("My bookings", onBookingsClick, Modifier.fillMaxWidth())
                 CaterHubSecondaryButton("Help & Support", onHelpClick, Modifier.fillMaxWidth())
                 CaterHubSecondaryButton("Logout", onLogout, Modifier.fillMaxWidth())
+                OutlinedButton(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Filled.DeleteForever, contentDescription = "Delete account")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Delete Account", fontWeight = FontWeight.Bold)
+                }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Securely signs out of this device.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -165,6 +189,29 @@ private fun ProfileContent(
             }
         }
         Spacer(Modifier.height(12.dp))
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete your CaterHub account?") },
+            text = { Text("Deleting your account will permanently remove your account and associated personal data. This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteAccount()
+                    }
+                ) {
+                    Text("Delete Account", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

@@ -10,6 +10,7 @@ import { ServiceCategoryPage } from './pages/ServiceCategoryPage'
 import { OffersPublicPage, AboutPage, ContactPage } from './pages/StaticPages'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { DeleteAccountPage } from './pages/DeleteAccountPage'
 import { CustomerHomePage } from './pages/CustomerHomePage'
 import { BookingPage } from './pages/BookingPage'
 import { MyBookingsPage } from './pages/MyBookingsPage'
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/get-started" element={<RegisterPage />} />
+            <Route path="/delete-account" element={<DeleteAccountPage />} />
             <Route path="/home" element={<RequireAuth><CustomerHomePage /></RequireAuth>} />
             <Route path="/booking/:categoryId" element={<RequireAuth><BookingPage /></RequireAuth>} />
             <Route path="/my-bookings" element={<RequireAuth><MyBookingsPage /></RequireAuth>} />

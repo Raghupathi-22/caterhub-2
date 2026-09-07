@@ -4,35 +4,193 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CaterHub - Delete Account</title>
+    <style>
+        :root {
+            --bg: #f7f4ed;
+            --card: #ffffff;
+            --text: #1e1f24;
+            --muted: #5c6170;
+            --primary: #17653a;
+            --danger: #c62828;
+            --border: #e6e2d8;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .wrap {
+            width: 100%;
+            max-width: 760px;
+            display: grid;
+            gap: 16px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+        h1, h2 { margin: 0 0 8px 0; }
+        p { margin: 0; color: var(--muted); line-height: 1.5; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d2d6df;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        .actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+        button {
+            border: 0;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .msg {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .msg.error { color: var(--danger); }
+        .msg.success { color: #0f6d33; }
+    </style>
 </head>
 <body>
+<main class="page">
+    <section class="wrap">
+        <article class="card">
+            <h1>Delete Your CaterHub Account</h1>
+            <p>If you want to delete your CaterHub account and associated personal data, you can submit a deletion request below.</p>
+        </article>
 
-<h1>Delete Your CaterHub Account</h1>
+        <article class="card">
+            <label for="mobileNumber">Mobile Number</label>
+            <input id="mobileNumber" placeholder="+91 98765 43210" autocomplete="tel">
 
-<p>
-    If you want to delete your CaterHub account and associated personal data,
-    please contact us using the email address below.
-</p>
+            <div id="otpBlock" style="display:none; margin-top:14px;">
+                <label for="otp">OTP</label>
+                <input id="otp" placeholder="Enter OTP">
+            </div>
 
-<p>
-    <strong>Email:</strong>
-    <a href="mailto:caterhub.support@gmail.com">
-        caterhub.support@gmail.com
-    </a>
-</p>
+            <div class="actions">
+                <button id="sendOtpBtn" class="btn-primary" type="button">Send OTP</button>
+                <button id="deleteBtn" class="btn-danger" type="button" style="display:none;">Request Account Deletion</button>
+            </div>
+            <div id="message" class="msg" aria-live="polite"></div>
+        </article>
 
-<h2>What happens after your request?</h2>
+        <article class="card">
+            <h2>What happens when you delete your account?</h2>
+            <p>Your CaterHub customer account is deactivated and personal identifiers (name, phone, email, profile details) are anonymized. Active login and refresh tokens are revoked.</p>
+            <p style="margin-top:10px;">Booking and transaction records may be retained for legal compliance, accounting, fraud prevention, and dispute resolution obligations. Retained records keep only the minimum necessary data.</p>
+            <p style="margin-top:10px;">Worker/partner and admin accounts are not deleted using this customer page and require a separate support-assisted process.</p>
+        </article>
+    </section>
+</main>
 
-<p>
-    Our support team will verify your request and delete your account
-    and associated data according to our data retention policy.
-</p>
+<script>
+    const mobileInput = document.getElementById('mobileNumber');
+    const otpInput = document.getElementById('otp');
+    const otpBlock = document.getElementById('otpBlock');
+    const sendOtpBtn = document.getElementById('sendOtpBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const messageNode = document.getElementById('message');
 
-<h2>Need help?</h2>
+    function normalizePhone(value) {
+        const digits = String(value || '').replace(/\D/g, '');
+        if (digits.startsWith('91') && digits.length === 12) return '+' + digits;
+        if (digits.length === 10) return '+91' + digits;
+        if (digits.startsWith('0') && digits.length === 11) return '+91' + digits.slice(1);
+        return String(value || '').trim();
+    }
 
-<p>
-    Contact CaterHub support using the email address above.
-</p>
+    function setMessage(text, kind) {
+        messageNode.textContent = text || '';
+        messageNode.className = 'msg ' + (kind || '');
+    }
 
+    async function postWithFallback(pathSuffix, body) {
+        const paths = ['/api/v1' + pathSuffix, pathSuffix];
+        let lastError = null;
+        for (const path of paths) {
+            try {
+                const response = await fetch(path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!response.ok) {
+                    let message = 'Request failed.';
+                    try {
+                        const data = await response.json();
+                        if (data && typeof data.message === 'string') message = data.message;
+                    } catch (_) {}
+                    throw new Error(message);
+                }
+                return await response.json();
+            } catch (error) {
+                lastError = error;
+            }
+        }
+        throw lastError || new Error('Unable to process request.');
+    }
+
+    sendOtpBtn.addEventListener('click', async () => {
+        const mobileNumber = normalizePhone(mobileInput.value);
+        if (!mobileNumber) {
+            setMessage('Please enter your mobile number.', 'error');
+            return;
+        }
+        setMessage('');
+        sendOtpBtn.disabled = true;
+        try {
+            await postWithFallback('/auth/otp/send', { mobileNumber, purpose: 'LOGIN', channel: 'AUTO' });
+            otpBlock.style.display = 'block';
+            deleteBtn.style.display = 'inline-block';
+            setMessage('OTP sent. Enter OTP to continue account deletion.', 'success');
+        } catch (error) {
+            setMessage(error.message || 'Unable to send OTP.', 'error');
+        } finally {
+            sendOtpBtn.disabled = false;
+        }
+    });
+
+    deleteBtn.addEventListener('click', async () => {
+        const mobileNumber = normalizePhone(mobileInput.value);
+        const otp = (otpInput.value || '').trim();
+        if (!mobileNumber || !otp) {
+            setMessage('Please enter mobile number and OTP.', 'error');
+            return;
+        }
+        setMessage('');
+        deleteBtn.disabled = true;
+        try {
+            const result = await postWithFallback('/auth/otp/delete-account', { mobileNumber, otp });
+            setMessage(result.message || 'Your CaterHub account has been deleted successfully.', 'success');
+            mobileInput.value = '';
+            otpInput.value = '';
+            otpBlock.style.display = 'none';
+            deleteBtn.style.display = 'none';
+        } catch (error) {
+            setMessage(error.message || 'Unable to delete account.', 'error');
+        } finally {
+            deleteBtn.disabled = false;
+        }
+    });
+</script>
 </body>
 </html>
+

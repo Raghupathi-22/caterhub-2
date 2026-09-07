@@ -297,6 +297,12 @@ class MainActivity : ComponentActivity() {
                                 navController.navigate(AppRoute.AUTH_LANDING) {
                                     popUpTo(AppRoute.HOME) { inclusive = true }
                                 }
+                            },
+                            onAccountDeleted = { message ->
+                                Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                                navController.navigate(AppRoute.AUTH_LANDING) {
+                                    popUpTo(AppRoute.HOME) { inclusive = true }
+                                }
                             }
                         )
                     }

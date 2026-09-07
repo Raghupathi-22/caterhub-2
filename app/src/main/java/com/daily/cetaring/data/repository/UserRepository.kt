@@ -24,6 +24,10 @@ class UserRepository(
         return user
     }
 
+    suspend fun deleteMyAccount() {
+        executeNetworkCall { userApiService.deleteMyAccount(bearerToken()) }
+    }
+
     private suspend fun saveUser(user: UserDTO) {
         authLocalDataSource.saveUserData(
             user.id.toString(),
@@ -56,4 +60,3 @@ class UserRepository(
             defaultFallback = "Unable to save profile. Please try again."
         )
 }
-

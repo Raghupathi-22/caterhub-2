@@ -1,8 +1,7 @@
 package com.daily.cetaring.features.user.service;
 
 import com.daily.cetaring.features.auth.mapper.UserMapper;
-import com.daily.cetaring.features.worker.entity.WorkerProfile;
-import com.daily.cetaring.features.worker.repository.WorkerProfileRepository;
+import com.daily.cetaring.features.auth.service.MobileNumberNormalizer;
 import com.daily.cetaring.shared.dto.UpdateUserProfileRequest;
 import com.daily.cetaring.shared.dto.UserDTO;
 import com.daily.cetaring.shared.entity.Role;
@@ -22,7 +21,6 @@ import java.time.LocalDateTime;
 public class UserProfileService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final WorkerProfileRepository workerProfileRepository;
     private final EntityManager entityManager;
     private final UserMapper userMapper;
 
@@ -57,6 +55,29 @@ public class UserProfileService {
     public void deleteMyAccount(String username) {
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
+        deleteCustomerAccount(user);
+    }
+
+    public void deleteCustomerAccountByMobile(String mobileNumber) {
+        String normalized = MobileNumberNormalizer.normalize(mobileNumber);
+        User user = findByMobileNumber(normalized)
+            .orElseThrow(() -> new IllegalArgumentException("No account exists for this mobile number."));
+        deleteCustomerAccount(user);
+    }
+
+    private java.util.Optional<User> findByMobileNumber(String normalizedMobile) {
+        java.util.Optional<User> directMatch = userRepository.findByPhoneNumber(normalizedMobile);
+        if (directMatch.isPresent()) {
+            return directMatch;
+        }
+        if (normalizedMobile.startsWith("+91") && normalizedMobile.length() == 13) {
+            return userRepository.findByPhoneNumber(normalizedMobile.substring(3));
+        }
+        return java.util.Optional.empty();
+    }
+
+    private void deleteCustomerAccount(User user) {
+        ensureCustomerDeletionEligible(user);
 
         LocalDateTime now = LocalDateTime.now();
         Long userId = user.getId();
@@ -64,7 +85,6 @@ public class UserProfileService {
 
         refreshTokenRepository.revokeAllActiveTokensForUser(user, now);
         anonymizeNotificationData(userId);
-        retireWorkerProfile(userId, now);
 
         user.setIsActive(false);
         user.setDeletedAt(now);
@@ -79,6 +99,22 @@ public class UserProfileService {
         user.setLastLoginAt(null);
         user.setBusiness(null);
         userRepository.save(user);
+    }
+
+    private void ensureCustomerDeletionEligible(User user) {
+        java.util.List<String> roles = roleNames(user);
+        boolean isAdmin = roles.contains("ROLE_ADMIN") || roles.contains("ROLE_SUPER_ADMIN");
+        if (isAdmin) {
+            throw new IllegalArgumentException("Admin accounts cannot be deleted from this customer flow.");
+        }
+        boolean isWorker = roles.contains("ROLE_WORKER");
+        if (isWorker) {
+            throw new IllegalArgumentException("Worker/partner accounts use a separate support-assisted deletion process.");
+        }
+        boolean isCustomer = roles.contains("ROLE_CUSTOMER");
+        if (!isCustomer) {
+            throw new IllegalArgumentException("Only customer accounts can be deleted from this flow.");
+        }
     }
 
     private void anonymizeNotificationData(Long userId) {
@@ -98,18 +134,6 @@ public class UserProfileService {
                 """)
             .setParameter("userId", userId)
             .executeUpdate();
-    }
-
-    private void retireWorkerProfile(Long userId, LocalDateTime deletedAt) {
-        workerProfileRepository.findByUserIdAndDeletedAtIsNull(userId).ifPresent(profile -> {
-            profile.setStatus(WorkerProfile.WorkerStatus.SUSPENDED);
-            profile.setSkills(null);
-            profile.setPreferredAreas(null);
-            profile.setLanguages(null);
-            profile.setBio(null);
-            profile.setDeletedAt(deletedAt);
-            workerProfileRepository.save(profile);
-        });
     }
 
     public static java.util.List<String> roleNames(User user) {

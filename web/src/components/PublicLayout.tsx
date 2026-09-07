@@ -166,6 +166,9 @@ export function PublicLayout() {
             <ListItemButton component={RouterLink} to="/get-started">
               <ListItemText primary="Get Started" />
             </ListItemButton>
+            <ListItemButton component={RouterLink} to="/delete-account">
+              <ListItemText primary="Delete Account" />
+            </ListItemButton>
             <ListItemButton
               component={adminIsExternal ? 'a' : RouterLink}
               href={adminIsExternal ? siteConfig.adminLoginUrl : undefined}
@@ -203,6 +206,9 @@ export function PublicLayout() {
                     </Typography>
                     <Typography component={RouterLink} to="/contact" sx={{ color: 'rgba(250,250,250,0.78)', textDecoration: 'none' }}>
                       Contact
+                    </Typography>
+                    <Typography component={RouterLink} to="/delete-account" sx={{ color: 'rgba(250,250,250,0.78)', textDecoration: 'none' }}>
+                      Delete Account
                     </Typography>
                     <Typography sx={{ color: 'rgba(250,250,250,0.78)' }}>
                       Get the CaterHub App

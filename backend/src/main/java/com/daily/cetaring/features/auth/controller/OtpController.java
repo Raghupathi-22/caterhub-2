@@ -3,8 +3,10 @@ package com.daily.cetaring.features.auth.controller;
 import com.daily.cetaring.features.auth.dto.SendOtpRequest;
 import com.daily.cetaring.features.auth.dto.OtpSendResponse;
 import com.daily.cetaring.features.auth.dto.VerifyOtpRequest;
+import com.daily.cetaring.features.auth.dto.DeleteAccountWithOtpRequest;
 import com.daily.cetaring.features.auth.service.OtpService;
 import com.daily.cetaring.features.auth.service.AuthService;
+import com.daily.cetaring.features.user.service.UserProfileService;
 import com.daily.cetaring.shared.dto.AuthResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +27,7 @@ public class OtpController {
 
     private final OtpService otpService;
     private final AuthService authService;
+    private final UserProfileService userProfileService;
 
     @PostMapping("/send")
     @Operation(summary = "Send OTP", description = "Send 6-digit OTP to mobile number")
@@ -56,6 +59,22 @@ public class OtpController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/delete-account")
+    @Operation(summary = "Delete customer account with OTP", description = "Verify OTP and delete the matched customer account")
+    public ResponseEntity<OtpSendResponse> deleteAccountWithOtp(@Valid @RequestBody DeleteAccountWithOtpRequest request) {
+        boolean isValid = otpService.verifyOtp(request.getMobileNumber(), request.getOtp(), com.daily.cetaring.features.auth.dto.OtpPurpose.LOGIN);
+        if (!isValid) {
+            throw new IllegalArgumentException("Invalid OTP");
+        }
+        userProfileService.deleteCustomerAccountByMobile(request.getMobileNumber());
+        return ResponseEntity.ok(OtpSendResponse.builder()
+            .success(true)
+            .message("Your CaterHub account has been deleted successfully.")
+            .expiresInSeconds(0L)
+            .deliveryChannel("NONE")
+            .build());
     }
 
     private String extractClientIp(HttpServletRequest request) {

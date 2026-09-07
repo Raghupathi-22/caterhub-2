@@ -22,12 +22,23 @@ export interface AdminLoginRequest {
   password: string
 }
 
+export interface OtpActionResponse {
+  success: boolean
+  message: string
+  expiresInSeconds: number
+  deliveryChannel: string
+}
+
 export const authApi = {
   sendOtp: async (payload: SendOtpRequest): Promise<void> => {
     await http.post('/auth/otp/send', payload)
   },
   verifyOtp: async (payload: VerifyOtpRequest): Promise<AuthResponse> => {
     const response = await http.post<AuthResponse>('/auth/otp/verify', payload)
+    return response.data
+  },
+  deleteAccountWithOtp: async (payload: { mobileNumber: string; otp: string }): Promise<OtpActionResponse> => {
+    const response = await http.post<OtpActionResponse>('/auth/otp/delete-account', payload)
     return response.data
   },
   loginAdmin: async (payload: AdminLoginRequest): Promise<AuthResponse> => {
