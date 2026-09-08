@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.daily.cetaring.data.remote.dto.AuthResponse
 import com.daily.cetaring.data.remote.dto.SendOtpRequest
 import com.daily.cetaring.data.remote.dto.VerifyOtpRequest
+import com.daily.cetaring.diagnostics.ReleaseDiagnostics
 import com.daily.cetaring.data.repository.AuthRepository
+import retrofit2.HttpException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -70,6 +72,7 @@ class AuthViewModel(
         channel: String? = null
     ) {
         viewModelScope.launch {
+            ReleaseDiagnostics.info("CATERHUB_OTP_SEND_STARTED")
 
             _otpUiState.value = OtpUiState.Sending
 
@@ -142,8 +145,13 @@ class AuthViewModel(
                         },
                         deliveryChannel = sendResponse.deliveryChannel ?: "SMS"
                     )
+                ReleaseDiagnostics.info("CATERHUB_OTP_SEND_SUCCESS")
 
             } catch (e: Exception) {
+                val statusCode = (e as? HttpException)?.code()?.toString() ?: "NA"
+                ReleaseDiagnostics.error(
+                    "CATERHUB_OTP_SEND_FAILURE exception=${e::class.java.simpleName} httpStatus=$statusCode message=${e.message.orEmpty()}"
+                )
 
                 _otpUiState.value =
                     OtpUiState.Error(
@@ -274,7 +282,7 @@ class AuthViewModel(
             exception.message?.trim()
 
         if (message.isNullOrBlank()) {
-            return "Unable to complete the request. Please try again."
+            return "Received an unexpected response. Please try again."
         }
 
         return when {

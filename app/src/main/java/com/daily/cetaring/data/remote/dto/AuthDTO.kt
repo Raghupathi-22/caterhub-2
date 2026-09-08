@@ -11,12 +11,16 @@ data class AuthResponse(
     val tokenType: String,
     @SerializedName("expires_in")
     val expiresIn: Long,
+    @SerializedName("user")
     val user: UserDTO
 )
 
 data class UserDTO(
+    @SerializedName("id")
     val id: Long,
+    @SerializedName("username")
     val username: String,
+    @SerializedName("email")
     val email: String? = null,
     @SerializedName("phone_number")
     val phoneNumber: String,
@@ -32,6 +36,7 @@ data class UserDTO(
     val isVerified: Boolean,
     @SerializedName("created_at")
     val createdAt: String? = null,
+    @SerializedName("roles")
     val roles: List<String> = emptyList()
 )
 
@@ -47,17 +52,24 @@ data class SendOtpRequest(
 )
 
 data class SendOtpResponse(
+    @SerializedName("success")
     val success: Boolean,
+    @SerializedName("message")
     val message: String,
+    @SerializedName(value = "expiresInSeconds", alternate = ["expires_in_seconds"])
     val expiresInSeconds: Long,
+    @SerializedName(value = "deliveryChannel", alternate = ["delivery_channel"])
     val deliveryChannel: String? = null
 )
 
 data class VerifyOtpRequest(
     @SerializedName("mobileNumber")
     val mobileNumber: String,
+    @SerializedName("otp")
     val otp: String,
+    @SerializedName("purpose")
     val purpose: String,
+    @SerializedName("name")
     val name: String? = null
 )
 
@@ -66,6 +78,7 @@ data class UpdateUserProfileRequest(
     val firstName: String?,
     @SerializedName("last_name")
     val lastName: String?,
+    @SerializedName("email")
     val email: String?,
     @SerializedName("phone_number")
     val phoneNumber: String?

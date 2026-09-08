@@ -4,6 +4,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.warn("google-services.json is missing in app/. Firebase default options will not be generated for this build.")
+}
+
 android {
     namespace = "com.daily.cetaring"
     compileSdk {
@@ -14,8 +20,8 @@ android {
         applicationId = "com.caterhub.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 5
-        versionName = "2.0.0"
+        versionCode = 7
+        versionName = "2.0.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["usesCleartextTraffic"] = "false"
     }
