@@ -28,3 +28,15 @@ After copying app files:
 - Test Book Catering Staff.
 - Test Decorations & Equipment.
 - Open My Bookings and verify all three categories.
+
+### Google Play SMS Retriever hash
+
+Production OTP SMS must use the hash for application ID `com.caterhub.app` and the Google Play App Signing certificate, not the local debug/upload certificate.
+
+1. In Play Console, open **Setup > App integrity > App signing** and download the **App signing key certificate**.
+2. Use Google's SMS Retriever app-hash calculation with `com.caterhub.app` and that certificate. Confirm the resulting 11-character hash against a build installed from Google Play Internal Testing.
+3. Configure the hash in the existing 2Factor account-side OTP SMS template:
+   `<#> Your CaterHub verification code is {OTP}`
+   followed by the app hash on the final line.
+
+The backend uses 2Factor's OTP endpoint and does not inject the SMS template or app hash in source code.

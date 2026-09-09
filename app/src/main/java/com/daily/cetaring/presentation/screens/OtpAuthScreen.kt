@@ -1,6 +1,5 @@
 package com.daily.cetaring.presentation.screens
 
-import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -8,8 +7,6 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -79,6 +76,7 @@ import com.google.android.gms.auth.api.phone.SmsRetriever
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Status
 import kotlinx.coroutines.delay
+import java.util.concurrent.atomic.AtomicBoolean
 
 private val Cream = Color(0xFFFFFCF6)
 private val Maroon = Color(0xFF941820)
@@ -119,8 +117,11 @@ fun OtpAuthScreen(
     var isAutoFilledOtp by rememberSaveable { mutableStateOf(false) }
     var autoOtpStatus by rememberSaveable { mutableStateOf<String?>(null) }
     var otpSessionId by rememberSaveable { mutableIntStateOf(0) }
+    var sendDispatchedSessionId by rememberSaveable { mutableIntStateOf(-1) }
+    var otpStartInProgress by rememberSaveable { mutableStateOf(false) }
     var lastSubmittedOtpKey by rememberSaveable { mutableStateOf("") }
     var authSuccessHandled by rememberSaveable { mutableStateOf(false) }
+    val isScreenActive = remember { AtomicBoolean(true) }
 
     val title = titleOverride ?: if (isRegistration) "Create an account" else "Login with OTP"
     val subtitle = subtitleOverride ?: if (isRegistration) {
@@ -138,40 +139,33 @@ fun OtpAuthScreen(
     val hasSmsSession = otpState is OtpUiState.Sent || otpState is OtpUiState.Verifying || otp.isNotEmpty()
 
     val onSmsMessageReceived by rememberUpdatedState(newValue = { smsMessage: String ->
-        logOtpEvent("OTP message received from retriever")
-        val detectedOtp = OtpMessageParser.extractOtp(smsMessage) ?: return@rememberUpdatedState
-        if (!waitingForAutoOtp || otpState !is OtpUiState.Sent) {
+        ReleaseDiagnostics.info("CATERHUB_SMS_RETRIEVER_SMS_RECEIVED")
+        val detectedOtp = OtpMessageParser.extractOtp(smsMessage)
+        if (detectedOtp == null) {
+            ReleaseDiagnostics.error("CATERHUB_SMS_RETRIEVER_FAILURE reason=otp_not_found")
+            return@rememberUpdatedState
+        }
+        if (
+            !waitingForAutoOtp ||
+            (otpState !is OtpUiState.Sending && otpState !is OtpUiState.Sent)
+        ) {
             logOtpEvent("OTP ignored due to inactive session/state")
             return@rememberUpdatedState
         }
         otp = detectedOtp
         isAutoFilledOtp = true
         waitingForAutoOtp = false
-        allowManualFallback = false
+        allowManualFallback = true
         autoOtpStatus = "OTP detected"
-        logOtpEvent("6-digit OTP detected and state updated")
+        ReleaseDiagnostics.info("CATERHUB_SMS_RETRIEVER_OTP_EXTRACTED length=6")
     })
 
-    val consentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode != Activity.RESULT_OK) {
-            logOtpEvent("SMS User Consent dismissed/cancelled")
-            waitingForAutoOtp = false
-            allowManualFallback = true
-            if (otp.isBlank()) autoOtpStatus = "Didn't receive OTP? Enter it manually"
-            return@rememberLauncherForActivityResult
-        }
-        logOtpEvent("SMS User Consent returned message")
-        val message = result.data?.getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE).orEmpty()
-        onSmsMessageReceived(message)
-    }
-
     fun requestOtp(channel: String? = null) {
+        if (otpStartInProgress || otpState is OtpUiState.Sending) return
         otp = ""
         isAutoFilledOtp = false
-        waitingForAutoOtp = false
-        allowManualFallback = false
+        waitingForAutoOtp = !channel.equals("VOICE", ignoreCase = true)
+        allowManualFallback = true
         autoOtpStatus = if (channel == "VOICE") {
             "We are calling you with the OTP."
         } else {
@@ -179,30 +173,60 @@ fun OtpAuthScreen(
         }
         lastSubmittedOtpKey = ""
         authSuccessHandled = false
-        viewModel.sendOtp(
-            mobileNumber = "+91$normalizedMobile",
-            purpose = purpose,
-            userType = userType,
-            channel = channel
-        )
-        logOtpEvent(if (channel == "VOICE") "Requested OTP via voice channel" else "Requested OTP via SMS channel")
+        otpStartInProgress = true
+        val requestSessionId = otpSessionId + 1
+        otpSessionId = requestSessionId
+
+        fun dispatchSendOtp() {
+            if (!isScreenActive.get()) return
+            if (sendDispatchedSessionId == requestSessionId) return
+            sendDispatchedSessionId = requestSessionId
+            viewModel.sendOtp(
+                mobileNumber = "+91$normalizedMobile",
+                purpose = purpose,
+                userType = userType,
+                channel = channel
+            )
+            logOtpEvent(
+                if (channel == "VOICE") {
+                    "Requested OTP via voice channel"
+                } else {
+                    "Requested OTP via SMS channel"
+                }
+            )
+        }
+
+        if (channel.equals("VOICE", ignoreCase = true)) {
+            dispatchSendOtp()
+            return
+        }
+
+        smsRetrieverClient.startSmsRetriever()
+            .addOnSuccessListener {
+                ReleaseDiagnostics.info("CATERHUB_SMS_RETRIEVER_STARTED")
+                dispatchSendOtp()
+            }
+            .addOnFailureListener { exception ->
+                waitingForAutoOtp = false
+                autoOtpStatus = "Auto-detect unavailable. Enter OTP manually."
+                ReleaseDiagnostics.error(
+                    "CATERHUB_SMS_RETRIEVER_FAILURE reason=start_failed exception=${exception::class.java.simpleName}"
+                )
+                dispatchSendOtp()
+            }
     }
 
     LaunchedEffect(otpState) {
         when (val state = otpState) {
             is OtpUiState.Sent -> {
+                otpStartInProgress = false
                 logOtpEvent("Send OTP succeeded")
                 cooldown = state.resendCooldownSeconds
-                otp = ""
-                isAutoFilledOtp = false
-                lastSubmittedOtpKey = ""
                 authSuccessHandled = false
                 if (state.deliveryChannel.equals("SMS", ignoreCase = true)) {
-                    waitingForAutoOtp = true
-                    allowManualFallback = false
-                    autoOtpStatus = "Waiting for OTP..."
-                    otpSessionId++
-                    logOtpEvent("Waiting for OTP and starting retriever session")
+                    waitingForAutoOtp = !isAutoFilledOtp
+                    allowManualFallback = true
+                    autoOtpStatus = if (isAutoFilledOtp) "OTP detected" else "Waiting for OTP..."
                 } else {
                     waitingForAutoOtp = false
                     allowManualFallback = true
@@ -211,15 +235,25 @@ fun OtpAuthScreen(
                 }
             }
 
-            is OtpUiState.Verifying -> logOtpEvent("Starting automatic OTP verification")
+            is OtpUiState.Verifying -> Unit
             is OtpUiState.Success -> {
                 if (authSuccessHandled) return@LaunchedEffect
                 authSuccessHandled = true
+                if (isAutoFilledOtp) {
+                    ReleaseDiagnostics.info("CATERHUB_SMS_RETRIEVER_VERIFY_SUCCESS")
+                }
                 logOtpEvent("OTP verification completed successfully")
                 onAuthSuccess(state.response)
             }
             is OtpUiState.Error -> {
+                otpStartInProgress = false
+                waitingForAutoOtp = false
+                allowManualFallback = otp.isNotBlank()
                 authSuccessHandled = false
+                if (isAutoFilledOtp && lastSubmittedOtpKey.isNotBlank()) {
+                    ReleaseDiagnostics.error("CATERHUB_SMS_RETRIEVER_FAILURE reason=verification_failed")
+                    isAutoFilledOtp = false
+                }
                 logOtpEvent("OTP flow received error state")
             }
             else -> Unit
@@ -250,7 +284,7 @@ fun OtpAuthScreen(
         if (lastSubmittedOtpKey == requestKey) return@LaunchedEffect
         lastSubmittedOtpKey = requestKey
         autoOtpStatus = "Verifying OTP..."
-        logOtpEvent("Starting automatic OTP verification")
+        ReleaseDiagnostics.info("CATERHUB_SMS_RETRIEVER_VERIFY_STARTED")
         viewModel.verifyOtp(
             mobileNumber = "+91$normalizedMobile",
             otp = otp,
@@ -259,8 +293,8 @@ fun OtpAuthScreen(
         )
     }
 
-    DisposableEffect(otpSessionId, waitingForAutoOtp, context) {
-        if (!waitingForAutoOtp) return@DisposableEffect onDispose { }
+    DisposableEffect(context) {
+        isScreenActive.set(true)
         logOtpEvent("Registering OTP receiver")
 
         val receiver = object : BroadcastReceiver() {
@@ -271,29 +305,26 @@ fun OtpAuthScreen(
                 val status = smsStatusFromExtras(extras) ?: return
                 when (status.statusCode) {
                     CommonStatusCodes.SUCCESS -> {
-                        logOtpEvent("SMS Retriever status: SUCCESS")
                         val smsMessage = extras.getString(SmsRetriever.EXTRA_SMS_MESSAGE)
                         if (!smsMessage.isNullOrBlank()) {
                             onSmsMessageReceived(smsMessage)
                         } else {
-                            val consentIntent = consentIntentFromExtras(extras)
-                            if (consentIntent != null) {
-                                logOtpEvent("Launching SMS User Consent prompt")
-                                consentLauncher.launch(consentIntent)
-                            } else {
-                                waitingForAutoOtp = false
-                                allowManualFallback = true
-                                if (otp.isBlank()) autoOtpStatus = "Didn't detect OTP. You can enter it manually."
-                                logOtpEvent("No SMS message/consent intent in SUCCESS broadcast")
-                            }
+                            waitingForAutoOtp = false
+                            allowManualFallback = true
+                            if (otp.isBlank()) autoOtpStatus = "Didn't detect OTP. You can enter it manually."
+                            ReleaseDiagnostics.error(
+                                "CATERHUB_SMS_RETRIEVER_FAILURE reason=empty_sms"
+                            )
                         }
                     }
 
                     CommonStatusCodes.TIMEOUT -> {
-                        logOtpEvent("SMS Retriever status: TIMEOUT")
                         waitingForAutoOtp = false
                         allowManualFallback = true
                         if (otp.isBlank()) autoOtpStatus = "Didn't detect OTP. You can enter it manually."
+                        ReleaseDiagnostics.error(
+                            "CATERHUB_SMS_RETRIEVER_FAILURE reason=timeout"
+                        )
                     }
                 }
             }
@@ -304,32 +335,20 @@ fun OtpAuthScreen(
                 context,
                 receiver,
                 IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION),
+                SmsRetriever.SEND_PERMISSION,
+                null,
                 ContextCompat.RECEIVER_EXPORTED
             )
         }.onSuccess {
             logOtpEvent("OTP receiver registered")
         }.onFailure {
-            waitingForAutoOtp = false
-            allowManualFallback = true
-            if (otp.isBlank()) autoOtpStatus = "Auto-detect unavailable. Enter OTP manually."
-            logOtpEvent("OTP receiver registration failed")
+            ReleaseDiagnostics.error(
+                "CATERHUB_SMS_RETRIEVER_FAILURE reason=receiver_registration_failed exception=${it::class.java.simpleName}"
+            )
         }
 
-        smsRetrieverClient.startSmsRetriever()
-            .addOnSuccessListener { logOtpEvent("OTP retriever started") }
-            .addOnFailureListener {
-                logOtpEvent("OTP retriever failed to start")
-                if (waitingForAutoOtp) {
-                    waitingForAutoOtp = false
-                    allowManualFallback = true
-                    if (otp.isBlank()) autoOtpStatus = "Auto-detect unavailable. Enter OTP manually."
-                }
-            }
-        smsRetrieverClient.startSmsUserConsent(null)
-            .addOnSuccessListener { logOtpEvent("SMS User Consent listener started") }
-            .addOnFailureListener { logOtpEvent("SMS User Consent listener failed to start") }
-
         onDispose {
+            isScreenActive.set(false)
             logOtpEvent("Unregistering OTP receiver")
             runCatching { context.unregisterReceiver(receiver) }
         }
@@ -424,7 +443,11 @@ fun OtpAuthScreen(
 
             Button(
                 onClick = { requestOtp() },
-                enabled = normalizedMobile.length == 10 && otpState !is OtpUiState.Sending && cooldown == 0,
+                enabled =
+                    normalizedMobile.length == 10 &&
+                        !otpStartInProgress &&
+                        otpState !is OtpUiState.Sending &&
+                        cooldown == 0,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -699,15 +722,6 @@ fun OtpAuthScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
-    }
-}
-
-private fun consentIntentFromExtras(extras: Bundle): Intent? {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT, Intent::class.java)
-    } else {
-        @Suppress("DEPRECATION")
-        extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT)
     }
 }
 

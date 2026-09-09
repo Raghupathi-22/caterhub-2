@@ -132,18 +132,26 @@ class AuthViewModel(
                 )
 
                 val sendResponse = authRepository.sendOtp(request)
+                val deliveryChannel = sendResponse.deliveryChannel
+                    ?.takeIf(String::isNotBlank)
+                    ?: "SMS"
+                val fallbackMessage = if (deliveryChannel.equals("VOICE", ignoreCase = true)) {
+                    "We are calling you with the OTP."
+                } else {
+                    "OTP sent by SMS"
+                }
+                val resendCooldown = sendResponse.expiresInSeconds
+                    ?.coerceIn(1L, 60L)
+                    ?.toInt()
+                    ?: 60
 
                 _otpUiState.value =
                     OtpUiState.Sent(
-                        resendCooldownSeconds = 60,
-                        message = sendResponse.message.ifBlank {
-                            if (sendResponse.deliveryChannel.equals("VOICE", ignoreCase = true)) {
-                                "We are calling you with the OTP."
-                            } else {
-                                "OTP sent by SMS"
-                            }
-                        },
-                        deliveryChannel = sendResponse.deliveryChannel ?: "SMS"
+                        resendCooldownSeconds = resendCooldown,
+                        message = sendResponse.message
+                            ?.takeIf(String::isNotBlank)
+                            ?: fallbackMessage,
+                        deliveryChannel = deliveryChannel
                     )
                 ReleaseDiagnostics.info("CATERHUB_OTP_SEND_SUCCESS")
 

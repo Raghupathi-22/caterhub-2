@@ -18,6 +18,18 @@ class OtpMessageParserTest {
     }
 
     @Test
+    fun extractsOtpWhenCodeAppearsBeforeKeyword() {
+        val message = "<#> 589054 is your CaterHub OTP"
+        assertEquals("589054", OtpMessageParser.extractOtp(message))
+    }
+
+    @Test
+    fun rejectsAmbiguousMessageWithoutOtpKeyword() {
+        val message = "Reference 123456, transaction 654321"
+        assertNull(OtpMessageParser.extractOtp(message))
+    }
+
+    @Test
     fun returnsNullWhenNoSixDigitCode() {
         val message = "Welcome to CaterHub. No OTP generated."
         assertNull(OtpMessageParser.extractOtp(message))

@@ -37,7 +37,7 @@ class AuthRepository(
             val response = apiService.sendOtp(request)
             ReleaseDiagnostics.info("CATERHUB_OTP_SEND_HTTP_STATUS code=${response.code()}")
 
-            if (!response.isSuccessful) {
+            if (response.code() != 200 && response.code() != 201) {
                 throw HttpException(response)
             }
 
@@ -45,6 +45,12 @@ class AuthRepository(
             val responseBody = response.body()
                 ?: throw IllegalStateException("OTP send returned empty response body.")
             ReleaseDiagnostics.info("CATERHUB_OTP_SEND_PARSE_SUCCESS")
+            if (!responseBody.success) {
+                throw IllegalStateException(
+                    responseBody.message?.takeIf(String::isNotBlank)
+                        ?: "OTP service did not accept the send request."
+                )
+            }
             responseBody
         } catch (exception: Exception) {
             val mapped = mapNetworkException(exception)

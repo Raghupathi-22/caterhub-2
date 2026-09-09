@@ -53,11 +53,11 @@ data class SendOtpRequest(
 
 data class SendOtpResponse(
     @SerializedName("success")
-    val success: Boolean,
+    val success: Boolean = false,
     @SerializedName("message")
-    val message: String,
+    val message: String? = null,
     @SerializedName(value = "expiresInSeconds", alternate = ["expires_in_seconds"])
-    val expiresInSeconds: Long,
+    val expiresInSeconds: Long? = null,
     @SerializedName(value = "deliveryChannel", alternate = ["delivery_channel"])
     val deliveryChannel: String? = null
 )
