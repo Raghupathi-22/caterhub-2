@@ -69,10 +69,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.daily.cetaring.BuildConfig
 import com.daily.cetaring.R
 import com.daily.cetaring.auth.OtpMessageParser
 import com.daily.cetaring.data.remote.dto.AuthResponse
+import com.daily.cetaring.diagnostics.ReleaseDiagnostics
 import com.daily.cetaring.presentation.viewmodel.AuthViewModel
 import com.daily.cetaring.presentation.viewmodel.OtpUiState
 import com.google.android.gms.auth.api.phone.SmsRetriever
@@ -721,7 +721,6 @@ private fun smsStatusFromExtras(extras: Bundle): Status? {
 }
 
 private fun logOtpEvent(event: String) {
-    if (BuildConfig.DEBUG) {
-        Log.d(OTP_LOG_TAG, event)
-    }
+    ReleaseDiagnostics.info("CATERHUB_OTP_AUTO $event")
+    Log.d(OTP_LOG_TAG, event)
 }

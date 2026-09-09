@@ -5,13 +5,14 @@ import com.daily.cetaring.data.remote.dto.SendOtpRequest
 import com.daily.cetaring.data.remote.dto.SendOtpResponse
 import com.daily.cetaring.data.remote.dto.VerifyOtpRequest
 import com.google.gson.annotations.SerializedName
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface AuthApiService {
 
     @POST("auth/otp/send")
-    suspend fun sendOtp(@Body request: SendOtpRequest): SendOtpResponse
+    suspend fun sendOtp(@Body request: SendOtpRequest): Response<SendOtpResponse>
 
     @POST("auth/otp/verify")
     suspend fun verifyOtp(@Body request: VerifyOtpRequest): AuthResponse

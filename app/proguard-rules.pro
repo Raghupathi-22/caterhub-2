@@ -30,3 +30,6 @@
 -keepclassmembers,allowobfuscation class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }
+
+# Keep release diagnostic logger so OTP traces remain in release builds.
+-keep class com.daily.cetaring.diagnostics.ReleaseDiagnostics { *; }

@@ -6,6 +6,7 @@ import com.daily.cetaring.data.remote.dto.AuthResponse
 import com.daily.cetaring.data.remote.dto.SendOtpRequest
 import com.daily.cetaring.data.remote.dto.SendOtpResponse
 import com.daily.cetaring.data.remote.dto.VerifyOtpRequest
+import com.daily.cetaring.diagnostics.ReleaseDiagnostics
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
@@ -32,10 +33,27 @@ class AuthRepository(
     val rolesFlow: Flow<String?> = localDataSource.rolesFlow
 
     suspend fun sendOtp(request: SendOtpRequest): SendOtpResponse {
-        // OTP send is a public authentication operation. Do not call the protected
-        // health endpoint first: a health/auth failure must not be misreported as
-        // an expired user session.
-        return executeNetworkCall { apiService.sendOtp(request) }
+        return try {
+            val response = apiService.sendOtp(request)
+            ReleaseDiagnostics.info("CATERHUB_OTP_SEND_HTTP_STATUS code=${response.code()}")
+
+            if (!response.isSuccessful) {
+                throw HttpException(response)
+            }
+
+            ReleaseDiagnostics.info("CATERHUB_OTP_SEND_RESPONSE_RECEIVED")
+            val responseBody = response.body()
+                ?: throw IllegalStateException("OTP send returned empty response body.")
+            ReleaseDiagnostics.info("CATERHUB_OTP_SEND_PARSE_SUCCESS")
+            responseBody
+        } catch (exception: Exception) {
+            val mapped = mapNetworkException(exception)
+            val statusCode = (exception as? HttpException)?.code()?.toString() ?: "NA"
+            ReleaseDiagnostics.error(
+                "CATERHUB_OTP_SEND_FAILURE exception=${exception::class.java.simpleName} httpStatus=$statusCode message=${mapped.message.orEmpty()}"
+            )
+            throw mapped
+        }
     }
 
     suspend fun verifyOtp(request: VerifyOtpRequest): AuthResponse {
