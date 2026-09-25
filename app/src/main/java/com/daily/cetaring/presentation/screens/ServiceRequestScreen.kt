@@ -37,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.daily.cetaring.data.remote.dto.CreateStaffingRequest
+import com.daily.cetaring.data.remote.dto.CreateCateringStaffBookingRequest
+import com.daily.cetaring.data.remote.dto.CateringStaffLineItem
 import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
 import com.daily.cetaring.data.remote.dto.WorkerType
 import com.daily.cetaring.data.repository.WorkerRepository
@@ -261,9 +263,21 @@ fun ServiceRequestScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Filled.CheckCircle, null, tint = Green)
-                            Text("Request submitted", fontWeight = FontWeight.ExtraBold, color = TextDark, style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                if (category.id == "catering-staff") "Staff booking submitted" else "Request submitted",
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TextDark,
+                                style = MaterialTheme.typography.titleLarge
+                            )
                         }
-                        Text("Your event request has been received by CaterHub.", color = Muted)
+                        Text(
+                            if (category.id == "catering-staff") {
+                                "Your staff request is confirmed and has been sent to matching CaterHub workers."
+                            } else {
+                                "Your event request has been received by CaterHub."
+                            },
+                            color = Muted
+                        )
                         DividerLine()
                         Text(summary.eventType, fontWeight = FontWeight.ExtraBold, color = TextDark)
                         Text(summary.categoryTitle, color = category.color, fontWeight = FontWeight.Bold)
@@ -443,36 +457,63 @@ fun ServiceRequestScreen(
                                     val staffingItems = selectedItems.filter { it.workerType != null }
                                     val selectedNames = selectedItems.map { it.name }
 
-                                    staffingItems.forEach { item ->
-                                        val qty = selected[item.id] ?: 0
-                                        workerRepository.createStaffingRequest(
-                                            CreateStaffingRequest(
-                                                requireNotNull(eventType), item.workerType!!, eventDate, startTime, endTime,
-                                                location, area, qty, BigDecimal(item.price.coerceAtLeast(1)), notes.ifBlank { null }
-                                            )
-                                        )
-                                    }
-
                                     val details = selectedItems.joinToString("; ") { item ->
                                         val qty = selected[item.id] ?: 0
                                         if (item.quoteOnly) "${item.name}: selected x$qty (quote)" else "${item.name}: $qty x ₹${item.price}"
                                     }
-                                    workerRepository.createServiceRequest(
-                                        ServiceRequestRequest(
-                                            serviceType = category.serviceType,
-                                            eventType = requireNotNull(eventType),
-                                            eventDate = eventDate,
-                                            startTime = startTime,
-                                            endTime = endTime,
-                                            location = location,
-                                            area = area,
-                                            selectedServices = selectedNames,
-                                            instructions = notes.ifBlank { null },
-                                            details = "Services: $details",
-                                            quoteBased = hasQuoteServices,
-                                            totalAmount = BigDecimal(fixedTotal)
+
+                                    if (category.id == "catering-staff") {
+                                        // Atomic backend flow: create the customer request and all
+                                        // matching staffing jobs in one transaction. This guarantees
+                                        // workers never see a job for a request that failed to book.
+                                        workerRepository.createCateringStaffBooking(
+                                            CreateCateringStaffBookingRequest(
+                                                eventType = requireNotNull(eventType),
+                                                eventDate = eventDate,
+                                                startTime = startTime,
+                                                endTime = endTime,
+                                                location = location,
+                                                area = area,
+                                                selectedServices = selectedNames,
+                                                instructions = notes.ifBlank { null },
+                                                details = "Catering staff: $details",
+                                                totalAmount = BigDecimal(fixedTotal),
+                                                staffing = staffingItems.map { item ->
+                                                    CateringStaffLineItem(
+                                                        workerType = item.workerType!!,
+                                                        requiredWorkers = selected[item.id] ?: 0,
+                                                        payment = BigDecimal(item.price.coerceAtLeast(1))
+                                                    )
+                                                }
+                                            )
                                         )
-                                    )
+                                    } else {
+                                        staffingItems.forEach { item ->
+                                            val qty = selected[item.id] ?: 0
+                                            workerRepository.createStaffingRequest(
+                                                CreateStaffingRequest(
+                                                    requireNotNull(eventType), item.workerType!!, eventDate, startTime, endTime,
+                                                    location, area, qty, BigDecimal(item.price.coerceAtLeast(1)), notes.ifBlank { null }
+                                                )
+                                            )
+                                        }
+                                        workerRepository.createServiceRequest(
+                                            ServiceRequestRequest(
+                                                serviceType = category.serviceType,
+                                                eventType = requireNotNull(eventType),
+                                                eventDate = eventDate,
+                                                startTime = startTime,
+                                                endTime = endTime,
+                                                location = location,
+                                                area = area,
+                                                selectedServices = selectedNames,
+                                                instructions = notes.ifBlank { null },
+                                                details = "Services: $details",
+                                                quoteBased = hasQuoteServices,
+                                                totalAmount = BigDecimal(fixedTotal)
+                                            )
+                                        )
+                                    }
                                     submittedSummary = SubmittedServiceRequestSummary(
                                         categoryTitle = category.title.removePrefix("Book "),
                                         eventType = requireNotNull(eventType),

@@ -42,6 +42,13 @@ object ServiceCatalog {
             "Tents, tables, chairs, serving equipment and essential event rentals.",
             "RENTALS",
             CategoryVisualTone.RENTALS
+        ),
+        ServiceCategoryDefinition(
+            "catering-staff",
+            "Catering Staff",
+            "Book Catering Boys, Catering Girls, Chefs & Kitchen Helpers",
+            "CATERING_STAFF",
+            CategoryVisualTone.SUPPORT
         )
     )
 
@@ -301,6 +308,7 @@ object ServiceCatalog {
 
     val customerCategories: List<ServiceCategoryDefinition> = listOfNotNull(
         category("catering-food"),
+        category("catering-staff"),
         category("decoration"),
         category("tent-tables-equipment"),
         category("entertainment"),
@@ -316,6 +324,13 @@ object ServiceCatalog {
         roles.filter { it.categoryId == categoryId }
 
     fun customerRolesForCategory(categoryId: String): List<ServiceRoleDefinition> = when (categoryId) {
+        "catering-staff" -> listOfNotNull(
+            roles.firstOrNull { it.id == "catering-boy" }?.copy(categoryId = "catering-staff"),
+            roles.firstOrNull { it.id == "catering-girl" }?.copy(categoryId = "catering-staff"),
+            roles.firstOrNull { it.id == "chef" }?.copy(categoryId = "catering-staff"),
+            roles.firstOrNull { it.id == "kitchen-helper" }?.copy(categoryId = "catering-staff", title = "Kitchen Helper")
+        )
+
         "decoration" -> roles.filter {
             it.id in setOf(
                 "stage-setup-worker",

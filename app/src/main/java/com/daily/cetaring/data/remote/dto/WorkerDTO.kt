@@ -140,6 +140,26 @@ enum class WorkerStatus(val label: String) {
     REJECTED("Rejected")
 }
 
+data class CateringStaffLineItem(
+    @SerializedName("workerType") val workerType: WorkerType,
+    @SerializedName("requiredWorkers") val requiredWorkers: Int,
+    @SerializedName("payment") val payment: BigDecimal
+)
+
+data class CreateCateringStaffBookingRequest(
+    @SerializedName("eventType") val eventType: String,
+    @SerializedName("eventDate") val eventDate: String,
+    @SerializedName("startTime") val startTime: String,
+    @SerializedName("endTime") val endTime: String,
+    @SerializedName("location") val location: String,
+    @SerializedName("area") val area: String,
+    @SerializedName("selectedServices") val selectedServices: List<String>,
+    @SerializedName("instructions") val instructions: String? = null,
+    @SerializedName("details") val details: String? = null,
+    @SerializedName("totalAmount") val totalAmount: BigDecimal,
+    @SerializedName("staffing") val staffing: List<CateringStaffLineItem>
+)
+
 data class ServiceRequestRequest(
     val serviceType: String,
     val eventType: String,
