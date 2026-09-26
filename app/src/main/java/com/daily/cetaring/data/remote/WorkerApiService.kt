@@ -7,7 +7,6 @@ import com.daily.cetaring.data.remote.dto.CreateStaffingRequest
 import com.daily.cetaring.data.remote.dto.CreateCateringStaffBookingRequest
 import com.daily.cetaring.data.remote.dto.RespondAssignmentRequest
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
-import com.daily.cetaring.data.remote.dto.UpdateAvailabilityToggleRequest
 import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
 import com.daily.cetaring.data.remote.dto.ServiceRequestResponse
 import com.daily.cetaring.data.remote.dto.WorkerDashboardResponse
@@ -20,7 +19,6 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PATCH
 import retrofit2.http.Path
-import retrofit2.http.PUT
 import retrofit2.http.Query
 
 interface WorkerApiService {
@@ -73,12 +71,6 @@ interface WorkerApiService {
 
     @GET("workers/jobs/me")
     suspend fun getMyJobs(@Header("Authorization") authorization: String): List<WorkerJobResponse>
-
-    @PUT("workers/availability/me")
-    suspend fun updateAvailability(
-        @Header("Authorization") authorization: String,
-        @Body request: UpdateAvailabilityToggleRequest
-    )
 
     @POST("service-requests/catering-staff")
     suspend fun createCateringStaffBooking(

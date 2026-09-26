@@ -295,14 +295,8 @@ data class AcceptStaffingJobResponse(
 data class WorkerDashboardResponse(
     val profile: WorkerProfileResponse,
     val profileCompletionPercent: Int,
-    val availableForWork: Boolean,
     val nearbyOpportunities: List<StaffingJobResponse>,
     val myJobs: List<WorkerJobResponse>
-)
-
-data class UpdateAvailabilityToggleRequest(
-    val available: Boolean,
-    val notes: String? = null
 )
 
 object WorkerOnboardingValidator {

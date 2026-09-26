@@ -13,13 +13,11 @@ import com.daily.cetaring.data.remote.dto.CreateWorkerProfileRequest
 import com.daily.cetaring.data.remote.dto.RespondAssignmentRequest
 import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
-import com.daily.cetaring.data.remote.dto.UpdateAvailabilityToggleRequest
 import com.daily.cetaring.data.remote.dto.WorkerDashboardResponse
 import com.daily.cetaring.data.remote.dto.WorkerJobResponse
 import com.daily.cetaring.data.remote.dto.WorkerProfileResponse
 import com.daily.cetaring.data.remote.dto.WorkerType
 import kotlinx.coroutines.flow.first
-import retrofit2.HttpException
 
 class WorkerRepository(
     private val workerApiService: WorkerApiService,
@@ -63,15 +61,6 @@ class WorkerRepository(
     suspend fun getMyJobs(): List<WorkerJobResponse> =
         executeNetworkCall { workerApiService.getMyJobs(bearerToken()) }
 
-    suspend fun updateAvailability(available: Boolean) {
-        executeNetworkCall(WorkerApiOperation.AVAILABILITY_UPDATE) {
-            workerApiService.updateAvailability(
-                bearerToken(),
-                UpdateAvailabilityToggleRequest(available = available)
-            )
-        }
-    }
-
     suspend fun createServiceRequest(request: ServiceRequestRequest): ServiceRequestResponse =
         executeNetworkCall { workerApiService.createServiceRequest(bearerToken(), request) }
 
@@ -89,24 +78,15 @@ class WorkerRepository(
         return "Bearer $token"
     }
 
-    private suspend fun <T> executeNetworkCall(
-        operation: WorkerApiOperation = WorkerApiOperation.DEFAULT,
-        block: suspend () -> T
-    ): T {
+    private suspend fun <T> executeNetworkCall(block: suspend () -> T): T {
         return try {
             block()
         } catch (exception: Exception) {
-            throw mapNetworkException(exception, operation)
+            throw mapNetworkException(exception)
         }
     }
 
-    private fun mapNetworkException(
-        exception: Exception,
-        operation: WorkerApiOperation
-    ): Exception {
-        if (exception is HttpException && exception.code() == 409 && operation == WorkerApiOperation.AVAILABILITY_UPDATE) {
-            return IllegalArgumentException("Availability can be enabled after your profile is verified.")
-        }
+    private fun mapNetworkException(exception: Exception): Exception {
         return ApiErrorMapper.map(
             exception = exception,
             contextLabel = "worker request",
@@ -115,8 +95,4 @@ class WorkerRepository(
         )
     }
 
-    private enum class WorkerApiOperation {
-        DEFAULT,
-        AVAILABILITY_UPDATE
-    }
 }

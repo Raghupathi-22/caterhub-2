@@ -29,7 +29,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -110,7 +109,7 @@ fun WorkerDashboardScreen(
                 ) {
                     Text("Welcome, ${d.profile.fullName}", style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.ExtraBold, color = Red)
-                    Text("Manage your services, availability and bookings from one place.", color = Muted)
+                    Text("Manage your profile, discover matching jobs and track your bookings.", color = Muted)
 
                     Card(
                         Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp),
@@ -148,31 +147,18 @@ fun WorkerDashboardScreen(
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Border)
                             ) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text("Available for work", color = Ink, fontWeight = FontWeight.ExtraBold)
-                                        Text(
-                                            when {
-                                                !isVerified -> "Available after verification"
-                                                d.availableForWork -> "You're available for suitable jobs."
-                                                else -> "You're currently unavailable for new jobs."
-                                            },
-                                            color = Muted
-                                        )
+                                    Icon(Icons.Filled.EventAvailable, null, tint = Green, modifier = Modifier.size(28.dp))
+                                    Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                                        Text("Jobs matched to your role", color = Ink, fontWeight = FontWeight.ExtraBold)
+                                        Text("Once your profile is verified, matching customer requests appear here automatically.", color = Muted)
                                     }
-                                    Switch(
-                                        checked = d.availableForWork,
-                                        enabled = isVerified,
-                                        onCheckedChange = viewModel::updateAvailability
-                                    )
                                 }
                             }
                             Text("Profile ${d.profileCompletionPercent}% complete", color = Muted, fontWeight = FontWeight.Bold)
-                            CaterHubPrimaryButton("Find Available Jobs", onFindJobsClick, Modifier.fillMaxWidth())
+                            CaterHubPrimaryButton("Find Matching Jobs", onFindJobsClick, Modifier.fillMaxWidth())
                         }
                     }
 
@@ -283,10 +269,10 @@ private fun VerificationStateCard(
             }
             Text(
                 text = when {
-                    pending -> "Your profile is under review. Once CaterHub verifies your profile, you can turn on availability and start receiving suitable jobs."
+                    pending -> "Your profile is under review. Once CaterHub verifies your profile, matching customer requests can be shown here."
                     rejected -> rejectionReason?.takeIf { it.isNotBlank() }
                         ?: "Your profile was rejected. Please update your profile details and submit again."
-                    else -> "Your profile is verified. You can manage availability and receive suitable jobs."
+                    else -> "Your profile is verified. Matching customer requests can be shown here."
                 },
                 color = Muted
             )

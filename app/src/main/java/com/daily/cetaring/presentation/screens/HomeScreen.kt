@@ -6,6 +6,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -172,22 +173,55 @@ private fun HomeHeader(
 private fun HomeHero(onBookCateringClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, Border),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(listOf(Color(0xFF7F1017), Color(0xFFA61F25), Color(0xFF6C1116))),
+                    RoundedCornerShape(28.dp)
+                )
+                .padding(22.dp)
         ) {
-            Text("Everything you need for your event", color = Red, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-            Text(
-                "Book catering, decoration, entertainment and more — all in one place.",
-                color = Ink,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            ActionButton("START BOOKING", Red, onBookCateringClick)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Gold.copy(alpha = 0.18f)
+                    ) {
+                        Text("CATERHUB EVENTS", color = Color(0xFFFFE7A3), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp))
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text("20–200+ guests", color = Color.White.copy(alpha = 0.86f), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)
+                }
+                Text(
+                    "Make your event
+memorable.",
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    "Catering, food, professional staff and event services — planned in one simple booking.",
+                    color = Color.White.copy(alpha = 0.88f),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onBookCateringClick),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        Text("BOOK CATERING", color = Red, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.width(9.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Red, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
         }
     }
 }
@@ -233,55 +267,44 @@ private fun HomeCategories(onCategoryClick: (String) -> Unit) {
 @Composable
 private fun MenuDiscoveryCard(onMenuClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 100.dp)
-            .clickable(onClick = onMenuClick),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onMenuClick),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(1.dp, Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .background(Brush.linearGradient(listOf(Color(0xFFFFFBF0), Color(0xFFFFF1D0))), RoundedCornerShape(26.dp))
+                .padding(18.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(Gold.copy(alpha = 0.16f), RoundedCornerShape(16.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.RestaurantMenu,
-                    contentDescription = "Menu",
-                    tint = Gold,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Menu", color = Ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-                Text(
-                    "Explore our delicious catering options",
-                    color = Muted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Red,
-                modifier = Modifier.clickable(onClick = onMenuClick)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(68.dp).background(Gold.copy(alpha = 0.18f), RoundedCornerShape(20.dp)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("View Menu", color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(4.dp))
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.RestaurantMenu, "Menu", tint = Gold, modifier = Modifier.size(34.dp))
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("OUR MENU", color = Gold, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelMedium)
+                    }
+                    Text("Explore the menu", color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                    Text("Breakfast • Lunch • Dinner • Snacks • Beverages", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(3.dp))
+                    Surface(
+                        modifier = Modifier.clickable(onClick = onMenuClick),
+                        shape = RoundedCornerShape(14.dp),
+                        color = Red
+                    ) {
+                        Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("VIEW MENU", color = Color.White, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelLarge)
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color.White, modifier = Modifier.size(17.dp))
+                        }
+                    }
                 }
             }
         }
