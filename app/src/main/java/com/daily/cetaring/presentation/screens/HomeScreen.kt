@@ -199,8 +199,7 @@ private fun HomeHero(onBookCateringClick: () -> Unit) {
                     Text("20–200+ guests", color = Color.White.copy(alpha = 0.86f), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)
                 }
                 Text(
-                    "Make your event
-memorable.",
+                    "Make your event memorable.",
                     color = Color.White,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold
@@ -229,156 +228,39 @@ memorable.",
 @Composable
 private fun HomeCategories(onCategoryClick: (String) -> Unit) {
     SectionTitle("Service Categories")
-    Text(
-        "Choose a service and make your event complete",
-        color = Muted,
-        style = MaterialTheme.typography.bodyMedium,
-        modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
-    )
-
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        ServiceCatalog.customerCategories.forEachIndexed { index, category ->
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        ServiceCatalog.customerCategories.forEach { category ->
             val visual = categoryUiMeta(category)
-            val style = premiumCategoryStyle(category.id, visual.accent)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 118.dp)
+                    .heightIn(min = 92.dp)
                     .clickable { onCategoryClick(category.id) },
-                shape = RoundedCornerShape(style.cornerRadius),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                border = BorderStroke(1.dp, style.borderColor.copy(alpha = 0.55f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = style.elevation)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Border),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.linearGradient(listOf(style.backgroundStart, style.backgroundEnd)),
-                            RoundedCornerShape(style.cornerRadius)
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // A category-specific accent stripe gives every service its own visual identity.
                     Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .background(style.accent, RoundedCornerShape(topStart = style.cornerRadius, topEnd = style.cornerRadius))
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 16.dp, top = 18.dp, end = 14.dp, bottom = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.size(58.dp).background(visual.accent.copy(alpha = 0.12f), RoundedCornerShape(18.dp)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(70.dp)
-                                .background(style.iconBackground, style.iconShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                visual.icon,
-                                contentDescription = null,
-                                tint = style.accent,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-
-                        Spacer(Modifier.width(15.dp))
-
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    category.title,
-                                    color = Ink,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(50),
-                                    color = style.badgeBackground
-                                ) {
-                                    Text(
-                                        style.badge,
-                                        color = style.accent,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                category.subtitle,
-                                color = Muted,
-                                style = MaterialTheme.typography.bodySmall,
-                                lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
-                                maxLines = 2,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Surface(
-                            shape = style.arrowShape,
-                            color = style.arrowBackground
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "Open ${category.title}",
-                                tint = style.accent,
-                                modifier = Modifier.padding(10.dp).size(21.dp)
-                            )
-                        }
+                        Icon(visual.icon, contentDescription = null, tint = visual.accent, modifier = Modifier.size(26.dp))
                     }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(category.title, color = Ink, fontWeight = FontWeight.ExtraBold)
+                        Text(category.subtitle, color = Muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = visual.accent)
                 }
             }
         }
     }
-}
-
-private data class PremiumCategoryStyle(
-    val accent: Color,
-    val backgroundStart: Color,
-    val backgroundEnd: Color,
-    val iconBackground: Color,
-    val badgeBackground: Color,
-    val borderColor: Color,
-    val iconShape: androidx.compose.ui.graphics.Shape,
-    val arrowShape: androidx.compose.ui.graphics.Shape,
-    val cornerRadius: androidx.compose.ui.unit.Dp,
-    val elevation: androidx.compose.ui.unit.Dp,
-    val badge: String
-)
-
-private fun premiumCategoryStyle(id: String, fallback: Color): PremiumCategoryStyle = when (id) {
-    "catering-staff" -> PremiumCategoryStyle(
-        Color(0xFF08783A), Color(0xFFF5FFF7), Color(0xFFE0F3E7), Color(0xFFD7F0DF), Color(0xFFE5F6EA), Color(0xFF08783A), RoundedCornerShape(22.dp), CircleShape, 30.dp, 5.dp, "STAFF"
-    )
-    "decoration" -> PremiumCategoryStyle(
-        Color(0xFFB05B19), Color(0xFFFFFBF3), Color(0xFFFFE8CC), Color(0xFFFFE0BD), Color(0xFFFFF0DC), Color(0xFFE0B27C), RoundedCornerShape(30.dp), RoundedCornerShape(16.dp), 26.dp, 4.dp, "DECOR"
-    )
-    "tent-tables-equipment" -> PremiumCategoryStyle(
-        Color(0xFF5E587D), Color(0xFFF8F7FF), Color(0xFFE8E5F5), Color(0xFFE1DDF1), Color(0xFFF0EDFA), Color(0xFFB5AFD0), RoundedCornerShape(18.dp), RoundedCornerShape(22.dp), 22.dp, 5.dp, "RENTALS"
-    )
-    "entertainment" -> PremiumCategoryStyle(
-        Color(0xFF8F1D35), Color(0xFFFFF7F8), Color(0xFFF7DDE3), Color(0xFFF5D5DD), Color(0xFFFBE8ED), Color(0xFFE0A0AF), RoundedCornerShape(32.dp), CircleShape, 30.dp, 5.dp, "LIVE"
-    )
-    "photography-video" -> PremiumCategoryStyle(
-        Color(0xFF006D68), Color(0xFFF4FFFE), Color(0xFFDDF3F0), Color(0xFFD4EFEC), Color(0xFFE1F7F4), Color(0xFF99CBC6), RoundedCornerShape(24.dp), RoundedCornerShape(14.dp), 24.dp, 4.dp, "CAPTURE"
-    )
-    "beauty" -> PremiumCategoryStyle(
-        Color(0xFFA24A7A), Color(0xFFFFF8FC), Color(0xFFF3DFEB), Color(0xFFF2D7E7), Color(0xFFF8EAF2), Color(0xFFD9A8C3), RoundedCornerShape(28.dp), RoundedCornerShape(28.dp), 28.dp, 5.dp, "BEAUTY"
-    )
-    "religious-ceremony" -> PremiumCategoryStyle(
-        Color(0xFFB97800), Color(0xFFFFFCF3), Color(0xFFFFEEC4), Color(0xFFFFE7A8), Color(0xFFFFF2D0), Color(0xFFE2BD70), RoundedCornerShape(20.dp), CircleShape, 24.dp, 4.dp, "CEREMONY"
-    )
-    else -> PremiumCategoryStyle(
-        fallback, Color.White, Color(0xFFF6F2EA), fallback.copy(alpha = 0.12f), fallback.copy(alpha = 0.10f), fallback.copy(alpha = 0.35f), RoundedCornerShape(24.dp), CircleShape, 24.dp, 4.dp, String.format("%02d", 1)
-    )
 }
 
 @Composable
