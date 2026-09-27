@@ -1,6 +1,8 @@
 package com.daily.cetaring.features.admin.controller;
 
 import com.daily.cetaring.features.admin.dto.AdminDashboardSummaryDTO;
+import com.daily.cetaring.features.admin.dto.AdminBookingDetailsDTO;
+import com.daily.cetaring.features.admin.dto.AdminServiceRequestDetailsDTO;
 import com.daily.cetaring.features.admin.dto.EventCreateRequest;
 import com.daily.cetaring.features.admin.dto.OfferCreateRequest;
 import com.daily.cetaring.features.admin.entity.Coupon;
@@ -54,6 +56,11 @@ public class AdminOperationsController {
         return adminOperationsService.updateOrderStatus(bookingId, status);
     }
 
+    @GetMapping("/orders/{bookingId}/details")
+    public AdminBookingDetailsDTO getBookingDetails(@PathVariable Long bookingId) {
+        return adminOperationsService.getBookingDetails(bookingId);
+    }
+
     @GetMapping("/offers")
     public List<Coupon> getOffers(@RequestParam Long businessId) {
         return adminOperationsService.getOffers(businessId);
@@ -72,6 +79,11 @@ public class AdminOperationsController {
     @GetMapping("/service-requests")
     public List<ServiceRequestDtos.Response> getServiceRequests() {
         return serviceRequestService.all();
+    }
+
+    @GetMapping("/service-requests/{serviceRequestId}/details")
+    public AdminServiceRequestDetailsDTO getServiceRequestDetails(@PathVariable Long serviceRequestId) {
+        return adminOperationsService.getServiceRequestDetails(serviceRequestId);
     }
 
     @PatchMapping("/staffing-requests/{requestId}/status")

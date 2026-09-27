@@ -177,3 +177,71 @@ export interface AdminEvent {
   spent?: number
   status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED'
 }
+
+export interface AdminCustomerSummary {
+  id: number
+  name: string
+  username: string
+  mobileNumber: string
+  email?: string | null
+  verified?: boolean
+}
+
+export interface AdminAcceptedWorker {
+  assignmentId?: number
+  acceptanceId?: number
+  staffingRequestId?: number
+  workerProfileId: number
+  userId: number
+  name: string
+  username: string
+  mobileNumber: string
+  email?: string | null
+  workerType: string
+  profileStatus: string
+  assignmentStatus?: string
+  acceptanceStatus?: string
+  acceptedAt?: string | null
+  experienceYears?: number | null
+  skills?: string | null
+  preferredAreas?: string | null
+  languages?: string | null
+  rating?: number | null
+  bio?: string | null
+}
+
+export interface AdminWorkerAssignment {
+  assignmentId: number
+  workerProfileId: number
+  name: string
+  mobileNumber: string
+  workerType: string
+  status: string
+  offeredAt?: string | null
+  respondedAt?: string | null
+  declineReason?: string | null
+}
+
+export interface AdminBookingDetails extends BookingDTO {
+  eventDate?: string
+  paymentStatus?: string
+  customer: AdminCustomerSummary
+  acceptedWorkers: AdminAcceptedWorker[]
+  workerAssignments: AdminWorkerAssignment[]
+}
+
+export interface AdminStaffingJobDetail {
+  id: number
+  workerType: string
+  requiredWorkers: number
+  acceptedWorkers: number
+  remainingPositions: number
+  paymentPerWorker: number
+  status: string
+}
+
+export interface AdminServiceRequestDetails extends ServiceRequestDTO {
+  customer: AdminCustomerSummary
+  staffingJobs: AdminStaffingJobDetail[]
+  acceptedWorkers: AdminAcceptedWorker[]
+}

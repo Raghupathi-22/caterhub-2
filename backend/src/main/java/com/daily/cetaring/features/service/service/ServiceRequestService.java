@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.EnumSet;
 import java.util.Set;
@@ -110,6 +109,7 @@ public class ServiceRequestService {
         for (ServiceRequestDtos.StaffingLine line : r.staffing) {
             staffingRequestRepository.save(StaffingRequest.builder()
                 .createdBy(user)
+                .serviceRequestId(saved.getId())
                 .eventType(r.eventType.trim())
                 .workerType(line.workerType)
                 .eventDate(r.eventDate)

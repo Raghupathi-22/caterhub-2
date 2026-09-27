@@ -7,6 +7,19 @@ import com.daily.cetaring.features.admin.entity.Coupon;
 import com.daily.cetaring.features.admin.entity.PromotionCampaign;
 import com.daily.cetaring.features.admin.repository.CouponRepository;
 import com.daily.cetaring.features.admin.repository.PromotionCampaignRepository;
+import com.daily.cetaring.features.admin.dto.AdminBookingDetailsDTO;
+import com.daily.cetaring.features.admin.dto.AdminServiceRequestDetailsDTO;
+import com.daily.cetaring.features.service.entity.ServiceRequest;
+import com.daily.cetaring.features.service.repository.ServiceRequestRepository;
+import com.daily.cetaring.features.worker.entity.JobAssignment;
+import com.daily.cetaring.features.worker.entity.StaffingJobAcceptance;
+import com.daily.cetaring.features.worker.entity.StaffingRequest;
+import com.daily.cetaring.features.worker.entity.WorkerProfile;
+import com.daily.cetaring.features.worker.repository.JobAssignmentRepository;
+import com.daily.cetaring.features.worker.repository.StaffingJobAcceptanceRepository;
+import com.daily.cetaring.features.worker.repository.StaffingRequestRepository;
+import com.daily.cetaring.shared.entity.User;
+import com.daily.cetaring.shared.repository.UserRepository;
 import com.daily.cetaring.features.booking.entity.Booking;
 import com.daily.cetaring.features.booking.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +39,11 @@ public class AdminOperationsService {
     private final BookingRepository bookingRepository;
     private final CouponRepository couponRepository;
     private final PromotionCampaignRepository promotionCampaignRepository;
+    private final UserRepository userRepository;
+    private final JobAssignmentRepository jobAssignmentRepository;
+    private final ServiceRequestRepository serviceRequestRepository;
+    private final StaffingRequestRepository staffingRequestRepository;
+    private final StaffingJobAcceptanceRepository staffingJobAcceptanceRepository;
 
     @Transactional(readOnly = true)
     public AdminDashboardSummaryDTO getDashboardSummary(Long businessId) {
@@ -68,6 +86,146 @@ public class AdminOperationsService {
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
         booking.setStatus(status.toUpperCase());
         return bookingRepository.save(booking);
+    }
+
+    @Transactional(readOnly = true)
+    public AdminBookingDetailsDTO getBookingDetails(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
+        User customer = userRepository.findById(booking.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+
+        List<JobAssignment> assignments = jobAssignmentRepository.findByBookingIdOrderByCreatedAtDesc(bookingId);
+        List<AdminBookingDetailsDTO.AcceptedWorkerDTO> acceptedWorkers = assignments.stream()
+                .filter(a -> a.getStatus() == JobAssignment.AssignmentStatus.ACCEPTED
+                        || a.getStatus() == JobAssignment.AssignmentStatus.COMPLETED)
+                .map(this::mapAcceptedWorker)
+                .toList();
+
+        return AdminBookingDetailsDTO.builder()
+                .id(booking.getId())
+                .bookingReference(booking.getBookingReference())
+                .eventType(booking.getEventType())
+                .guestCount(booking.getGuestCount())
+                .mealType(booking.getMealType())
+                .eventDate(booking.getEventDate())
+                .eventDateTime(booking.getEventDateTime())
+                .deliveryAddress(booking.getDeliveryAddress())
+                .specialInstructions(booking.getSpecialInstructions())
+                .totalAmount(booking.getTotalAmount())
+                .status(booking.getStatus())
+                .paymentStatus(booking.getPaymentStatus())
+                .createdAt(booking.getCreatedAt())
+                .customer(mapCustomer(customer))
+                .acceptedWorkers(acceptedWorkers)
+                .workerAssignments(assignments.stream().map(this::mapAssignment).toList())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public AdminServiceRequestDetailsDTO getServiceRequestDetails(Long serviceRequestId) {
+        ServiceRequest request = serviceRequestRepository.findById(serviceRequestId)
+                .orElseThrow(() -> new IllegalArgumentException("Service request not found"));
+        User customer = request.getCreatedBy();
+        List<StaffingRequest> jobs = staffingRequestRepository.findByServiceRequestIdOrderByCreatedAtAsc(serviceRequestId);
+        // Backward-compatible fallback for staff requests created before V20 linked staffing jobs to the service request.
+        if (jobs.isEmpty() && "CATERING_STAFF".equalsIgnoreCase(request.getServiceType())) {
+            jobs = staffingRequestRepository.findByCreatedByIdOrderByCreatedAtDesc(customer.getId()).stream()
+                    .filter(job -> request.getEventType().equals(job.getEventType()))
+                    .filter(job -> request.getEventDate().equals(job.getEventDate()))
+                    .filter(job -> request.getStartTime().equals(job.getStartTime()))
+                    .filter(job -> request.getEndTime().equals(job.getEndTime()))
+                    .filter(job -> request.getLocation().equalsIgnoreCase(job.getLocation()))
+                    .filter(job -> request.getArea().equalsIgnoreCase(job.getArea()))
+                    .toList();
+        }
+        List<AdminServiceRequestDetailsDTO.AcceptedWorkerDTO> acceptedWorkers = jobs.stream()
+                .flatMap(job -> staffingJobAcceptanceRepository.findByStaffingRequestIdOrderByAcceptedAtDesc(job.getId()).stream()
+                        .map(acceptance -> mapServiceAcceptedWorker(acceptance, job)))
+                .toList();
+
+        return AdminServiceRequestDetailsDTO.builder()
+                .id(request.getId())
+                .serviceType(request.getServiceType())
+                .eventType(request.getEventType())
+                .eventDate(request.getEventDate())
+                .startTime(request.getStartTime())
+                .endTime(request.getEndTime())
+                .location(request.getLocation())
+                .area(request.getArea())
+                .selectedServices(fromStorage(request.getSelectedServices()))
+                .instructions(request.getInstructions())
+                .details(request.getDetails())
+                .quoteBased(Boolean.TRUE.equals(request.getQuoteBased()))
+                .totalAmount(request.getTotalAmount())
+                .status(request.getStatus())
+                .createdAt(request.getCreatedAt())
+                .customer(mapServiceCustomer(customer))
+                .staffingJobs(jobs.stream().map(this::mapStaffingJobDetails).toList())
+                .acceptedWorkers(acceptedWorkers)
+                .build();
+    }
+
+    private AdminBookingDetailsDTO.CustomerDTO mapCustomer(User user) {
+        return AdminBookingDetailsDTO.CustomerDTO.builder()
+                .id(user.getId()).name(fullName(user)).username(user.getUsername())
+                .mobileNumber(user.getPhoneNumber()).email(user.getEmail()).verified(user.getIsVerified()).build();
+    }
+
+    private AdminServiceRequestDetailsDTO.CustomerDTO mapServiceCustomer(User user) {
+        return AdminServiceRequestDetailsDTO.CustomerDTO.builder()
+                .id(user.getId()).name(fullName(user)).username(user.getUsername())
+                .mobileNumber(user.getPhoneNumber()).email(user.getEmail()).verified(user.getIsVerified()).build();
+    }
+
+    private AdminBookingDetailsDTO.AcceptedWorkerDTO mapAcceptedWorker(JobAssignment assignment) {
+        WorkerProfile profile = assignment.getWorkerProfile();
+        User user = profile.getUser();
+        return AdminBookingDetailsDTO.AcceptedWorkerDTO.builder()
+                .assignmentId(assignment.getId()).workerProfileId(profile.getId()).userId(user.getId())
+                .name(fullName(user)).username(user.getUsername()).mobileNumber(user.getPhoneNumber()).email(user.getEmail())
+                .workerType(profile.getWorkerType()).profileStatus(profile.getStatus()).assignmentStatus(assignment.getStatus())
+                .acceptedAt(assignment.getRespondedAt()).experienceYears(profile.getExperienceYears())
+                .skills(profile.getSkills()).preferredAreas(profile.getPreferredAreas()).languages(profile.getLanguages())
+                .rating(profile.getRating()).bio(profile.getBio()).build();
+    }
+
+    private AdminBookingDetailsDTO.WorkerAssignmentDTO mapAssignment(JobAssignment assignment) {
+        WorkerProfile profile = assignment.getWorkerProfile();
+        User user = profile.getUser();
+        return AdminBookingDetailsDTO.WorkerAssignmentDTO.builder()
+                .assignmentId(assignment.getId()).workerProfileId(profile.getId()).name(fullName(user))
+                .mobileNumber(user.getPhoneNumber()).workerType(profile.getWorkerType()).status(assignment.getStatus())
+                .offeredAt(assignment.getOfferedAt()).respondedAt(assignment.getRespondedAt())
+                .declineReason(assignment.getDeclineReason()).build();
+    }
+
+    private AdminServiceRequestDetailsDTO.StaffingJobDTO mapStaffingJobDetails(StaffingRequest job) {
+        return AdminServiceRequestDetailsDTO.StaffingJobDTO.builder()
+                .id(job.getId()).workerType(job.getWorkerType()).requiredWorkers(job.getRequiredWorkers())
+                .acceptedWorkers(job.getAcceptedWorkers()).remainingPositions(Math.max(0, job.getRequiredWorkers() - job.getAcceptedWorkers()))
+                .paymentPerWorker(job.getPayment()).status(job.getStatus()).build();
+    }
+
+    private AdminServiceRequestDetailsDTO.AcceptedWorkerDTO mapServiceAcceptedWorker(StaffingJobAcceptance acceptance, StaffingRequest job) {
+        WorkerProfile profile = acceptance.getWorkerProfile();
+        User user = profile.getUser();
+        return AdminServiceRequestDetailsDTO.AcceptedWorkerDTO.builder()
+                .acceptanceId(acceptance.getId()).staffingRequestId(job.getId()).workerProfileId(profile.getId()).userId(user.getId())
+                .name(fullName(user)).username(user.getUsername()).mobileNumber(user.getPhoneNumber()).email(user.getEmail())
+                .workerType(profile.getWorkerType()).profileStatus(profile.getStatus()).acceptanceStatus(acceptance.getStatus())
+                .acceptedAt(acceptance.getAcceptedAt()).experienceYears(profile.getExperienceYears()).skills(profile.getSkills())
+                .preferredAreas(profile.getPreferredAreas()).languages(profile.getLanguages()).rating(profile.getRating()).bio(profile.getBio()).build();
+    }
+
+    private String fullName(User user) {
+        String name = String.join(" ", user.getFirstName() == null ? "" : user.getFirstName(), user.getLastName() == null ? "" : user.getLastName()).trim();
+        return name.isBlank() ? user.getUsername() : name;
+    }
+
+    private List<String> fromStorage(String value) {
+        if (value == null || value.isBlank()) return List.of();
+        return java.util.Arrays.stream(value.split("\\R")).map(String::trim).filter(v -> !v.isBlank()).toList();
     }
 
     @Transactional(readOnly = true)

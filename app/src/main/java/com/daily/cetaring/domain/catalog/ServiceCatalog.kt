@@ -307,7 +307,6 @@ object ServiceCatalog {
     )
 
     val customerCategories: List<ServiceCategoryDefinition> = listOfNotNull(
-        category("catering-food"),
         category("catering-staff"),
         category("decoration"),
         category("tent-tables-equipment"),
