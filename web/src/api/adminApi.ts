@@ -1,5 +1,5 @@
 import { http } from './http'
-import type { AdminBookingDetails, AdminDashboardSummary, AdminEvent, AdminOffer, AdminServiceRequestDetails, BookingDTO, ServiceRequestDTO, StaffingJob, WorkerProfile } from '../types/models'
+import type { AdminBookingDetails, AdminDashboardSummary, AdminEvent, AdminOffer, AdminServiceRequestDetails, AdminOrderSummary, BookingDTO, ServiceRequestDTO, StaffingJob, WorkerProfile } from '../types/models'
 
 export interface OfferCreateRequest {
   businessId: number
@@ -31,6 +31,10 @@ export const adminApi = {
   },
   getOrders: async (businessId: number): Promise<BookingDTO[]> => {
     const response = await http.get<BookingDTO[]>('/admin/orders', { params: { businessId } })
+    return response.data
+  },
+  getAllOrders: async (): Promise<AdminOrderSummary[]> => {
+    const response = await http.get<AdminOrderSummary[]>('/admin/all-orders')
     return response.data
   },
   getBookingDetails: async (bookingId: number): Promise<AdminBookingDetails> => {

@@ -141,6 +141,22 @@ export interface WorkerJob {
   status: string
 }
 
+export interface AdminOrderSummary {
+  id: number
+  orderType: 'CATERING_ORDER' | 'SERVICE_REQUEST'
+  reference: string
+  serviceType?: string | null
+  eventType: string
+  eventDate: string
+  bookedAt: string
+  area: string
+  location?: string | null
+  totalAmount: number
+  status: string
+  acceptedWorkerCount: number
+  customer: AdminCustomerSummary | null
+}
+
 export interface AdminDashboardSummary {
   totalOrders: number
   pendingOrders: number

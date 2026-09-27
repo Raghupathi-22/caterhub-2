@@ -131,9 +131,9 @@ public class ServiceRequestService {
     private BigDecimal unitPrice(com.daily.cetaring.features.worker.entity.WorkerProfile.WorkerType workerType) {
         return switch (workerType) {
             case CATERING_BOY -> BigDecimal.valueOf(850);
-            case CATERING_GIRL -> BigDecimal.valueOf(900);
-            case CHEF -> BigDecimal.valueOf(2200);
-            case KITCHEN_HELPER -> BigDecimal.valueOf(700);
+            case CATERING_GIRL -> BigDecimal.valueOf(1200);
+            case CHEF -> BigDecimal.valueOf(2500);
+            case KITCHEN_HELPER -> BigDecimal.valueOf(800);
             default -> throw new IllegalArgumentException("Unsupported catering staff role.");
         };
     }

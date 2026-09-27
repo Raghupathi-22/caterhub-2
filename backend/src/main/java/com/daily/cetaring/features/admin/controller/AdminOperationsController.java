@@ -1,6 +1,7 @@
 package com.daily.cetaring.features.admin.controller;
 
 import com.daily.cetaring.features.admin.dto.AdminDashboardSummaryDTO;
+import com.daily.cetaring.features.admin.dto.AdminOrderSummaryDTO;
 import com.daily.cetaring.features.admin.dto.AdminBookingDetailsDTO;
 import com.daily.cetaring.features.admin.dto.AdminServiceRequestDetailsDTO;
 import com.daily.cetaring.features.admin.dto.EventCreateRequest;
@@ -23,7 +24,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -49,6 +49,15 @@ public class AdminOperationsController {
     @GetMapping("/orders")
     public List<Booking> getOrders(@RequestParam Long businessId) {
         return adminOperationsService.getOrders(businessId);
+    }
+
+    /**
+     * Unified admin order feed. Includes normal catering orders and service requests
+     * (decoration, entertainment, photography, catering staff, etc.).
+     */
+    @GetMapping("/all-orders")
+    public List<AdminOrderSummaryDTO> getAllOrders() {
+        return adminOperationsService.getAllOrders();
     }
 
     @PutMapping("/orders/{bookingId}/status")

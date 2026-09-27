@@ -8,6 +8,7 @@ import com.daily.cetaring.features.admin.entity.PromotionCampaign;
 import com.daily.cetaring.features.admin.repository.CouponRepository;
 import com.daily.cetaring.features.admin.repository.PromotionCampaignRepository;
 import com.daily.cetaring.features.admin.dto.AdminBookingDetailsDTO;
+import com.daily.cetaring.features.admin.dto.AdminOrderSummaryDTO;
 import com.daily.cetaring.features.admin.dto.AdminServiceRequestDetailsDTO;
 import com.daily.cetaring.features.service.entity.ServiceRequest;
 import com.daily.cetaring.features.service.repository.ServiceRequestRepository;
@@ -79,6 +80,81 @@ public class AdminOperationsService {
         return bookingRepository.findByBusinessId(businessId).stream()
                 .sorted(Comparator.comparing(Booking::getCreatedAt).reversed())
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminOrderSummaryDTO> getAllOrders() {
+        List<AdminOrderSummaryDTO> cateringOrders = bookingRepository.findAll().stream()
+                .filter(b -> b.getDeletedAt() == null)
+                .map(this::mapCateringOrderSummary)
+                .toList();
+
+        List<AdminOrderSummaryDTO> serviceOrders = serviceRequestRepository.findAll().stream()
+                .map(this::mapServiceOrderSummary)
+                .toList();
+
+        return java.util.stream.Stream.concat(cateringOrders.stream(), serviceOrders.stream())
+                .sorted(Comparator.comparing(AdminOrderSummaryDTO::getBookedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+    }
+
+    private AdminOrderSummaryDTO mapCateringOrderSummary(Booking booking) {
+        User customer = userRepository.findById(booking.getUserId()).orElse(null);
+        int accepted = (int) jobAssignmentRepository.findByBookingIdOrderByCreatedAtDesc(booking.getId()).stream()
+                .filter(a -> a.getStatus() == JobAssignment.AssignmentStatus.ACCEPTED
+                        || a.getStatus() == JobAssignment.AssignmentStatus.COMPLETED)
+                .count();
+        return AdminOrderSummaryDTO.builder()
+                .id(booking.getId())
+                .orderType(AdminOrderSummaryDTO.OrderType.CATERING_ORDER)
+                .reference(booking.getBookingReference())
+                .serviceType("CATERING")
+                .eventType(booking.getEventType())
+                .eventDate(booking.getEventDate())
+                .bookedAt(booking.getCreatedAt())
+                .area(booking.getDeliveryAddress())
+                .location(booking.getDeliveryAddress())
+                .totalAmount(booking.getTotalAmount())
+                .status(booking.getStatus())
+                .acceptedWorkerCount(accepted)
+                .customer(customer == null ? null : mapCustomer(customer))
+                .build();
+    }
+
+    private AdminOrderSummaryDTO mapServiceOrderSummary(ServiceRequest request) {
+        User customer = request.getCreatedBy();
+        List<StaffingRequest> jobs = staffingRequestRepository.findByServiceRequestIdOrderByCreatedAtAsc(request.getId());
+        if (jobs.isEmpty() && "CATERING_STAFF".equalsIgnoreCase(request.getServiceType()) && customer != null) {
+            jobs = staffingRequestRepository.findByCreatedByIdOrderByCreatedAtDesc(customer.getId()).stream()
+                    .filter(job -> request.getEventType().equals(job.getEventType()))
+                    .filter(job -> request.getEventDate().equals(job.getEventDate()))
+                    .filter(job -> request.getStartTime().equals(job.getStartTime()))
+                    .filter(job -> request.getEndTime().equals(job.getEndTime()))
+                    .filter(job -> request.getLocation().equalsIgnoreCase(job.getLocation()))
+                    .filter(job -> request.getArea().equalsIgnoreCase(job.getArea()))
+                    .toList();
+        }
+        int accepted = jobs.stream()
+                .mapToInt(job -> staffingJobAcceptanceRepository.findByStaffingRequestIdOrderByAcceptedAtDesc(job.getId()).stream()
+                        .filter(a -> a.getStatus() == StaffingJobAcceptance.AcceptanceStatus.ACCEPTED
+                                || a.getStatus() == StaffingJobAcceptance.AcceptanceStatus.COMPLETED)
+                        .toList().size())
+                .sum();
+        return AdminOrderSummaryDTO.builder()
+                .id(request.getId())
+                .orderType(AdminOrderSummaryDTO.OrderType.SERVICE_REQUEST)
+                .reference("SR-" + request.getId())
+                .serviceType(request.getServiceType())
+                .eventType(request.getEventType())
+                .eventDate(request.getEventDate())
+                .bookedAt(request.getCreatedAt())
+                .area(request.getArea())
+                .location(request.getLocation())
+                .totalAmount(request.getTotalAmount())
+                .status(request.getStatus() == null ? null : request.getStatus().name())
+                .acceptedWorkerCount(accepted)
+                .customer(customer == null ? null : mapCustomer(customer))
+                .build();
     }
 
     public Booking updateOrderStatus(Long bookingId, String status) {
