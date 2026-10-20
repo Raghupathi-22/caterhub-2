@@ -18,6 +18,16 @@ public class ServiceRequestController {
     @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER','ROLE_WORKER','ROLE_ADMIN','ROLE_SUPER_ADMIN')")
     public ServiceRequestDtos.Response create(Authentication auth, @Valid @RequestBody ServiceRequestDtos.CreateRequest request) { return service.create(auth.getName(), request); }
 
+    @PostMapping("/catering-staff")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER','ROLE_ADMIN','ROLE_SUPER_ADMIN')")
+    public ServiceRequestDtos.Response createCateringStaffBooking(
+        Authentication auth,
+        @Valid @RequestBody ServiceRequestDtos.CreateCateringStaffRequest request
+    ) {
+        return service.createCateringStaffBooking(auth.getName(), request);
+    }
+
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public List<ServiceRequestDtos.Response> mine(Authentication auth) {

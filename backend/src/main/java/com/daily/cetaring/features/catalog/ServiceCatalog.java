@@ -48,6 +48,21 @@ public final class ServiceCatalog {
             )
         ),
         new CategoryDefinition(
+            "catering-staff",
+            "Catering Staff",
+            "Book Catering Boys, Catering Girls, Chefs & Kitchen Helpers",
+            "CATERING_STAFF",
+            "groups",
+            "#08752D",
+            List.of("Catering Boys", "Catering Girls", "Chefs", "Kitchen Helpers"),
+            List.of(
+                new RoleDefinition("catering-boy", "Catering Boy", "CATERING_BOY", List.of("Serving", "Guest handling", "Food service")),
+                new RoleDefinition("catering-girl", "Catering Girl", "CATERING_GIRL", List.of("Serving", "Guest handling", "Food service")),
+                new RoleDefinition("chef", "Chef", "CHEF", List.of("Bulk cooking", "South Indian cooking", "North Indian cooking", "Plating")),
+                new RoleDefinition("kitchen-helper", "Kitchen Helper", "KITCHEN_HELPER", List.of("Kitchen support", "Prep assistance", "Cleaning support"))
+            )
+        ),
+        new CategoryDefinition(
             "decoration",
             "Decoration",
             "Stage, flowers, lighting, tents & seating",

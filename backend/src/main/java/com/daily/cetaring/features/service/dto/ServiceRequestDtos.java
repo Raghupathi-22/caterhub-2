@@ -29,6 +29,28 @@ public final class ServiceRequestDtos {
         @NotNull @DecimalMin("0.00") public BigDecimal totalAmount;
     }
 
+    @Data @NoArgsConstructor @AllArgsConstructor
+    public static class CreateCateringStaffRequest {
+        @NotBlank public String eventType;
+        @NotNull public LocalDate eventDate;
+        @NotNull public LocalTime startTime;
+        @NotNull public LocalTime endTime;
+        @NotBlank public String location;
+        @NotBlank public String area;
+        @NotNull @Size(min = 1) public List<String> selectedServices;
+        public String instructions;
+        public String details;
+        @NotNull @DecimalMin("0.00") public BigDecimal totalAmount;
+        @NotNull @Size(min = 1) public List<@Valid StaffingLine> staffing;
+    }
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    public static class StaffingLine {
+        @NotNull public com.daily.cetaring.features.worker.entity.WorkerProfile.WorkerType workerType;
+        @NotNull @Min(1) public Integer requiredWorkers;
+        @NotNull @DecimalMin(value = "0.01") public BigDecimal payment;
+    }
+
     @Data @Builder
     public static class Response {
         public Long id; public String serviceType; public String eventType; public LocalDate eventDate;

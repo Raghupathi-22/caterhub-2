@@ -7,10 +7,11 @@ import com.daily.cetaring.data.remote.dto.AcceptStaffingJobResponse
 import com.daily.cetaring.data.remote.dto.AssignmentResponse
 import com.daily.cetaring.data.remote.dto.AssignmentStatus
 import com.daily.cetaring.data.remote.dto.CreateStaffingRequest
+import com.daily.cetaring.data.remote.dto.CreateCateringStaffBookingRequest
+import com.daily.cetaring.data.remote.dto.ServiceRequestResponse
 import com.daily.cetaring.data.remote.dto.CreateWorkerProfileRequest
 import com.daily.cetaring.data.remote.dto.RespondAssignmentRequest
 import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
-import com.daily.cetaring.data.remote.dto.ServiceRequestResponse
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
 import com.daily.cetaring.data.remote.dto.UpdateAvailabilityToggleRequest
 import com.daily.cetaring.data.remote.dto.WorkerDashboardResponse
@@ -73,6 +74,9 @@ class WorkerRepository(
 
     suspend fun createServiceRequest(request: ServiceRequestRequest): ServiceRequestResponse =
         executeNetworkCall { workerApiService.createServiceRequest(bearerToken(), request) }
+
+    suspend fun createCateringStaffBooking(request: CreateCateringStaffBookingRequest): ServiceRequestResponse =
+        executeNetworkCall { workerApiService.createCateringStaffBooking(bearerToken(), request) }
 
     suspend fun createStaffingRequest(request: CreateStaffingRequest): StaffingJobResponse =
         executeNetworkCall { workerApiService.createStaffingRequest(bearerToken(), request) }

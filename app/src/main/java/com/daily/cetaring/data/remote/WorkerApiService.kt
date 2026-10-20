@@ -4,6 +4,7 @@ import com.daily.cetaring.data.remote.dto.AcceptStaffingJobResponse
 import com.daily.cetaring.data.remote.dto.AssignmentResponse
 import com.daily.cetaring.data.remote.dto.CreateWorkerProfileRequest
 import com.daily.cetaring.data.remote.dto.CreateStaffingRequest
+import com.daily.cetaring.data.remote.dto.CreateCateringStaffBookingRequest
 import com.daily.cetaring.data.remote.dto.RespondAssignmentRequest
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
 import com.daily.cetaring.data.remote.dto.UpdateAvailabilityToggleRequest
@@ -78,6 +79,12 @@ interface WorkerApiService {
         @Header("Authorization") authorization: String,
         @Body request: UpdateAvailabilityToggleRequest
     )
+
+    @POST("service-requests/catering-staff")
+    suspend fun createCateringStaffBooking(
+        @Header("Authorization") authorization: String,
+        @Body request: CreateCateringStaffBookingRequest
+    ): ServiceRequestResponse
 
     @POST("service-requests")
     suspend fun createServiceRequest(
