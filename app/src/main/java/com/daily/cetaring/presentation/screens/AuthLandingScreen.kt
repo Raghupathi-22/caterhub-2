@@ -9,6 +9,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.CheckCircle
@@ -36,7 +39,10 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.RoomService
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -57,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -71,6 +78,9 @@ private val Cream2 = Color(0xFFFFF8E8)
 private val Maroon = Color(0xFF8E171C)
 private val MaroonDark = Color(0xFF6F1015)
 private val Gold = Color(0xFFC88912)
+private val GoldDeep = Color(0xFF9A6A0B)
+private val GoldSoft = Color(0xFFFFF4D9)
+private val MaroonSoft = Color(0xFFF9ECEC)
 private val Green = Color(0xFF0D5B22)
 private val GreenDark = Color(0xFF0A421A)
 private val PaleGreen = Color(0xFFEAF4E7)
@@ -239,175 +249,116 @@ private fun LogoBlock() {
 
 @Composable
 private fun PremiumBookCateringCard(onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(214.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = MaroonDark),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-    ) {
-        Box(Modifier.fillMaxSize()) {
-            Image(
-                painter = painterResource(R.drawable.public_hero_food),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth(0.62f)
-                    .fillMaxSize()
-                    .align(Alignment.CenterEnd)
-                    .clip(RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp)),
-                contentScale = ContentScale.Crop
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                MaroonDark,
-                                Maroon.copy(alpha = 0.98f),
-                                Maroon.copy(alpha = 0.60f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(0.70f)
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(13.dp))
-                                .background(Color.White.copy(alpha = 0.14f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.RestaurantMenu, null, tint = Color(0xFFFFD77A), modifier = Modifier.size(23.dp))
-                        }
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            "CATERHUB CATERING",
-                            color = Color(0xFFFFD77A),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.1.sp
-                        )
-                    }
-                    Text(
-                        "Book Catering",
-                        color = Color.White,
-                        fontSize = 25.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    Text(
-                        "Delicious food, professional service and a complete event plan.",
-                        color = Color.White.copy(alpha = 0.88f),
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White)
-                        .padding(horizontal = 15.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    Text("START BOOKING", color = Maroon, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Maroon, modifier = Modifier.size(17.dp))
-                }
-            }
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(14.dp),
-                shape = RoundedCornerShape(50),
-                color = Color.White.copy(alpha = 0.14f)
-            ) {
-                Text(
-                    "20–200+ guests",
-                    color = Color.White,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
-                )
-            }
-        }
-    }
+    HomeActionCard(
+        icon = Icons.Filled.RoomService,
+        iconTint = Maroon,
+        iconContainer = MaroonSoft,
+        title = "Book Catering",
+        titleColor = Maroon,
+        description = "Delicious food for every special occasion.",
+        ctaLabel = "Book Your Catering",
+        ctaColor = Maroon,
+        borderColor = Maroon.copy(alpha = 0.16f),
+        onClick = onClick
+    )
 }
 
 @Composable
 private fun PremiumMenuCard(onClick: () -> Unit) {
+    HomeActionCard(
+        icon = Icons.AutoMirrored.Filled.MenuBook,
+        iconTint = GoldDeep,
+        iconContainer = GoldSoft,
+        title = "Explore Our Menu",
+        titleColor = TextDark,
+        description = "Tiffins, meals, snacks, beverages and more.",
+        ctaLabel = "Explore Menu",
+        ctaColor = GoldDeep,
+        borderColor = Gold.copy(alpha = 0.32f),
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun HomeActionCard(
+    icon: ImageVector,
+    iconTint: Color,
+    iconContainer: Color,
+    title: String,
+    titleColor: Color,
+    description: String,
+    ctaLabel: String,
+    ctaColor: Color,
+    borderColor: Color,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(188.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(28.dp),
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Gold.copy(alpha = 0.28f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Box(Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .size(150.dp)
-                    .clip(RoundedCornerShape(bottomStart = 72.dp))
-                    .background(Cream2)
-            )
-            Image(
-                painter = painterResource(R.drawable.public_biryani),
-                contentDescription = null,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 14.dp)
-                    .size(116.dp)
-                    .clip(RoundedCornerShape(24.dp)),
-                contentScale = ContentScale.Crop
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(0.70f)
-                    .padding(19.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Restaurant, null, tint = Gold, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(7.dp))
-                        Text("EXPLORE OUR MENU", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                    }
-                    Text("Menu", color = TextDark, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("Discover dishes for every part of your event.", color = Muted, fontSize = 13.sp, lineHeight = 18.sp)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    listOf("Breakfast", "Lunch", "Dinner").forEach { label ->
-                        Surface(shape = RoundedCornerShape(50), color = Color(0xFFFFF4D9)) {
-                            Text(label, color = Maroon, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp))
-                        }
-                    }
-                }
-                Row(
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(13.dp))
-                        .background(Gold)
-                        .padding(horizontal = 14.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(iconContainer),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("VIEW MENU", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(32.dp))
                 }
+                Spacer(Modifier.width(14.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        title,
+                        color = titleColor,
+                        fontSize = 22.sp,
+                        lineHeight = 27.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        description,
+                        color = Muted,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+            Button(
+                onClick = onClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ctaColor, contentColor = Color.White),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 2.dp)
+            ) {
+                Text(
+                    ctaLabel,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(Modifier.width(10.dp))
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }

@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -377,16 +378,22 @@ class MainActivity : ComponentActivity() {
                     ) { entry ->
                         val categoryId = entry.arguments?.getString("categoryId") ?: return@composable
                         val validCategoryId = ServiceCatalog.category(categoryId)?.id ?: "event-support"
+                        // Ignore repeated taps once this destination has started leaving the screen.
+                        fun whenResumed(action: () -> Unit) {
+                            if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) action()
+                        }
                         ServiceRequestScreen(
                             serviceType = validCategoryId,
                             workerRepository = workerRepository,
                             onBackClick = { navController.popBackStack() },
                             onSubmitted = { },
-                            onViewMyBookings = { navController.navigate(AppRoute.BOOKINGS) },
+                            onViewMyBookings = { whenResumed { navController.navigate(AppRoute.BOOKINGS) } },
                             onBackToHome = {
-                                navController.navigate(AppRoute.HOME) {
-                                    popUpTo(AppRoute.HOME) { inclusive = false }
-                                    launchSingleTop = true
+                                whenResumed {
+                                    navController.navigate(AppRoute.HOME) {
+                                        popUpTo(AppRoute.HOME) { inclusive = false }
+                                        launchSingleTop = true
+                                    }
                                 }
                             }
                         )

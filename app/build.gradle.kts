@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+layout.buildDirectory.set(file("${rootProject.projectDir}/build-out/app"))
+
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 } else {

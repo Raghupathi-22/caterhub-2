@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -100,7 +102,7 @@ private data class EventDetailsState(
     val area: String
 )
 
-private data class SubmittedServiceRequestSummary(
+internal data class SubmittedServiceRequestSummary(
     val categoryTitle: String,
     val eventType: String,
     val eventDate: String,
@@ -108,6 +110,42 @@ private data class SubmittedServiceRequestSummary(
     val endTime: String,
     val location: String
 )
+
+// The summary is held in rememberSaveable, so it must be Bundle-compatible. Without this
+// Saver, leaving the success screen (Back to Home, View My Bookings, system Back) disposes the
+// destination, SaveableStateHolder calls performSave(), and Compose throws IllegalStateException
+// because a plain data class cannot be stored in a Bundle.
+internal val SubmittedServiceRequestSummarySaver: Saver<SubmittedServiceRequestSummary?, Any> =
+    listSaver(
+        save = { summary ->
+            if (summary == null) {
+                emptyList()
+            } else {
+                listOf(
+                    summary.categoryTitle,
+                    summary.eventType,
+                    summary.eventDate,
+                    summary.startTime,
+                    summary.endTime,
+                    summary.location
+                )
+            }
+        },
+        restore = { values ->
+            if (values.size == 6) {
+                SubmittedServiceRequestSummary(
+                    categoryTitle = values[0],
+                    eventType = values[1],
+                    eventDate = values[2],
+                    startTime = values[3],
+                    endTime = values[4],
+                    location = values[5]
+                )
+            } else {
+                null
+            }
+        }
+    )
 
 private fun categoryFor(type: String): ServiceCategory {
     val category = ServiceCatalog.category(type) ?: ServiceCatalog.category("event-support")!!
@@ -213,7 +251,9 @@ fun ServiceRequestScreen(
     var showDatePicker by rememberSaveable(serviceType) { mutableStateOf(false) }
     var showStartPicker by rememberSaveable(serviceType) { mutableStateOf(false) }
     var showEndPicker by rememberSaveable(serviceType) { mutableStateOf(false) }
-    var submittedSummary by rememberSaveable(serviceType) { mutableStateOf<SubmittedServiceRequestSummary?>(null) }
+    var submittedSummary by rememberSaveable(serviceType, stateSaver = SubmittedServiceRequestSummarySaver) {
+        mutableStateOf<SubmittedServiceRequestSummary?>(null)
+    }
     val scope = rememberCoroutineScope()
 
     val fixedTotal = items.sumOf { item -> (selected[item.id] ?: 0) * item.price }
