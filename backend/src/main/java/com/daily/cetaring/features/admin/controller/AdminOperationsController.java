@@ -1,6 +1,9 @@
 package com.daily.cetaring.features.admin.controller;
 
 import com.daily.cetaring.features.admin.dto.AdminDashboardSummaryDTO;
+import com.daily.cetaring.features.admin.dto.AdminOrderSummaryDTO;
+import com.daily.cetaring.features.admin.dto.AdminBookingDetailsDTO;
+import com.daily.cetaring.features.admin.dto.AdminServiceRequestDetailsDTO;
 import com.daily.cetaring.features.admin.dto.EventCreateRequest;
 import com.daily.cetaring.features.admin.dto.OfferCreateRequest;
 import com.daily.cetaring.features.admin.entity.Coupon;
@@ -21,7 +24,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -49,9 +51,23 @@ public class AdminOperationsController {
         return adminOperationsService.getOrders(businessId);
     }
 
+    /**
+     * Unified admin order feed. Includes normal catering orders and service requests
+     * (decoration, entertainment, photography, catering staff, etc.).
+     */
+    @GetMapping("/all-orders")
+    public List<AdminOrderSummaryDTO> getAllOrders() {
+        return adminOperationsService.getAllOrders();
+    }
+
     @PutMapping("/orders/{bookingId}/status")
     public Booking updateOrderStatus(@PathVariable Long bookingId, @RequestParam String status) {
         return adminOperationsService.updateOrderStatus(bookingId, status);
+    }
+
+    @GetMapping("/orders/{bookingId}/details")
+    public AdminBookingDetailsDTO getBookingDetails(@PathVariable Long bookingId) {
+        return adminOperationsService.getBookingDetails(bookingId);
     }
 
     @GetMapping("/offers")
@@ -72,6 +88,11 @@ public class AdminOperationsController {
     @GetMapping("/service-requests")
     public List<ServiceRequestDtos.Response> getServiceRequests() {
         return serviceRequestService.all();
+    }
+
+    @GetMapping("/service-requests/{serviceRequestId}/details")
+    public AdminServiceRequestDetailsDTO getServiceRequestDetails(@PathVariable Long serviceRequestId) {
+        return adminOperationsService.getServiceRequestDetails(serviceRequestId);
     }
 
     @PatchMapping("/staffing-requests/{requestId}/status")

@@ -1,6 +1,7 @@
 package com.daily.cetaring.features.service.dto;
 
 import com.daily.cetaring.features.service.entity.ServiceRequest;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
 

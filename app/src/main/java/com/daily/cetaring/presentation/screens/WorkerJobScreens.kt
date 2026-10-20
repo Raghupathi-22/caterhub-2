@@ -522,7 +522,6 @@ private fun ProfileContent(profile: WorkerProfileResponse, onLogout: () -> Unit,
                 ProfileRow("Skills", profile.skills.orEmpty().ifBlank { "Not added" })
                 ProfileRow("Languages", profile.languages.orEmpty().ifBlank { "Not added" })
                 ProfileRow("Preferred areas", profile.preferredAreas.orEmpty().ifBlank { "Not added" })
-                ProfileRow("Availability", "Manage from worker dashboard")
                 ProfileRow("Rating", "${profile.rating}")
                 ProfileRow("Reviews", "${profile.totalRatings}")
             }

@@ -1,5 +1,6 @@
 package com.daily.cetaring.presentation.screens
 
+import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -7,6 +8,8 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -66,17 +69,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.daily.cetaring.BuildConfig
 import com.daily.cetaring.R
 import com.daily.cetaring.auth.OtpMessageParser
 import com.daily.cetaring.data.remote.dto.AuthResponse
-import com.daily.cetaring.diagnostics.ReleaseDiagnostics
 import com.daily.cetaring.presentation.viewmodel.AuthViewModel
 import com.daily.cetaring.presentation.viewmodel.OtpUiState
 import com.google.android.gms.auth.api.phone.SmsRetriever
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.common.api.Status
 import kotlinx.coroutines.delay
-import java.util.concurrent.atomic.AtomicBoolean
 
 private val Cream = Color(0xFFFFFCF6)
 private val Maroon = Color(0xFF941820)
@@ -117,11 +119,8 @@ fun OtpAuthScreen(
     var isAutoFilledOtp by rememberSaveable { mutableStateOf(false) }
     var autoOtpStatus by rememberSaveable { mutableStateOf<String?>(null) }
     var otpSessionId by rememberSaveable { mutableIntStateOf(0) }
-    var sendDispatchedSessionId by rememberSaveable { mutableIntStateOf(-1) }
-    var otpStartInProgress by rememberSaveable { mutableStateOf(false) }
     var lastSubmittedOtpKey by rememberSaveable { mutableStateOf("") }
     var authSuccessHandled by rememberSaveable { mutableStateOf(false) }
-    val isScreenActive = remember { AtomicBoolean(true) }
 
     val title = titleOverride ?: if (isRegistration) "Create an account" else "Login with OTP"
     val subtitle = subtitleOverride ?: if (isRegistration) {
@@ -139,33 +138,40 @@ fun OtpAuthScreen(
     val hasSmsSession = otpState is OtpUiState.Sent || otpState is OtpUiState.Verifying || otp.isNotEmpty()
 
     val onSmsMessageReceived by rememberUpdatedState(newValue = { smsMessage: String ->
-        ReleaseDiagnostics.info("CATERHUB_SMS_RETRIEVER_SMS_RECEIVED")
-        val detectedOtp = OtpMessageParser.extractOtp(smsMessage)
-        if (detectedOtp == null) {
-            ReleaseDiagnostics.error("CATERHUB_SMS_RETRIEVER_FAILURE reason=otp_not_found")
-            return@rememberUpdatedState
-        }
-        if (
-            !waitingForAutoOtp ||
-            (otpState !is OtpUiState.Sending && otpState !is OtpUiState.Sent)
-        ) {
+        logOtpEvent("OTP message received from retriever")
+        val detectedOtp = OtpMessageParser.extractOtp(smsMessage) ?: return@rememberUpdatedState
+        if (!waitingForAutoOtp || otpState !is OtpUiState.Sent) {
             logOtpEvent("OTP ignored due to inactive session/state")
             return@rememberUpdatedState
         }
         otp = detectedOtp
         isAutoFilledOtp = true
         waitingForAutoOtp = false
-        allowManualFallback = true
+        allowManualFallback = false
         autoOtpStatus = "OTP detected"
-        ReleaseDiagnostics.info("CATERHUB_SMS_RETRIEVER_OTP_EXTRACTED length=6")
+        logOtpEvent("6-digit OTP detected and state updated")
     })
 
+    val consentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) {
+            logOtpEvent("SMS User Consent dismissed/cancelled")
+            waitingForAutoOtp = false
+            allowManualFallback = true
+            if (otp.isBlank()) autoOtpStatus = "Didn't receive OTP? Enter it manually"
+            return@rememberLauncherForActivityResult
+        }
+        logOtpEvent("SMS User Consent returned message")
+        val message = result.data?.getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE).orEmpty()
+        onSmsMessageReceived(message)
+    }
+
     fun requestOtp(channel: String? = null) {
-        if (otpStartInProgress || otpState is OtpUiState.Sending) return
         otp = ""
         isAutoFilledOtp = false
-        waitingForAutoOtp = !channel.equals("VOICE", ignoreCase = true)
-        allowManualFallback = true
+        waitingForAutoOtp = false
+        allowManualFallback = false
         autoOtpStatus = if (channel == "VOICE") {
             "We are calling you with the OTP."
         } else {
@@ -173,60 +179,30 @@ fun OtpAuthScreen(
         }
         lastSubmittedOtpKey = ""
         authSuccessHandled = false
-        otpStartInProgress = true
-        val requestSessionId = otpSessionId + 1
-        otpSessionId = requestSessionId
-
-        fun dispatchSendOtp() {
-            if (!isScreenActive.get()) return
-            if (sendDispatchedSessionId == requestSessionId) return
-            sendDispatchedSessionId = requestSessionId
-            viewModel.sendOtp(
-                mobileNumber = "+91$normalizedMobile",
-                purpose = purpose,
-                userType = userType,
-                channel = channel
-            )
-            logOtpEvent(
-                if (channel == "VOICE") {
-                    "Requested OTP via voice channel"
-                } else {
-                    "Requested OTP via SMS channel"
-                }
-            )
-        }
-
-        if (channel.equals("VOICE", ignoreCase = true)) {
-            dispatchSendOtp()
-            return
-        }
-
-        smsRetrieverClient.startSmsRetriever()
-            .addOnSuccessListener {
-                ReleaseDiagnostics.info("CATERHUB_SMS_RETRIEVER_STARTED")
-                dispatchSendOtp()
-            }
-            .addOnFailureListener { exception ->
-                waitingForAutoOtp = false
-                autoOtpStatus = "Auto-detect unavailable. Enter OTP manually."
-                ReleaseDiagnostics.error(
-                    "CATERHUB_SMS_RETRIEVER_FAILURE reason=start_failed exception=${exception::class.java.simpleName}"
-                )
-                dispatchSendOtp()
-            }
+        viewModel.sendOtp(
+            mobileNumber = "+91$normalizedMobile",
+            purpose = purpose,
+            userType = userType,
+            channel = channel
+        )
+        logOtpEvent(if (channel == "VOICE") "Requested OTP via voice channel" else "Requested OTP via SMS channel")
     }
 
     LaunchedEffect(otpState) {
         when (val state = otpState) {
             is OtpUiState.Sent -> {
-                otpStartInProgress = false
                 logOtpEvent("Send OTP succeeded")
                 cooldown = state.resendCooldownSeconds
+                otp = ""
+                isAutoFilledOtp = false
+                lastSubmittedOtpKey = ""
                 authSuccessHandled = false
                 if (state.deliveryChannel.equals("SMS", ignoreCase = true)) {
-                    waitingForAutoOtp = !isAutoFilledOtp
-                    allowManualFallback = true
-                    autoOtpStatus = if (isAutoFilledOtp) "OTP detected" else "Waiting for OTP..."
+                    waitingForAutoOtp = true
+                    allowManualFallback = false
+                    autoOtpStatus = "Waiting for OTP..."
+                    otpSessionId++
+                    logOtpEvent("Waiting for OTP and starting retriever session")
                 } else {
                     waitingForAutoOtp = false
                     allowManualFallback = true
@@ -235,25 +211,15 @@ fun OtpAuthScreen(
                 }
             }
 
-            is OtpUiState.Verifying -> Unit
+            is OtpUiState.Verifying -> logOtpEvent("Starting automatic OTP verification")
             is OtpUiState.Success -> {
                 if (authSuccessHandled) return@LaunchedEffect
                 authSuccessHandled = true
-                if (isAutoFilledOtp) {
-                    ReleaseDiagnostics.info("CATERHUB_SMS_RETRIEVER_VERIFY_SUCCESS")
-                }
                 logOtpEvent("OTP verification completed successfully")
                 onAuthSuccess(state.response)
             }
             is OtpUiState.Error -> {
-                otpStartInProgress = false
-                waitingForAutoOtp = false
-                allowManualFallback = otp.isNotBlank()
                 authSuccessHandled = false
-                if (isAutoFilledOtp && lastSubmittedOtpKey.isNotBlank()) {
-                    ReleaseDiagnostics.error("CATERHUB_SMS_RETRIEVER_FAILURE reason=verification_failed")
-                    isAutoFilledOtp = false
-                }
                 logOtpEvent("OTP flow received error state")
             }
             else -> Unit
@@ -284,7 +250,7 @@ fun OtpAuthScreen(
         if (lastSubmittedOtpKey == requestKey) return@LaunchedEffect
         lastSubmittedOtpKey = requestKey
         autoOtpStatus = "Verifying OTP..."
-        ReleaseDiagnostics.info("CATERHUB_SMS_RETRIEVER_VERIFY_STARTED")
+        logOtpEvent("Starting automatic OTP verification")
         viewModel.verifyOtp(
             mobileNumber = "+91$normalizedMobile",
             otp = otp,
@@ -293,8 +259,8 @@ fun OtpAuthScreen(
         )
     }
 
-    DisposableEffect(context) {
-        isScreenActive.set(true)
+    DisposableEffect(otpSessionId, waitingForAutoOtp, context) {
+        if (!waitingForAutoOtp) return@DisposableEffect onDispose { }
         logOtpEvent("Registering OTP receiver")
 
         val receiver = object : BroadcastReceiver() {
@@ -305,26 +271,29 @@ fun OtpAuthScreen(
                 val status = smsStatusFromExtras(extras) ?: return
                 when (status.statusCode) {
                     CommonStatusCodes.SUCCESS -> {
+                        logOtpEvent("SMS Retriever status: SUCCESS")
                         val smsMessage = extras.getString(SmsRetriever.EXTRA_SMS_MESSAGE)
                         if (!smsMessage.isNullOrBlank()) {
                             onSmsMessageReceived(smsMessage)
                         } else {
-                            waitingForAutoOtp = false
-                            allowManualFallback = true
-                            if (otp.isBlank()) autoOtpStatus = "Didn't detect OTP. You can enter it manually."
-                            ReleaseDiagnostics.error(
-                                "CATERHUB_SMS_RETRIEVER_FAILURE reason=empty_sms"
-                            )
+                            val consentIntent = consentIntentFromExtras(extras)
+                            if (consentIntent != null) {
+                                logOtpEvent("Launching SMS User Consent prompt")
+                                consentLauncher.launch(consentIntent)
+                            } else {
+                                waitingForAutoOtp = false
+                                allowManualFallback = true
+                                if (otp.isBlank()) autoOtpStatus = "Didn't detect OTP. You can enter it manually."
+                                logOtpEvent("No SMS message/consent intent in SUCCESS broadcast")
+                            }
                         }
                     }
 
                     CommonStatusCodes.TIMEOUT -> {
+                        logOtpEvent("SMS Retriever status: TIMEOUT")
                         waitingForAutoOtp = false
                         allowManualFallback = true
                         if (otp.isBlank()) autoOtpStatus = "Didn't detect OTP. You can enter it manually."
-                        ReleaseDiagnostics.error(
-                            "CATERHUB_SMS_RETRIEVER_FAILURE reason=timeout"
-                        )
                     }
                 }
             }
@@ -335,20 +304,32 @@ fun OtpAuthScreen(
                 context,
                 receiver,
                 IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION),
-                SmsRetriever.SEND_PERMISSION,
-                null,
                 ContextCompat.RECEIVER_EXPORTED
             )
         }.onSuccess {
             logOtpEvent("OTP receiver registered")
         }.onFailure {
-            ReleaseDiagnostics.error(
-                "CATERHUB_SMS_RETRIEVER_FAILURE reason=receiver_registration_failed exception=${it::class.java.simpleName}"
-            )
+            waitingForAutoOtp = false
+            allowManualFallback = true
+            if (otp.isBlank()) autoOtpStatus = "Auto-detect unavailable. Enter OTP manually."
+            logOtpEvent("OTP receiver registration failed")
         }
 
+        smsRetrieverClient.startSmsRetriever()
+            .addOnSuccessListener { logOtpEvent("OTP retriever started") }
+            .addOnFailureListener {
+                logOtpEvent("OTP retriever failed to start")
+                if (waitingForAutoOtp) {
+                    waitingForAutoOtp = false
+                    allowManualFallback = true
+                    if (otp.isBlank()) autoOtpStatus = "Auto-detect unavailable. Enter OTP manually."
+                }
+            }
+        smsRetrieverClient.startSmsUserConsent(null)
+            .addOnSuccessListener { logOtpEvent("SMS User Consent listener started") }
+            .addOnFailureListener { logOtpEvent("SMS User Consent listener failed to start") }
+
         onDispose {
-            isScreenActive.set(false)
             logOtpEvent("Unregistering OTP receiver")
             runCatching { context.unregisterReceiver(receiver) }
         }
@@ -439,64 +420,8 @@ fun OtpAuthScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Button(
-                onClick = { requestOtp() },
-                enabled =
-                    normalizedMobile.length == 10 &&
-                        !otpStartInProgress &&
-                        otpState !is OtpUiState.Sending &&
-                        cooldown == 0,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Maroon,
-                    contentColor = Color.White,
-                    disabledContainerColor = DisabledButton,
-                    disabledContentColor = DisabledText
-                )
-            ) {
-                if (otpState is OtpUiState.Sending) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = Color.White,
-                        strokeWidth = 2.5.dp
-                    )
-                } else {
-                    Text(
-                        text = when {
-                            cooldown > 0 -> "OTP Sent • ${cooldown}s"
-                            otpState is OtpUiState.Sent -> "Send OTP Again"
-                            else -> "Send OTP"
-                        },
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (showModeSwitch) {
-                TextButton(onClick = onSwitchMode) {
-                    Text(
-                        text = if (isRegistration) {
-                            "Already have an account? Login"
-                        } else {
-                            "New to CaterHub? Create an account"
-                        },
-                        color = Green,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
             if (hasSmsSession) {
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -673,7 +598,62 @@ fun OtpAuthScreen(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            } else {
+                Spacer(modifier = Modifier.height(18.dp))
             }
+
+            Button(
+                onClick = { requestOtp() },
+                enabled = normalizedMobile.length == 10 && otpState !is OtpUiState.Sending && cooldown == 0,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Maroon,
+                    contentColor = Color.White,
+                    disabledContainerColor = DisabledButton,
+                    disabledContentColor = DisabledText
+                )
+            ) {
+                if (otpState is OtpUiState.Sending) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
+                    Text(
+                        text = when {
+                            cooldown > 0 -> "OTP Sent • ${cooldown}s"
+                            otpState is OtpUiState.Sent -> "Send OTP Again"
+                            else -> "Send OTP"
+                        },
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (showModeSwitch) {
+                TextButton(onClick = onSwitchMode) {
+                    Text(
+                        text = if (isRegistration) {
+                            "Already have an account? Login"
+                        } else {
+                            "New to CaterHub? Create an account"
+                        },
+                        color = Green,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
 
             if (otpState is OtpUiState.Error) {
                 val message = (otpState as OtpUiState.Error).message
@@ -725,6 +705,15 @@ fun OtpAuthScreen(
     }
 }
 
+private fun consentIntentFromExtras(extras: Bundle): Intent? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT, Intent::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT)
+    }
+}
+
 private fun smsStatusFromExtras(extras: Bundle): Status? {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         extras.getParcelable(SmsRetriever.EXTRA_STATUS, Status::class.java)
@@ -735,6 +724,7 @@ private fun smsStatusFromExtras(extras: Bundle): Status? {
 }
 
 private fun logOtpEvent(event: String) {
-    ReleaseDiagnostics.info("CATERHUB_OTP_AUTO $event")
-    Log.d(OTP_LOG_TAG, event)
+    if (BuildConfig.DEBUG) {
+        Log.d(OTP_LOG_TAG, event)
+    }
 }

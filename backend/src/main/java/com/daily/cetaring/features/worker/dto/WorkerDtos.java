@@ -322,7 +322,6 @@ public final class WorkerDtos {
     public static class WorkerDashboardResponse {
         private WorkerProfileResponse profile;
         private Integer profileCompletionPercent;
-        private Boolean availableForWork;
         private List<StaffingJobResponse> nearbyOpportunities;
         private List<WorkerJobResponse> myJobs;
     }

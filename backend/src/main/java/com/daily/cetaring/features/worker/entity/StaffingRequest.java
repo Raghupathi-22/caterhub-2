@@ -36,6 +36,9 @@ public class StaffingRequest {
     @JoinColumn(name = "created_by", nullable = false, foreignKey = @ForeignKey(name = "fk_staffing_requests_created_by"))
     private User createdBy;
 
+    @Column(name = "service_request_id")
+    private Long serviceRequestId;
+
     @Column(name = "event_type", nullable = false, length = 100)
     private String eventType;
 

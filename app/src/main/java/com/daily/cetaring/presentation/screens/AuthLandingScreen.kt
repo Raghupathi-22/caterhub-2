@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,6 +44,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -151,26 +154,8 @@ private fun PublicHomeContent(
             )
         }
 
-        ActionCard(
-            modifier = Modifier.fillMaxWidth(),
-            title = "Book Catering",
-            subtitle = "Plan your event with delicious food and professional catering",
-            color = Maroon,
-            icon = Icons.Filled.RestaurantMenu,
-            ctaText = "Start Booking",
-            primary = true,
-            onClick = onBook
-        )
-        ActionCard(
-            modifier = Modifier.fillMaxWidth(),
-            title = "Menu",
-            subtitle = "Explore our delicious catering options",
-            color = Gold,
-            icon = Icons.Filled.Restaurant,
-            ctaText = "View Menu",
-            primary = false,
-            onClick = onMenuClick
-        )
+        PremiumBookCateringCard(onClick = onBook)
+        PremiumMenuCard(onClick = onMenuClick)
         PublicJoinCtaSection(onWorkerRegister = onWorkerRegister)
 
         OffersPreview(onBook)
@@ -253,119 +238,175 @@ private fun LogoBlock() {
 }
 
 @Composable
-private fun ActionCard(
-    modifier: Modifier,
-    title: String,
-    subtitle: String,
-    color: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    ctaText: String,
-    primary: Boolean,
-    onClick: () -> Unit
-) {
+private fun PremiumBookCateringCard(onClick: () -> Unit) {
     Card(
-        modifier = modifier
-            .height(172.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(214.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaroonDark),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
+        Box(Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(R.drawable.public_hero_food),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth(0.62f)
+                    .fillMaxSize()
+                    .align(Alignment.CenterEnd)
+                    .clip(RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp)),
+                contentScale = ContentScale.Crop
+            )
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(100))
-                    .background(if (primary) Gold.copy(alpha = 0.75f) else Maroon.copy(alpha = 0.75f))
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaroonDark,
+                                Maroon.copy(alpha = 0.98f),
+                                Maroon.copy(alpha = 0.60f),
+                                Color.Transparent
+                            )
+                        )
+                    )
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.70f)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(
-                            if (primary) Color(0xFFFFF4DB) else Color(0xFFFFF3F4),
-                            RoundedCornerShape(16.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        icon,
-                        contentDescription = "$title icon",
-                        tint = if (primary) Maroon else color,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-
-                Spacer(Modifier.weight(1f))
-
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(if (primary) Color(0xFFFFF4DB) else Color(0xFFFCEBED)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Open",
-                        tint = if (primary) Maroon else color,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    title,
-                    color = if (primary) Maroon else TextDark,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    maxLines = 1
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    subtitle,
-                    color = Muted,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-            }
-
-            Card(
-                modifier = Modifier,
-                shape = RoundedCornerShape(999.dp),
-                colors = CardDefaults.cardColors(containerColor = if (primary) Maroon else Gold)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(13.dp))
+                                .background(Color.White.copy(alpha = 0.14f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.RestaurantMenu, null, tint = Color(0xFFFFD77A), modifier = Modifier.size(23.dp))
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "CATERHUB CATERING",
+                            color = Color(0xFFFFD77A),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.1.sp
+                        )
+                    }
                     Text(
-                        ctaText,
+                        "Book Catering",
                         color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.ExtraBold
                     )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                    Text(
+                        "Delicious food, professional service and a complete event plan.",
+                        color = Color.White.copy(alpha = 0.88f),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
                     )
+                }
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White)
+                        .padding(horizontal = 15.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Text("START BOOKING", color = Maroon, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Maroon, modifier = Modifier.size(17.dp))
+                }
+            }
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(14.dp),
+                shape = RoundedCornerShape(50),
+                color = Color.White.copy(alpha = 0.14f)
+            ) {
+                Text(
+                    "20–200+ guests",
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PremiumMenuCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(188.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Gold.copy(alpha = 0.28f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(150.dp)
+                    .clip(RoundedCornerShape(bottomStart = 72.dp))
+                    .background(Cream2)
+            )
+            Image(
+                painter = painterResource(R.drawable.public_biryani),
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 14.dp)
+                    .size(116.dp)
+                    .clip(RoundedCornerShape(24.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.70f)
+                    .padding(19.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Restaurant, null, tint = Gold, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("EXPLORE OUR MENU", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    }
+                    Text("Menu", color = TextDark, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Discover dishes for every part of your event.", color = Muted, fontSize = 13.sp, lineHeight = 18.sp)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    listOf("Breakfast", "Lunch", "Dinner").forEach { label ->
+                        Surface(shape = RoundedCornerShape(50), color = Color(0xFFFFF4D9)) {
+                            Text(label, color = Maroon, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp))
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(Gold)
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("VIEW MENU", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color.White, modifier = Modifier.size(16.dp))
                 }
             }
         }

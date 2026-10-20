@@ -329,15 +329,6 @@ public class WorkerService {
 
     public WorkerDtos.WorkerDashboardResponse getWorkerDashboard(String username) {
         WorkerDtos.WorkerProfileResponse profile = getProfileByUsername(username);
-        boolean availabilityEnabled = profile.getStatus() == WorkerProfile.WorkerStatus.ACTIVE;
-        boolean availableForWork = false;
-        if (availabilityEnabled) {
-            WorkerAvailability latestAvailability = workerAvailabilityRepository
-                .findTopByWorkerProfileIdOrderByCreatedAtDesc(profile.getId())
-                .orElse(null);
-            availableForWork = latestAvailability == null
-                || latestAvailability.getStatus() == WorkerAvailability.AvailabilityStatus.AVAILABLE;
-        }
         List<WorkerDtos.StaffingJobResponse> opportunities = getAvailableStaffingJobs(username, null, null, null).stream()
             .limit(5)
             .toList();
@@ -345,7 +336,6 @@ public class WorkerService {
         return WorkerDtos.WorkerDashboardResponse.builder()
             .profile(profile)
             .profileCompletionPercent(profileCompletion(profile))
-            .availableForWork(availableForWork)
             .nearbyOpportunities(opportunities)
             .myJobs(myJobs)
             .build();
@@ -386,14 +376,6 @@ public class WorkerService {
         if (profile != null && profile.getStatus() != WorkerProfile.WorkerStatus.ACTIVE) {
             return List.of();
         }
-        if (profile != null) {
-            WorkerAvailability latestAvailability = workerAvailabilityRepository
-                .findTopByWorkerProfileIdOrderByCreatedAtDesc(profile.getId())
-                .orElse(null);
-            if (latestAvailability != null && latestAvailability.getStatus() != WorkerAvailability.AvailabilityStatus.AVAILABLE) {
-                return List.of();
-            }
-        }
         WorkerProfile.WorkerType effectiveRole = role != null ? role : (profile == null ? null : profile.getWorkerType());
         Long workerProfileId = profile == null ? null : profile.getId();
         List<StaffingRequest> jobs = effectiveRole == null
@@ -432,12 +414,6 @@ public class WorkerService {
         WorkerProfile profile = getProfileEntityByUsername(username);
         if (profile.getStatus() != WorkerProfile.WorkerStatus.ACTIVE) {
             throw new AccessDeniedException("Worker profile must be approved before accepting jobs.");
-        }
-        WorkerAvailability latestAvailability = workerAvailabilityRepository
-            .findTopByWorkerProfileIdOrderByCreatedAtDesc(profile.getId())
-            .orElse(null);
-        if (latestAvailability != null && latestAvailability.getStatus() != WorkerAvailability.AvailabilityStatus.AVAILABLE) {
-            throw new AccessDeniedException("Enable availability before accepting jobs.");
         }
         StaffingRequest job = staffingRequestRepository.findByIdForUpdate(jobId)
             .orElseThrow(() -> new IllegalArgumentException("Job not found"));

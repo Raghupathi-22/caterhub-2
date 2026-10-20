@@ -111,18 +111,6 @@ class WorkerViewModel(private val workerRepository: WorkerRepository) : ViewMode
         }
     }
 
-    fun updateAvailability(available: Boolean) {
-        viewModelScope.launch {
-            _uiState.value = WorkerUiState.Loading
-            try {
-                workerRepository.updateAvailability(available)
-                loadDashboard()
-            } catch (exception: Exception) {
-                _uiState.value = WorkerUiState.Error(exception.message ?: "Unable to update availability")
-            }
-        }
-    }
-
     fun acceptAssignment(assignmentId: Long) {
         viewModelScope.launch {
             _uiState.value = WorkerUiState.Loading
