@@ -162,6 +162,9 @@ public class WorkerProfile {
     @Column(name = "experience_years", nullable = false)
     private Integer experienceYears;
 
+    @Column(name = "age")
+    private Integer age;
+
     @Column(columnDefinition = "TEXT")
     private String skills;
 

@@ -145,6 +145,69 @@ public class WorkerService {
             .build();
     }
 
+    static final int MIN_WORKER_AGE = 18;
+    static final int MAX_WORKER_AGE = 75;
+    static final int MAX_NAME_LENGTH = 100;
+    static final int MAX_TEXT_LENGTH = 1000;
+
+    /**
+     * Updates the authenticated worker's own editable profile fields. The profile is resolved
+     * only from the authenticated username; status, role, rating, experience and phone are
+     * never modified here, and verification is neither granted nor reset.
+     */
+    public WorkerDtos.WorkerProfileResponse updateMyProfile(
+        String username,
+        WorkerDtos.UpdateMyWorkerProfileRequest request
+    ) {
+        if (request == null) {
+            throw new IllegalArgumentException("Profile details are required.");
+        }
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
+        WorkerProfile profile = workerProfileRepository.findByUserIdAndDeletedAtIsNull(user.getId())
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND, "Please complete worker registration before editing your profile."));
+
+        String fullName = requireText(request.getFullName(), "Please enter your name.");
+        if (fullName.length() < 2 || fullName.length() > MAX_NAME_LENGTH) {
+            throw new IllegalArgumentException("Name must be between 2 and " + MAX_NAME_LENGTH + " characters.");
+        }
+        Integer age = request.getAge();
+        if (age != null && (age < MIN_WORKER_AGE || age > MAX_WORKER_AGE)) {
+            throw new IllegalArgumentException(
+                "Age must be between " + MIN_WORKER_AGE + " and " + MAX_WORKER_AGE + ".");
+        }
+        String skills = requireBoundedText(request.getSkills(), "skills");
+        String preferredAreas = requireBoundedText(request.getPreferredAreas(), "preferred service areas");
+        String languages = requireBoundedText(request.getLanguages(), "languages");
+        String bio = trimToNull(request.getBio());
+        if (bio != null && bio.length() > MAX_TEXT_LENGTH) {
+            throw new IllegalArgumentException("Bio must be " + MAX_TEXT_LENGTH + " characters or fewer.");
+        }
+
+        String normalizedName = fullName.replaceAll("\\s+", " ");
+        int split = normalizedName.indexOf(' ');
+        user.setFirstName(split < 0 ? normalizedName : normalizedName.substring(0, split));
+        user.setLastName(split < 0 ? null : normalizedName.substring(split + 1));
+        userRepository.save(user);
+
+        profile.setAge(age);
+        profile.setSkills(skills);
+        profile.setPreferredAreas(preferredAreas);
+        profile.setLanguages(languages);
+        profile.setBio(bio);
+        return mapProfile(workerProfileRepository.save(profile));
+    }
+
+    private String requireBoundedText(String value, String fieldLabel) {
+        String trimmed = requireText(value, "Please enter your " + fieldLabel + ".");
+        if (trimmed.length() > MAX_TEXT_LENGTH) {
+            throw new IllegalArgumentException(
+                "Please keep " + fieldLabel + " to " + MAX_TEXT_LENGTH + " characters or fewer.");
+        }
+        return trimmed;
+    }
+
     private WorkerProfile getProfileEntity(Long profileId) {
         return workerProfileRepository.findById(profileId)
             .filter(profile -> profile.getDeletedAt() == null)
@@ -378,9 +441,18 @@ public class WorkerService {
         }
         WorkerProfile.WorkerType effectiveRole = role != null ? role : (profile == null ? null : profile.getWorkerType());
         Long workerProfileId = profile == null ? null : profile.getId();
-        List<StaffingRequest> jobs = effectiveRole == null
-            ? staffingRequestRepository.findByStatusOrderByEventDateAscStartTimeAsc(StaffingRequest.StaffingStatus.OPEN)
-            : staffingRequestRepository.findByStatusAndWorkerTypeOrderByEventDateAscStartTimeAsc(StaffingRequest.StaffingStatus.OPEN, effectiveRole);
+        List<StaffingRequest> jobs;
+        if (profile != null && profile.getWorkerType() != null && effectiveRole == profile.getWorkerType()) {
+            // A worker browsing their own role sees every job type their role family can fill.
+            jobs = staffingRequestRepository.findByStatusAndWorkerTypeInOrderByEventDateAscStartTimeAsc(
+                StaffingRequest.StaffingStatus.OPEN,
+                WorkerRoleFamilies.matchingJobTypes(profile.getWorkerType())
+            );
+        } else if (effectiveRole != null) {
+            jobs = staffingRequestRepository.findByStatusAndWorkerTypeOrderByEventDateAscStartTimeAsc(StaffingRequest.StaffingStatus.OPEN, effectiveRole);
+        } else {
+            jobs = staffingRequestRepository.findByStatusOrderByEventDateAscStartTimeAsc(StaffingRequest.StaffingStatus.OPEN);
+        }
         String areaFilter = trimToNull(area);
         String searchFilter = trimToNull(search);
         return jobs.stream()
@@ -404,7 +476,8 @@ public class WorkerService {
         Long profileId = profile == null ? null : profile.getId();
         StaffingRequest job = staffingRequestRepository.findById(jobId)
             .orElseThrow(() -> new IllegalArgumentException("Job not found"));
-        if (profile != null && profile.getWorkerType() != null && job.getWorkerType() != profile.getWorkerType()) {
+        if (profile != null && profile.getWorkerType() != null
+            && !WorkerRoleFamilies.canWorkJob(profile.getWorkerType(), job.getWorkerType())) {
             throw new AccessDeniedException("You can only access jobs matching your role.");
         }
         return mapStaffingJob(job, profileId != null && staffingJobAcceptanceRepository.existsByStaffingRequestIdAndWorkerProfileId(jobId, profileId));
@@ -417,7 +490,7 @@ public class WorkerService {
         }
         StaffingRequest job = staffingRequestRepository.findByIdForUpdate(jobId)
             .orElseThrow(() -> new IllegalArgumentException("Job not found"));
-        if (job.getWorkerType() != profile.getWorkerType()) {
+        if (!WorkerRoleFamilies.canWorkJob(profile.getWorkerType(), job.getWorkerType())) {
             throw new AccessDeniedException("You are not authorized to accept this role.");
         }
         if (job.getStatus() != StaffingRequest.StaffingStatus.OPEN || job.getAcceptedWorkers() >= job.getRequiredWorkers()) {
@@ -553,6 +626,7 @@ public class WorkerService {
             .workerType(profile.getWorkerType())
             .status(profile.getStatus())
             .experienceYears(profile.getExperienceYears())
+            .age(profile.getAge())
             .skills(profile.getSkills())
             .preferredAreas(profile.getPreferredAreas())
             .languages(profile.getLanguages())

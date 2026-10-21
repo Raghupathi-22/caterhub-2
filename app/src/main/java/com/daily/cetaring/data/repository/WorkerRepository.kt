@@ -13,6 +13,7 @@ import com.daily.cetaring.data.remote.dto.CreateWorkerProfileRequest
 import com.daily.cetaring.data.remote.dto.RespondAssignmentRequest
 import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
+import com.daily.cetaring.data.remote.dto.UpdateWorkerProfileRequest
 import com.daily.cetaring.data.remote.dto.WorkerDashboardResponse
 import com.daily.cetaring.data.remote.dto.WorkerJobResponse
 import com.daily.cetaring.data.remote.dto.WorkerProfileResponse
@@ -29,6 +30,9 @@ class WorkerRepository(
 
     suspend fun createMyProfile(request: CreateWorkerProfileRequest): WorkerProfileResponse =
         executeNetworkCall { workerApiService.createMyProfile(bearerToken(), request) }
+
+    suspend fun updateMyProfile(request: UpdateWorkerProfileRequest): WorkerProfileResponse =
+        executeNetworkCall { workerApiService.updateMyProfile(bearerToken(), request) }
 
     suspend fun getAssignmentsForWorker(profileId: Long): List<AssignmentResponse> =
         executeNetworkCall { workerApiService.getAssignmentsForWorker(bearerToken(), profileId) }

@@ -192,6 +192,16 @@ data class CreateWorkerProfileRequest(
     val bio: String?
 )
 
+/** Self-service profile edit. Identity, role, status and rating are intentionally not editable here. */
+data class UpdateWorkerProfileRequest(
+    val fullName: String,
+    val age: Int?,
+    val skills: String,
+    val preferredAreas: String,
+    val languages: String,
+    val bio: String?
+)
+
 data class CreateStaffingRequest(
     val eventType: String,
     val workerType: WorkerType,
@@ -213,6 +223,7 @@ data class WorkerProfileResponse(
     val workerType: WorkerType?,
     val status: WorkerStatus,
     val experienceYears: Int,
+    val age: Int? = null,
     val skills: String?,
     val preferredAreas: String?,
     val languages: String?,

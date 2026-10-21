@@ -8,13 +8,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.LocationOn
@@ -480,24 +483,42 @@ private fun MyJobCard(job: WorkerJobResponse) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkerProfileScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onLogoutClick: () -> Unit) {
+fun WorkerProfileScreen(
+    viewModel: WorkerViewModel,
+    onBackClick: () -> Unit,
+    onLogoutClick: () -> Unit,
+    onEditClick: () -> Unit = {}
+) {
     val uiState by viewModel.uiState.collectAsState()
+    val profileSaved by viewModel.profileSavedNotice.collectAsState()
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+    // Always re-read from the backend so values saved on the edit screen are shown.
     LaunchedEffect(Unit) { viewModel.loadProfile() }
+    LaunchedEffect(profileSaved) {
+        if (profileSaved) {
+            viewModel.consumeProfileSavedNotice()
+            snackbarHostState.showSnackbar("Profile updated successfully")
+        }
+    }
 
-    Scaffold(containerColor = Cream, topBar = { WorkerTopBar("My Profile", onBackClick) }) { padding ->
+    Scaffold(
+        containerColor = Cream,
+        topBar = { WorkerTopBar("My Profile", onBackClick) },
+        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) }
+    ) { padding ->
         when (val state = uiState) {
             WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading your profile...")
             is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
                 CaterHubErrorState(message = state.message, onRetry = { viewModel.loadProfile() })
             }
-            is WorkerUiState.ProfileLoaded -> ProfileContent(state.profile, onLogoutClick, Modifier.padding(padding))
+            is WorkerUiState.ProfileLoaded -> ProfileContent(state.profile, onEditClick, onLogoutClick, Modifier.padding(padding))
             else -> Unit
         }
     }
 }
 
 @Composable
-private fun ProfileContent(profile: WorkerProfileResponse, onLogout: () -> Unit, modifier: Modifier) {
+private fun ProfileContent(profile: WorkerProfileResponse, onEdit: () -> Unit, onLogout: () -> Unit, modifier: Modifier) {
     Column(modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp),
@@ -514,14 +535,28 @@ private fun ProfileContent(profile: WorkerProfileResponse, onLogout: () -> Unit,
                     }
                     CaterHubStatusChip(profile.status.label)
                 }
+                androidx.compose.material3.Button(
+                    onClick = onEdit,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Red,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text("Edit Profile", fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
+                }
                 androidx.compose.material3.HorizontalDivider(color = Border)
                 ProfileRow("Verification status", profile.status.label)
                 ProfileRow("Service category", ServiceCatalog.categoryForWorkerType(profile.workerType)?.title ?: profile.workerType?.category ?: "Not selected")
                 ProfileRow("Service role", profile.workerType?.label ?: "Not selected")
+                ProfileRow("Age", profile.age?.let { "$it years" } ?: "Not added")
                 ProfileRow("Experience", "${profile.experienceYears} years")
                 ProfileRow("Skills", profile.skills.orEmpty().ifBlank { "Not added" })
                 ProfileRow("Languages", profile.languages.orEmpty().ifBlank { "Not added" })
                 ProfileRow("Preferred areas", profile.preferredAreas.orEmpty().ifBlank { "Not added" })
+                ProfileRow("About me", profile.bio.orEmpty().ifBlank { "Not added" })
                 ProfileRow("Rating", "${profile.rating}")
                 ProfileRow("Reviews", "${profile.totalRatings}")
             }

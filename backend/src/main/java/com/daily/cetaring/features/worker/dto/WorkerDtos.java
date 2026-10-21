@@ -65,6 +65,24 @@ public final class WorkerDtos {
         private String bio;
     }
 
+    /**
+     * Self-service profile edit. Intentionally has no id, userId, workerType, status,
+     * rating or phone fields: identity comes from the authenticated principal and
+     * those attributes are managed by separate authorized flows.
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class UpdateMyWorkerProfileRequest {
+        private String fullName;
+        private Integer age;
+        private String skills;
+        private String preferredAreas;
+        private String languages;
+        private String bio;
+    }
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -155,6 +173,7 @@ public final class WorkerDtos {
         private WorkerProfile.WorkerType workerType;
         private WorkerProfile.WorkerStatus status;
         private Integer experienceYears;
+        private Integer age;
         private String skills;
         private String preferredAreas;
         private String languages;

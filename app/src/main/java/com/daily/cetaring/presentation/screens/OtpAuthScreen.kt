@@ -28,7 +28,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Refresh
@@ -87,7 +86,6 @@ private val Green = Color(0xFF086526)
 private val Dark = Color(0xFF292522)
 private val Muted = Color(0xFF716A63)
 private val Border = Color(0xFFD6CEC0)
-private val LightGreen = Color(0xFFEAF5EE)
 private val LightMaroon = Color(0xFFFFEEEE)
 private val DisabledButton = Color(0xFFE7E0D6)
 private val DisabledText = Color(0xFF9A948C)
@@ -423,180 +421,160 @@ fun OtpAuthScreen(
             if (hasSmsSession) {
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = LightGreen),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.CheckCircle,
-                            contentDescription = null,
-                            tint = Green,
-                            modifier = Modifier.size(32.dp)
-                        )
+                Text(
+                    text = "OTP",
+                    color = Dark,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                        Text(
-                            text = when {
-                                otpState is OtpUiState.Verifying -> "Verifying OTP..."
-                                waitingForAutoOtp -> "Waiting for OTP..."
-                                isAutoFilledOtp -> "OTP detected"
-                                else -> "Enter your OTP"
-                            },
-                            color = Dark,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        val sentState = otpState as? OtpUiState.Sent
-                        Text(
-                            text = autoOtpStatus?.takeIf { it.isNotBlank() }
-                                ?: sentState?.message?.takeIf { it.isNotBlank() }
-                                ?: "Enter the 6-digit code sent to\n+91 $normalizedMobile",
-                            color = Muted,
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(18.dp))
-
-                        OutlinedTextField(
-                            value = otp,
-                            onValueChange = {
-                                if (allowManualFallback) {
-                                    otp = it.filter(Char::isDigit).take(6)
-                                    isAutoFilledOtp = false
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("6-digit OTP") },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number
-                            ),
-                            enabled = allowManualFallback && otpState !is OtpUiState.Verifying,
-                            singleLine = true,
-                            textStyle = LocalTextStyle.current.copy(
-                                color = Dark,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 5.sp,
-                                textAlign = TextAlign.Center
-                            ),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Dark,
-                                unfocusedTextColor = Dark,
-                                focusedBorderColor = Green,
-                                unfocusedBorderColor = Border,
-                                focusedLabelColor = Green,
-                                unfocusedLabelColor = Muted,
-                                cursorColor = Green
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
+                OutlinedTextField(
+                    value = otp,
+                    onValueChange = {
                         if (allowManualFallback) {
-                            Button(
-                                onClick = {
-                                    lastSubmittedOtpKey = ""
-                                    viewModel.verifyOtp(
-                                        mobileNumber = "+91$normalizedMobile",
-                                        otp = otp,
-                                        purpose = purpose,
-                                        name = registrationName
-                                    )
-                                },
-                                enabled =
-                                    otp.length == 6 &&
-                                        otpState !is OtpUiState.Verifying &&
-                                        (
-                                            !isRegistration ||
-                                                name.trim().isNotEmpty()
-                                            ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp),
-                                shape = RoundedCornerShape(28.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Green,
-                                    contentColor = Color.White,
-                                    disabledContainerColor = DisabledButton,
-                                    disabledContentColor = DisabledText
-                                )
-                            ) {
-                                if (otpState is OtpUiState.Verifying) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(22.dp),
-                                        color = Color.White,
-                                        strokeWidth = 2.5.dp
-                                    )
-                                } else {
-                                    Text(
-                                        text = "Verify OTP",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+                            otp = it.filter(Char::isDigit).take(6)
+                            isAutoFilledOtp = false
                         }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("6-digit OTP") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
+                    enabled = allowManualFallback && otpState !is OtpUiState.Verifying,
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(
+                        color = Dark,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 5.sp,
+                        textAlign = TextAlign.Center
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Dark,
+                        unfocusedTextColor = Dark,
+                        focusedBorderColor = Green,
+                        unfocusedBorderColor = Border,
+                        focusedLabelColor = Green,
+                        unfocusedLabelColor = Muted,
+                        cursorColor = Green
+                    )
+                )
 
-                        TextButton(
-                            onClick = { requestOtp(channel = "VOICE") },
-                            enabled = otpState !is OtpUiState.Sending
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Phone,
-                                contentDescription = null,
-                                tint = Maroon,
-                                modifier = Modifier.size(18.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val sentState = otpState as? OtpUiState.Sent
+                Text(
+                    text = when {
+                        otpState is OtpUiState.Verifying -> "Verifying OTP..."
+                        waitingForAutoOtp -> "Waiting for OTP..."
+                        isAutoFilledOtp -> "OTP detected"
+                        else -> autoOtpStatus?.takeIf { it.isNotBlank() }
+                            ?: sentState?.message?.takeIf { it.isNotBlank() }
+                            ?: "Enter the 6-digit code sent to +91 $normalizedMobile"
+                    },
+                    color = Muted,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (allowManualFallback) {
+                    Button(
+                        onClick = {
+                            lastSubmittedOtpKey = ""
+                            viewModel.verifyOtp(
+                                mobileNumber = "+91$normalizedMobile",
+                                otp = otp,
+                                purpose = purpose,
+                                name = registrationName
                             )
-                            Spacer(modifier = Modifier.size(5.dp))
-                            Text(
-                                text = "Didn't get SMS? Call me with OTP",
-                                color = Maroon,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                textAlign = TextAlign.Center
+                        },
+                        enabled =
+                            otp.length == 6 &&
+                                otpState !is OtpUiState.Verifying &&
+                                (
+                                    !isRegistration ||
+                                        name.trim().isNotEmpty()
+                                    ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Green,
+                            contentColor = Color.White,
+                            disabledContainerColor = DisabledButton,
+                            disabledContentColor = DisabledText
+                        )
+                    ) {
+                        if (otpState is OtpUiState.Verifying) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.5.dp
                             )
-                        }
-
-                        if (cooldown == 0) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            TextButton(onClick = { requestOtp() }) {
-                                Icon(
-                                    imageVector = Icons.Filled.Refresh,
-                                    contentDescription = null,
-                                    tint = Green,
-                                    modifier = Modifier.size(18.dp)
-                                )
-
-                                Spacer(modifier = Modifier.size(5.dp))
-
-                                Text(
-                                    text = "Resend OTP",
-                                    color = Green,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
                         } else {
                             Text(
-                                text = "You can resend OTP in ${cooldown}s",
-                                color = Muted,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(top = 8.dp)
+                                text = "Verify OTP",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
+                }
+
+                TextButton(
+                    onClick = { requestOtp(channel = "VOICE") },
+                    enabled = otpState !is OtpUiState.Sending
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Phone,
+                        contentDescription = null,
+                        tint = Maroon,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.size(5.dp))
+                    Text(
+                        text = "Didn't get SMS? Call me with OTP",
+                        color = Maroon,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                if (cooldown == 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    TextButton(onClick = { requestOtp() }) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = null,
+                            tint = Green,
+                            modifier = Modifier.size(18.dp)
+                        )
+
+                        Spacer(modifier = Modifier.size(5.dp))
+
+                        Text(
+                            text = "Resend OTP",
+                            color = Green,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "You can resend OTP in ${cooldown}s",
+                        color = Muted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

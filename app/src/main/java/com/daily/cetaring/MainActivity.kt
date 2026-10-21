@@ -40,6 +40,7 @@ import com.daily.cetaring.presentation.screens.WorkerJobsScreen
 import com.daily.cetaring.presentation.screens.WorkerJobDetailsScreen
 import com.daily.cetaring.presentation.screens.WorkerMyJobsScreen
 import com.daily.cetaring.presentation.screens.WorkerProfileScreen
+import com.daily.cetaring.presentation.screens.WorkerEditProfileScreen
 import com.daily.cetaring.presentation.screens.WorkerRegistrationScreen
 import com.daily.cetaring.presentation.viewmodel.AuthUiState
 import com.daily.cetaring.presentation.viewmodel.AuthViewModel
@@ -72,6 +73,7 @@ private object AppRoute {
     const val WORKER_JOB_DETAILS = "worker_job_details/{jobId}"
     const val WORKER_MY_JOBS = "worker_my_jobs"
     const val WORKER_PROFILE = "worker_profile"
+    const val WORKER_EDIT_PROFILE = "worker_edit_profile"
     const val HELP_SUPPORT = "help_support"
     const val WORKER_ACCOUNT_REGISTER = "worker_account_register"
     const val WORKER_LOGIN = "worker_login"
@@ -446,10 +448,26 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    composable(AppRoute.WORKER_ONBOARDING) {
+                    composable(AppRoute.WORKER_ONBOARDING) { entry ->
                         WorkerRegistrationScreen(
                             viewModel = workerViewModel,
-                            onBackClick = { navController.popBackStack() },
+                            onBackClick = {
+                                // Ignore stale/duplicate taps once this destination is leaving.
+                                if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                    // Onboarding is reached via navigateAfterAuth(), which clears the
+                                    // back stack, so there is usually nothing to pop back to. Popping
+                                    // the only entry leaves the NavHost blank; return to the auth
+                                    // landing screen (the worker sign-up entry point) instead.
+                                    if (navController.previousBackStackEntry != null) {
+                                        navController.popBackStack()
+                                    } else {
+                                        navController.navigate(AppRoute.AUTH_LANDING) {
+                                            popUpTo(AppRoute.WORKER_ONBOARDING) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
+                            },
                             onSubmitted = {
                                 navController.navigate(AppRoute.WORKER_DASHBOARD) {
                                     popUpTo(AppRoute.WORKER_ONBOARDING) { inclusive = true }
@@ -501,6 +519,9 @@ class MainActivity : ComponentActivity() {
                         WorkerProfileScreen(
                             viewModel = workerViewModel,
                             onBackClick = { navController.popBackStack() },
+                            onEditClick = {
+                                navController.navigate(AppRoute.WORKER_EDIT_PROFILE) { launchSingleTop = true }
+                            },
                             onLogoutClick = {
                                 authViewModel.logout()
                                 workerViewModel.reset()
@@ -509,6 +530,20 @@ class MainActivity : ComponentActivity() {
                                     launchSingleTop = true
                                 }
                             }
+                        )
+                    }
+
+                    composable(AppRoute.WORKER_EDIT_PROFILE) { entry ->
+                        // Only leave once, and only while this screen is the active destination.
+                        val leaveEditProfile: () -> Unit = {
+                            if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                navController.popBackStack(AppRoute.WORKER_PROFILE, inclusive = false)
+                            }
+                        }
+                        WorkerEditProfileScreen(
+                            viewModel = workerViewModel,
+                            onCancel = leaveEditProfile,
+                            onSaved = leaveEditProfile
                         )
                     }
 

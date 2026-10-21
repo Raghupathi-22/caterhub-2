@@ -55,6 +55,16 @@ public class WorkerController {
         return workerService.getProfileByUsername(authentication.getName());
     }
 
+    /** Workers may edit only their own profile; the target is derived from the authenticated principal. */
+    @PutMapping("/profiles/me")
+    @PreAuthorize("hasAuthority('ROLE_WORKER')")
+    public WorkerDtos.WorkerProfileResponse updateMyProfile(
+        Authentication authentication,
+        @RequestBody WorkerDtos.UpdateMyWorkerProfileRequest request
+    ) {
+        return workerService.updateMyProfile(authentication.getName(), request);
+    }
+
     @GetMapping("/profiles/{profileId}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public WorkerDtos.WorkerProfileResponse getProfile(@PathVariable Long profileId) {

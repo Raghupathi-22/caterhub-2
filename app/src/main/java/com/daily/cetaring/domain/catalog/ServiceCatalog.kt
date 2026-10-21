@@ -379,8 +379,103 @@ object ServiceCatalog {
             )
         )
 
+        "entertainment" -> listOfNotNull(
+            roles.firstOrNull { it.id == "dj" }?.copy(title = "DJ & Sound System"),
+            roles.firstOrNull { it.id == "singer" }?.copy(title = "Singers"),
+            roles.firstOrNull { it.id == "band-melam-artist" }?.copy(title = "Band Melam Group"),
+            roles.firstOrNull { it.id == "dancer" }?.copy(title = "Dancer"),
+            roles.firstOrNull { it.id == "anchor" }?.copy(title = "Anchor"),
+            roles.firstOrNull { it.id == "magician" }?.copy(title = "Magician")
+        )
+
         else -> rolesForCategory(categoryId)
     }
+
+    // Worker registration only offers these top-level categories. Other categories and
+    // their roles stay in the catalog so existing worker profiles and bookings still resolve.
+    private val workerRegistrationCategoryIds = listOf(
+        "catering-food",
+        "decoration",
+        "entertainment",
+        "beauty",
+        "photography-video",
+        "religious-ceremony"
+    )
+
+    val workerRegistrationCategories: List<ServiceCategoryDefinition> =
+        workerRegistrationCategoryIds.mapNotNull { category(it) }
+
+    /**
+     * Broad roles offered at worker sign-up: (existing role id, display title, what it covers).
+     * Each broad role saves the existing WorkerType of that role id (no new API values). The
+     * backend's WorkerRoleFamilies lets that saved type match the related job types listed
+     * in [description]. Keep the two in sync. Finer-grained roles stay in [roles] so existing
+     * worker profiles and customer bookings still resolve.
+     */
+    private val workerRegistrationRoleSpecs: Map<String, List<Triple<String, String, String>>> = mapOf(
+        "catering-food" to listOf(
+            Triple("chef", "Chef", "Chef, head chef and cook jobs"),
+            Triple("assistant-chef", "Assistant Chef", "Support the chef in prep and cooking"),
+            Triple("biryani-chef", "Specialty Chef", "Biryani, tandoor and sweets/mithai jobs"),
+            Triple("kitchen-helper", "Kitchen Helper", "Cutting, washing and kitchen support"),
+            Triple("serving-staff", "Catering Service Staff", "Serving staff, waiter and catering boy/girl jobs")
+        ),
+        "decoration" to listOf(
+            Triple("event-decorator", "Event Decorator", "Event, wedding, entrance and backdrop decor"),
+            Triple("mandap-decorator", "Stage & Mandap Decorator", "Stage and mandap decoration"),
+            Triple("balloon-decorator", "Balloon Decorator", "Balloon arches, walls and themes"),
+            Triple("flower-decorator", "Floral Decorator", "Fresh flower and garland decoration"),
+            Triple("stage-setup-worker", "Decoration Assistant", "Stage setup and tent/shamiana work")
+        ),
+        "entertainment" to listOf(
+            Triple("dj", "DJ & Sound System", "DJ and sound technician jobs"),
+            Triple("singer", "Singer", "Male and female singer jobs"),
+            Triple("band-melam-artist", "Band & Melam Group", "Band, band leader and melam jobs"),
+            Triple("dancer", "Dancer", "Dance performer and troupe jobs"),
+            Triple("anchor", "Anchor", "Anchor, MC and emcee jobs"),
+            Triple("magician", "Magician", "Magic shows for events")
+        ),
+        "beauty" to listOf(
+            Triple("makeup-artist", "Makeup Artist", "Party, bridal and groom makeup"),
+            Triple("mehendi-artist", "Mehndi Artist", "Bridal, Arabic and party mehndi"),
+            Triple("hair-stylist", "Hairstylist", "Event and bridal hairstyling"),
+            Triple("beauty-specialist", "Beautician", "Beauty treatments and nail art"),
+            Triple("saree-drapist", "Beauty Assistant", "Saree draping and styling support")
+        ),
+        "photography-video" to listOf(
+            Triple("photographer", "Photographer", "Wedding and event photography"),
+            Triple("videographer", "Videographer", "Wedding video and live streaming"),
+            Triple("event-photographer", "Candid Photographer", "Candid event and wedding photography"),
+            Triple("video-editor", "Video Editor", "Video and photo editing"),
+            Triple("photo-booth-operator", "Photography Assistant", "Photo booth and shoot support")
+        ),
+        "religious-ceremony" to listOf(
+            Triple("pujari", "Priest/Pujari", "Pujari, priest and pandit jobs"),
+            Triple("homam-specialist", "Vedic Ritual Specialist", "Homam and Vedic rituals"),
+            Triple("pooja-specialist", "Ceremony Assistant", "Pooja and ceremony support"),
+            Triple("wedding-ritual-specialist", "Traditional Ceremony Specialist", "Traditional wedding rituals")
+        )
+    )
+
+    private val workerRegistrationRolesByCategory: Map<String, List<ServiceRoleDefinition>> =
+        workerRegistrationRoleSpecs.mapValues { (categoryId, specs) ->
+            specs.mapNotNull { (roleId, title, _) ->
+                roles.firstOrNull { it.id == roleId && it.categoryId == categoryId && it.workerType != null }
+                    ?.copy(title = title)
+            }
+        }
+
+    private val workerRegistrationRoleDescriptions: Map<String, String> =
+        workerRegistrationRoleSpecs.values.flatten().associate { (roleId, _, description) -> roleId to description }
+
+    fun workerRegistrationRolesForCategory(categoryId: String): List<ServiceRoleDefinition> =
+        workerRegistrationRolesByCategory[categoryId].orEmpty()
+
+    /** Registration display version of a role (broad title), or null if not offered at sign-up. */
+    fun workerRegistrationRole(roleId: String): ServiceRoleDefinition? =
+        workerRegistrationRolesByCategory.values.asSequence().flatten().firstOrNull { it.id == roleId }
+
+    fun workerRegistrationRoleDescription(roleId: String): String? = workerRegistrationRoleDescriptions[roleId]
 
     fun categoryForWorkerType(workerType: WorkerType?): ServiceCategoryDefinition? {
         val resolvedWorkerType = workerType ?: return null

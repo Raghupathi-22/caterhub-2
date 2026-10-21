@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +26,11 @@ public interface StaffingRequestRepository extends JpaRepository<StaffingRequest
     List<StaffingRequest> findByStatusAndWorkerTypeOrderByEventDateAscStartTimeAsc(
         StaffingRequest.StaffingStatus status,
         WorkerProfile.WorkerType workerType
+    );
+
+    List<StaffingRequest> findByStatusAndWorkerTypeInOrderByEventDateAscStartTimeAsc(
+        StaffingRequest.StaffingStatus status,
+        Collection<WorkerProfile.WorkerType> workerTypes
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

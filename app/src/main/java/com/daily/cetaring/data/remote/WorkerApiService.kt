@@ -9,6 +9,7 @@ import com.daily.cetaring.data.remote.dto.RespondAssignmentRequest
 import com.daily.cetaring.data.remote.dto.StaffingJobResponse
 import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
 import com.daily.cetaring.data.remote.dto.ServiceRequestResponse
+import com.daily.cetaring.data.remote.dto.UpdateWorkerProfileRequest
 import com.daily.cetaring.data.remote.dto.WorkerDashboardResponse
 import com.daily.cetaring.data.remote.dto.WorkerJobResponse
 import com.daily.cetaring.data.remote.dto.WorkerProfileResponse
@@ -18,6 +19,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PATCH
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -31,6 +33,12 @@ interface WorkerApiService {
     suspend fun createMyProfile(
         @Header("Authorization") authorization: String,
         @Body request: CreateWorkerProfileRequest
+    ): WorkerProfileResponse
+
+    @PUT("workers/profiles/me")
+    suspend fun updateMyProfile(
+        @Header("Authorization") authorization: String,
+        @Body request: UpdateWorkerProfileRequest
     ): WorkerProfileResponse
 
     @GET("workers/profiles/{profileId}/assignments")
