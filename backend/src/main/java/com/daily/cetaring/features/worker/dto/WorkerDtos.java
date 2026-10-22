@@ -170,6 +170,11 @@ public final class WorkerDtos {
         private Long userId;
         private String username;
         private String fullName;
+        /**
+         * Registered login mobile (users.phone_number). Only returned by admin-only endpoints and by
+         * the worker's own /profiles/me and dashboard; never by public or customer-facing APIs.
+         */
+        private String phoneNumber;
         private WorkerProfile.WorkerType workerType;
         private WorkerProfile.WorkerStatus status;
         private Integer experienceYears;
@@ -293,6 +298,8 @@ public final class WorkerDtos {
         private String additionalRequirements;
         private StaffingRequest.StaffingStatus status;
         private Boolean alreadyAccepted;
+        /** True when the event's start (Asia/Kolkata) is now or past; such jobs cannot be accepted. */
+        private Boolean expired;
         private LocalDateTime createdAt;
     }
 
@@ -313,6 +320,8 @@ public final class WorkerDtos {
         private BigDecimal payment;
         private StaffingJobAcceptance.AcceptanceStatus status;
         private LocalDateTime acceptedAt;
+        /** True while the event's start (Asia/Kolkata) is still in the future. */
+        private Boolean upcoming;
     }
 
     @Data
@@ -343,5 +352,7 @@ public final class WorkerDtos {
         private Integer profileCompletionPercent;
         private List<StaffingJobResponse> nearbyOpportunities;
         private List<WorkerJobResponse> myJobs;
+        /** Accepted jobs whose event start is still in the future, soonest first. */
+        private List<WorkerJobResponse> upcomingJobs;
     }
 }

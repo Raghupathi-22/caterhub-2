@@ -279,7 +279,8 @@ data class StaffingJobResponse(
     val additionalRequirements: String?,
     val status: String,
     val alreadyAccepted: Boolean? = false,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    val expired: Boolean? = null
 )
 
 data class WorkerJobResponse(
@@ -294,7 +295,8 @@ data class WorkerJobResponse(
     val area: String,
     val payment: BigDecimal,
     val status: String,
-    val acceptedAt: String?
+    val acceptedAt: String?,
+    val upcoming: Boolean? = null
 )
 
 data class AcceptStaffingJobResponse(
@@ -307,7 +309,8 @@ data class WorkerDashboardResponse(
     val profile: WorkerProfileResponse,
     val profileCompletionPercent: Int,
     val nearbyOpportunities: List<StaffingJobResponse>,
-    val myJobs: List<WorkerJobResponse>
+    val myJobs: List<WorkerJobResponse>,
+    val upcomingJobs: List<WorkerJobResponse>? = null
 )
 
 object WorkerOnboardingValidator {

@@ -2,6 +2,8 @@ package com.daily.cetaring.shared.repository;
 
 import com.daily.cetaring.features.auth.service.MobileNumberNormalizer;
 import com.daily.cetaring.shared.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,6 +32,36 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmailAndDeletedAtIsNull(String email);
 
     boolean existsByPhoneNumberAndDeletedAtIsNull(String phoneNumber);
+
+    /**
+     * Admin customer listing. A customer is a non-deleted account holding ROLE_CUSTOMER and none of
+     * ROLE_WORKER / ROLE_ADMIN / ROLE_SUPER_ADMIN (same rule as customer account deletion).
+     * Role checks use id subqueries so a user is returned at most once regardless of role count.
+     * When {@code filtered} is false the search terms are ignored.
+     */
+    String ADMIN_CUSTOMER_FILTER = """
+        from User u
+        where u.deletedAt is null
+          and u.id in (select cu.id from User cu join cu.roles cr where cr.name = 'ROLE_CUSTOMER')
+          and u.id not in (
+              select xu.id from User xu join xu.roles xr
+              where xr.name in ('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN'))
+          and (:filtered = false
+               or lower(concat(coalesce(u.firstName, ''), ' ', coalesce(u.lastName, ''))) like :namePattern
+               or (:phoneFiltered = true and u.phoneNumber like :phonePattern))
+        """;
+
+    @Query(
+        value = "select u " + ADMIN_CUSTOMER_FILTER,
+        countQuery = "select count(u) " + ADMIN_CUSTOMER_FILTER
+    )
+    Page<User> findAdminCustomers(
+        @Param("filtered") boolean filtered,
+        @Param("namePattern") String namePattern,
+        @Param("phoneFiltered") boolean phoneFiltered,
+        @Param("phonePattern") String phonePattern,
+        Pageable pageable
+    );
 
     default Optional<User> findByIdentifier(String identifier) {
         if (identifier == null || identifier.isBlank()) {

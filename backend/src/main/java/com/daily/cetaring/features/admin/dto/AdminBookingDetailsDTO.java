@@ -34,6 +34,8 @@ public class AdminBookingDetailsDTO {
     private CustomerDTO customer;
     private List<AcceptedWorkerDTO> acceptedWorkers;
     private List<WorkerAssignmentDTO> workerAssignments;
+    /** Distinct workers with an ACCEPTED/COMPLETED assignment. Catering orders have no requested worker count. */
+    private Integer acceptedWorkerCount;
 
     @Data @NoArgsConstructor @AllArgsConstructor @Builder
     public static class CustomerDTO {
@@ -55,6 +57,8 @@ public class AdminBookingDetailsDTO {
         private String mobileNumber;
         private String email;
         private WorkerProfile.WorkerType workerType;
+        /** Catalog category name of the worker's registered role, when known. */
+        private String serviceCategory;
         private WorkerProfile.WorkerStatus profileStatus;
         private JobAssignment.AssignmentStatus assignmentStatus;
         private LocalDateTime acceptedAt;

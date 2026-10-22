@@ -110,6 +110,7 @@ public class ServiceRequestService {
         for (ServiceRequestDtos.StaffingLine line : r.staffing) {
             staffingRequestRepository.save(StaffingRequest.builder()
                 .createdBy(user)
+                .serviceRequestId(saved.getId())
                 .eventType(r.eventType.trim())
                 .workerType(line.workerType)
                 .eventDate(r.eventDate)

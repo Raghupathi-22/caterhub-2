@@ -28,7 +28,9 @@ import { AdminSupportPage } from './pages/AdminSupportPage'
 import { AdminWorkersPage } from './pages/AdminWorkersPage'
 import { AdminWorkerDetailPage } from './pages/AdminWorkerDetailPage'
 import { AdminVerificationPage } from './pages/AdminVerificationPage'
-import { AdminCategoriesPage, AdminCustomersPage, AdminReportsPage, AdminServicesPage, AdminSettingsPage, ProfilePage } from './pages/AdminSimplePages'
+import { AdminCategoriesPage, AdminReportsPage, AdminSettingsPage, ProfilePage } from './pages/AdminSimplePages'
+import { AdminCustomersPage } from './pages/AdminCustomersPage'
+import { AdminServicesPage } from './pages/AdminServicesPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {

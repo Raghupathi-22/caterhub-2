@@ -10,6 +10,8 @@ import com.daily.cetaring.features.admin.repository.PromotionCampaignRepository;
 import com.daily.cetaring.features.admin.dto.AdminBookingDetailsDTO;
 import com.daily.cetaring.features.admin.dto.AdminOrderSummaryDTO;
 import com.daily.cetaring.features.admin.dto.AdminServiceRequestDetailsDTO;
+import com.daily.cetaring.features.admin.dto.AdminStaffingJobDetailsDTO;
+import com.daily.cetaring.features.catalog.ServiceCatalog;
 import com.daily.cetaring.features.service.entity.ServiceRequest;
 import com.daily.cetaring.features.service.repository.ServiceRequestRepository;
 import com.daily.cetaring.features.worker.entity.JobAssignment;
@@ -30,7 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -82,78 +86,116 @@ public class AdminOperationsService {
                 .toList();
     }
 
+    private static final List<JobAssignment.AssignmentStatus> ACCEPTED_ASSIGNMENT_STATUSES =
+            List.of(JobAssignment.AssignmentStatus.ACCEPTED, JobAssignment.AssignmentStatus.COMPLETED);
+    private static final List<StaffingJobAcceptance.AcceptanceStatus> ACCEPTED_ACCEPTANCE_STATUSES =
+            List.of(StaffingJobAcceptance.AcceptanceStatus.ACCEPTED, StaffingJobAcceptance.AcceptanceStatus.COMPLETED);
+
+    /**
+     * Unified admin feed: catering orders, customer service requests, and any worker job that cannot be attributed
+     * to a service request. Past and future events are both included for auditing. Uses a fixed number of batched
+     * queries (no per-row lookups).
+     */
     @Transactional(readOnly = true)
     public List<AdminOrderSummaryDTO> getAllOrders() {
-        List<AdminOrderSummaryDTO> cateringOrders = bookingRepository.findAll().stream()
+        List<Booking> bookings = bookingRepository.findAll().stream()
                 .filter(b -> b.getDeletedAt() == null)
-                .map(this::mapCateringOrderSummary)
                 .toList();
+        Map<Long, User> bookingCustomers = usersById(bookings.stream().map(Booking::getUserId).toList());
+        Map<Long, Long> bookingAccepted = bookings.isEmpty() ? Map.of() : toCountMap(
+                jobAssignmentRepository.countWorkersByBookingIds(bookings.stream().map(Booking::getId).toList(), ACCEPTED_ASSIGNMENT_STATUSES));
 
-        List<AdminOrderSummaryDTO> serviceOrders = serviceRequestRepository.findAll().stream()
-                .map(this::mapServiceOrderSummary)
-                .toList();
+        List<ServiceRequest> serviceRequests = serviceRequestRepository.findAllWithCustomerOrderByCreatedAtDesc();
+        List<StaffingRequest> jobs = staffingRequestRepository.findAll();
+        StaffingJobLinker.LinkResult links = StaffingJobLinker.link(serviceRequests, jobs);
+        Map<Long, Long> jobAccepted = jobs.isEmpty() ? Map.of() : toCountMap(
+                staffingJobAcceptanceRepository.countWorkersByStaffingRequestIds(jobs.stream().map(StaffingRequest::getId).toList(), ACCEPTED_ACCEPTANCE_STATUSES));
+        Map<Long, User> jobCreators = usersById(links.unmatchedJobs().stream()
+                .map(job -> job.getCreatedBy() == null ? null : job.getCreatedBy().getId())
+                .toList());
 
-        return java.util.stream.Stream.concat(cateringOrders.stream(), serviceOrders.stream())
+        java.util.stream.Stream<AdminOrderSummaryDTO> catering = bookings.stream()
+                .map(b -> mapCateringOrderSummary(b, bookingCustomers.get(b.getUserId()), bookingAccepted.getOrDefault(b.getId(), 0L)));
+        java.util.stream.Stream<AdminOrderSummaryDTO> services = serviceRequests.stream()
+                .map(r -> mapServiceOrderSummary(r, links.jobsFor(r.getId()), jobAccepted));
+        java.util.stream.Stream<AdminOrderSummaryDTO> orphanJobs = links.unmatchedJobs().stream()
+                .map(job -> mapStaffingJobSummary(job, jobCreators.get(job.getCreatedBy() == null ? null : job.getCreatedBy().getId()), jobAccepted));
+
+        return java.util.stream.Stream.of(catering, services, orphanJobs).flatMap(s -> s)
                 .sorted(Comparator.comparing(AdminOrderSummaryDTO::getBookedAt, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
     }
 
-    private AdminOrderSummaryDTO mapCateringOrderSummary(Booking booking) {
-        User customer = userRepository.findById(booking.getUserId()).orElse(null);
-        int accepted = (int) jobAssignmentRepository.findByBookingIdOrderByCreatedAtDesc(booking.getId()).stream()
-                .filter(a -> a.getStatus() == JobAssignment.AssignmentStatus.ACCEPTED
-                        || a.getStatus() == JobAssignment.AssignmentStatus.COMPLETED)
-                .count();
+    private AdminOrderSummaryDTO mapCateringOrderSummary(Booking booking, User customer, long accepted) {
         return AdminOrderSummaryDTO.builder()
                 .id(booking.getId())
                 .orderType(AdminOrderSummaryDTO.OrderType.CATERING_ORDER)
                 .reference(booking.getBookingReference())
                 .serviceType("CATERING")
+                .serviceCategory("Catering & Food")
                 .eventType(booking.getEventType())
                 .eventDate(booking.getEventDate())
+                .startTime(booking.getEventDateTime() == null ? null : booking.getEventDateTime().toLocalTime())
                 .bookedAt(booking.getCreatedAt())
                 .area(booking.getDeliveryAddress())
                 .location(booking.getDeliveryAddress())
                 .totalAmount(booking.getTotalAmount())
                 .status(booking.getStatus())
-                .acceptedWorkerCount(accepted)
+                .acceptedWorkerCount((int) accepted)
+                .requestedWorkerCount(null)
+                .requestedRoles(List.of())
                 .customer(customer == null ? null : mapCustomer(customer))
                 .build();
     }
 
-    private AdminOrderSummaryDTO mapServiceOrderSummary(ServiceRequest request) {
+    private AdminOrderSummaryDTO mapServiceOrderSummary(ServiceRequest request, List<StaffingRequest> jobs, Map<Long, Long> jobAccepted) {
         User customer = request.getCreatedBy();
-        List<StaffingRequest> jobs = staffingRequestRepository.findByServiceRequestIdOrderByCreatedAtAsc(request.getId());
-        if (jobs.isEmpty() && "CATERING_STAFF".equalsIgnoreCase(request.getServiceType()) && customer != null) {
-            jobs = staffingRequestRepository.findByCreatedByIdOrderByCreatedAtDesc(customer.getId()).stream()
-                    .filter(job -> request.getEventType().equals(job.getEventType()))
-                    .filter(job -> request.getEventDate().equals(job.getEventDate()))
-                    .filter(job -> request.getStartTime().equals(job.getStartTime()))
-                    .filter(job -> request.getEndTime().equals(job.getEndTime()))
-                    .filter(job -> request.getLocation().equalsIgnoreCase(job.getLocation()))
-                    .filter(job -> request.getArea().equalsIgnoreCase(job.getArea()))
-                    .toList();
-        }
-        int accepted = jobs.stream()
-                .mapToInt(job -> staffingJobAcceptanceRepository.findByStaffingRequestIdOrderByAcceptedAtDesc(job.getId()).stream()
-                        .filter(a -> a.getStatus() == StaffingJobAcceptance.AcceptanceStatus.ACCEPTED
-                                || a.getStatus() == StaffingJobAcceptance.AcceptanceStatus.COMPLETED)
-                        .toList().size())
-                .sum();
+        int accepted = jobs.stream().mapToInt(job -> jobAccepted.getOrDefault(job.getId(), 0L).intValue()).sum();
+        Integer requested = jobs.isEmpty() ? null : jobs.stream().mapToInt(job -> job.getRequiredWorkers() == null ? 0 : job.getRequiredWorkers()).sum();
+        ServiceCatalog.CategoryDefinition category = ServiceCatalog.categoryByServiceType(request.getServiceType());
         return AdminOrderSummaryDTO.builder()
                 .id(request.getId())
                 .orderType(AdminOrderSummaryDTO.OrderType.SERVICE_REQUEST)
                 .reference("SR-" + request.getId())
                 .serviceType(request.getServiceType())
+                .serviceCategory(category == null ? null : category.getName())
                 .eventType(request.getEventType())
                 .eventDate(request.getEventDate())
+                .startTime(request.getStartTime())
+                .endTime(request.getEndTime())
                 .bookedAt(request.getCreatedAt())
                 .area(request.getArea())
                 .location(request.getLocation())
                 .totalAmount(request.getTotalAmount())
                 .status(request.getStatus() == null ? null : request.getStatus().name())
                 .acceptedWorkerCount(accepted)
+                .requestedWorkerCount(requested)
+                .requestedRoles(requestedRoles(jobs))
                 .customer(customer == null ? null : mapCustomer(customer))
+                .build();
+    }
+
+    private AdminOrderSummaryDTO mapStaffingJobSummary(StaffingRequest job, User creator, Map<Long, Long> jobAccepted) {
+        int requiredWorkers = job.getRequiredWorkers() == null ? 0 : job.getRequiredWorkers();
+        return AdminOrderSummaryDTO.builder()
+                .id(job.getId())
+                .orderType(AdminOrderSummaryDTO.OrderType.STAFFING_JOB)
+                .reference("JOB-" + job.getId())
+                .serviceType(job.getWorkerType() == null ? null : job.getWorkerType().name())
+                .serviceCategory(categoryNameForWorkerType(job.getWorkerType()))
+                .eventType(job.getEventType())
+                .eventDate(job.getEventDate())
+                .startTime(job.getStartTime())
+                .endTime(job.getEndTime())
+                .bookedAt(job.getCreatedAt())
+                .area(job.getArea())
+                .location(job.getLocation())
+                .totalAmount(job.getPayment() == null ? null : job.getPayment().multiply(BigDecimal.valueOf(requiredWorkers)))
+                .status(job.getStatus() == null ? null : job.getStatus().name())
+                .acceptedWorkerCount(jobAccepted.getOrDefault(job.getId(), 0L).intValue())
+                .requestedWorkerCount(job.getRequiredWorkers())
+                .requestedRoles(requestedRoles(List.of(job)))
+                .customer(creator == null ? null : mapCustomer(creator))
                 .build();
     }
 
@@ -171,10 +213,13 @@ public class AdminOperationsService {
         User customer = userRepository.findById(booking.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
 
-        List<JobAssignment> assignments = jobAssignmentRepository.findByBookingIdOrderByCreatedAtDesc(bookingId);
-        List<AdminBookingDetailsDTO.AcceptedWorkerDTO> acceptedWorkers = assignments.stream()
-                .filter(a -> a.getStatus() == JobAssignment.AssignmentStatus.ACCEPTED
-                        || a.getStatus() == JobAssignment.AssignmentStatus.COMPLETED)
+        List<JobAssignment> assignments = jobAssignmentRepository.findActiveWithWorkersByBookingId(bookingId);
+        // One entry per worker: the most recent ACCEPTED/COMPLETED assignment (list is newest first).
+        Map<Long, JobAssignment> acceptedByWorker = new LinkedHashMap<>();
+        assignments.stream()
+                .filter(a -> ACCEPTED_ASSIGNMENT_STATUSES.contains(a.getStatus()))
+                .forEach(a -> acceptedByWorker.putIfAbsent(a.getWorkerProfile().getId(), a));
+        List<AdminBookingDetailsDTO.AcceptedWorkerDTO> acceptedWorkers = acceptedByWorker.values().stream()
                 .map(this::mapAcceptedWorker)
                 .toList();
 
@@ -194,6 +239,7 @@ public class AdminOperationsService {
                 .createdAt(booking.getCreatedAt())
                 .customer(mapCustomer(customer))
                 .acceptedWorkers(acceptedWorkers)
+                .acceptedWorkerCount(acceptedWorkers.size())
                 .workerAssignments(assignments.stream().map(this::mapAssignment).toList())
                 .build();
     }
@@ -203,22 +249,21 @@ public class AdminOperationsService {
         ServiceRequest request = serviceRequestRepository.findById(serviceRequestId)
                 .orElseThrow(() -> new IllegalArgumentException("Service request not found"));
         User customer = request.getCreatedBy();
-        List<StaffingRequest> jobs = staffingRequestRepository.findByServiceRequestIdOrderByCreatedAtAsc(serviceRequestId);
-        // Backward-compatible fallback for staff requests created before V20 linked staffing jobs to the service request.
-        if (jobs.isEmpty() && "CATERING_STAFF".equalsIgnoreCase(request.getServiceType())) {
-            jobs = staffingRequestRepository.findByCreatedByIdOrderByCreatedAtDesc(customer.getId()).stream()
-                    .filter(job -> request.getEventType().equals(job.getEventType()))
-                    .filter(job -> request.getEventDate().equals(job.getEventDate()))
-                    .filter(job -> request.getStartTime().equals(job.getStartTime()))
-                    .filter(job -> request.getEndTime().equals(job.getEndTime()))
-                    .filter(job -> request.getLocation().equalsIgnoreCase(job.getLocation()))
-                    .filter(job -> request.getArea().equalsIgnoreCase(job.getArea()))
-                    .toList();
-        }
-        List<AdminServiceRequestDetailsDTO.AcceptedWorkerDTO> acceptedWorkers = jobs.stream()
-                .flatMap(job -> staffingJobAcceptanceRepository.findByStaffingRequestIdOrderByAcceptedAtDesc(job.getId()).stream()
-                        .map(acceptance -> mapServiceAcceptedWorker(acceptance, job)))
+        Long customerId = customer.getId();
+        // Same attribution rule as the list view: explicit links first, then the customer's unlinked jobs
+        // matched against all of that customer's requests so a job is never attributed to two requests.
+        List<StaffingRequest> candidateJobs = new java.util.ArrayList<>(staffingRequestRepository.findByServiceRequestIdIn(List.of(serviceRequestId)));
+        candidateJobs.addAll(staffingRequestRepository.findByServiceRequestIdIsNullAndCreatedByIdIn(List.of(customerId)));
+        List<StaffingRequest> jobs = StaffingJobLinker.link(serviceRequestRepository.findByCreatedByIdOrderByCreatedAtDesc(customerId), candidateJobs)
+                .jobsFor(serviceRequestId);
+
+        List<StaffingJobAcceptance> acceptances = jobs.isEmpty() ? List.of()
+                : staffingJobAcceptanceRepository.findWithWorkersByStaffingRequestIds(jobs.stream().map(StaffingRequest::getId).toList());
+        List<StaffingJobAcceptance> accepted = acceptances.stream()
+                .filter(a -> ACCEPTED_ACCEPTANCE_STATUSES.contains(a.getStatus()))
                 .toList();
+        Map<Long, Long> acceptedPerJob = accepted.stream()
+                .collect(java.util.stream.Collectors.groupingBy(a -> a.getStaffingRequest().getId(), java.util.stream.Collectors.counting()));
 
         return AdminServiceRequestDetailsDTO.builder()
                 .id(request.getId())
@@ -237,9 +282,75 @@ public class AdminOperationsService {
                 .status(request.getStatus())
                 .createdAt(request.getCreatedAt())
                 .customer(mapServiceCustomer(customer))
-                .staffingJobs(jobs.stream().map(this::mapStaffingJobDetails).toList())
-                .acceptedWorkers(acceptedWorkers)
+                .staffingJobs(jobs.stream().map(job -> mapStaffingJobDetails(job, acceptedPerJob.getOrDefault(job.getId(), 0L).intValue())).toList())
+                .acceptedWorkers(accepted.stream().map(a -> mapServiceAcceptedWorker(a, a.getStaffingRequest())).toList())
+                .requestedWorkerCount(jobs.isEmpty() ? null : jobs.stream().mapToInt(job -> job.getRequiredWorkers() == null ? 0 : job.getRequiredWorkers()).sum())
+                .acceptedWorkerCount(accepted.size())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public AdminStaffingJobDetailsDTO getStaffingJobDetails(Long jobId) {
+        StaffingRequest job = staffingRequestRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("Staffing request not found"));
+        List<StaffingJobAcceptance> accepted = staffingJobAcceptanceRepository.findWithWorkersByStaffingRequestIds(List.of(jobId)).stream()
+                .filter(a -> ACCEPTED_ACCEPTANCE_STATUSES.contains(a.getStatus()))
+                .toList();
+        User creator = job.getCreatedBy();
+        return AdminStaffingJobDetailsDTO.builder()
+                .id(job.getId())
+                .serviceRequestId(job.getServiceRequestId())
+                .serviceCategory(categoryNameForWorkerType(job.getWorkerType()))
+                .workerType(job.getWorkerType())
+                .eventType(job.getEventType())
+                .eventDate(job.getEventDate())
+                .startTime(job.getStartTime())
+                .endTime(job.getEndTime())
+                .location(job.getLocation())
+                .area(job.getArea())
+                .requiredWorkers(job.getRequiredWorkers())
+                .acceptedWorkerCount(accepted.size())
+                .paymentPerWorker(job.getPayment())
+                .additionalRequirements(job.getAdditionalRequirements())
+                .status(job.getStatus())
+                .createdAt(job.getCreatedAt())
+                .customer(creator == null ? null : mapServiceCustomer(creator))
+                .acceptedWorkers(accepted.stream().map(a -> mapServiceAcceptedWorker(a, job)).toList())
+                .build();
+    }
+
+    private Map<Long, User> usersById(java.util.Collection<Long> ids) {
+        List<Long> distinct = ids.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (distinct.isEmpty()) return Map.of();
+        Map<Long, User> users = new java.util.HashMap<>();
+        userRepository.findAllById(distinct).forEach(user -> users.put(user.getId(), user));
+        return users;
+    }
+
+    private static Map<Long, Long> toCountMap(List<Object[]> rows) {
+        Map<Long, Long> counts = new java.util.HashMap<>();
+        for (Object[] row : rows) {
+            counts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
+        }
+        return counts;
+    }
+
+    private static List<String> requestedRoles(List<StaffingRequest> jobs) {
+        return jobs.stream()
+                .map(StaffingRequest::getWorkerType)
+                .filter(java.util.Objects::nonNull)
+                .map(Enum::name)
+                .distinct()
+                .toList();
+    }
+
+    static String categoryNameForWorkerType(WorkerProfile.WorkerType workerType) {
+        if (workerType == null) return null;
+        return ServiceCatalog.categories().stream()
+                .filter(category -> category.getRoles().stream().anyMatch(role -> workerType.name().equals(role.getWorkerType())))
+                .map(ServiceCatalog.CategoryDefinition::getName)
+                .findFirst()
+                .orElse(null);
     }
 
     private AdminBookingDetailsDTO.CustomerDTO mapCustomer(User user) {
@@ -260,7 +371,8 @@ public class AdminOperationsService {
         return AdminBookingDetailsDTO.AcceptedWorkerDTO.builder()
                 .assignmentId(assignment.getId()).workerProfileId(profile.getId()).userId(user.getId())
                 .name(fullName(user)).username(user.getUsername()).mobileNumber(user.getPhoneNumber()).email(user.getEmail())
-                .workerType(profile.getWorkerType()).profileStatus(profile.getStatus()).assignmentStatus(assignment.getStatus())
+                .workerType(profile.getWorkerType()).serviceCategory(categoryNameForWorkerType(profile.getWorkerType()))
+                .profileStatus(profile.getStatus()).assignmentStatus(assignment.getStatus())
                 .acceptedAt(assignment.getRespondedAt()).experienceYears(profile.getExperienceYears())
                 .skills(profile.getSkills()).preferredAreas(profile.getPreferredAreas()).languages(profile.getLanguages())
                 .rating(profile.getRating()).bio(profile.getBio()).build();
@@ -276,10 +388,11 @@ public class AdminOperationsService {
                 .declineReason(assignment.getDeclineReason()).build();
     }
 
-    private AdminServiceRequestDetailsDTO.StaffingJobDTO mapStaffingJobDetails(StaffingRequest job) {
+    private AdminServiceRequestDetailsDTO.StaffingJobDTO mapStaffingJobDetails(StaffingRequest job, int acceptedCount) {
+        int required = job.getRequiredWorkers() == null ? 0 : job.getRequiredWorkers();
         return AdminServiceRequestDetailsDTO.StaffingJobDTO.builder()
                 .id(job.getId()).workerType(job.getWorkerType()).requiredWorkers(job.getRequiredWorkers())
-                .acceptedWorkers(job.getAcceptedWorkers()).remainingPositions(Math.max(0, job.getRequiredWorkers() - job.getAcceptedWorkers()))
+                .acceptedWorkers(acceptedCount).remainingPositions(Math.max(0, required - acceptedCount))
                 .paymentPerWorker(job.getPayment()).status(job.getStatus()).build();
     }
 
@@ -289,7 +402,9 @@ public class AdminOperationsService {
         return AdminServiceRequestDetailsDTO.AcceptedWorkerDTO.builder()
                 .acceptanceId(acceptance.getId()).staffingRequestId(job.getId()).workerProfileId(profile.getId()).userId(user.getId())
                 .name(fullName(user)).username(user.getUsername()).mobileNumber(user.getPhoneNumber()).email(user.getEmail())
-                .workerType(profile.getWorkerType()).profileStatus(profile.getStatus()).acceptanceStatus(acceptance.getStatus())
+                .workerType(profile.getWorkerType()).requestedWorkerType(job.getWorkerType())
+                .serviceCategory(categoryNameForWorkerType(profile.getWorkerType()))
+                .profileStatus(profile.getStatus()).acceptanceStatus(acceptance.getStatus())
                 .acceptedAt(acceptance.getAcceptedAt()).experienceYears(profile.getExperienceYears()).skills(profile.getSkills())
                 .preferredAreas(profile.getPreferredAreas()).languages(profile.getLanguages()).rating(profile.getRating()).bio(profile.getBio()).build();
     }

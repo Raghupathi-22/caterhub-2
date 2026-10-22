@@ -19,6 +19,7 @@ import com.daily.cetaring.shared.entity.Role;
 import com.daily.cetaring.shared.entity.User;
 import com.daily.cetaring.shared.repository.RoleRepository;
 import com.daily.cetaring.shared.repository.UserRepository;
+import com.daily.cetaring.shared.time.EventTimes;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -47,6 +49,7 @@ public class WorkerService {
     private final BookingRepository bookingRepository;
     private final StaffingRequestRepository staffingRequestRepository;
     private final StaffingJobAcceptanceRepository staffingJobAcceptanceRepository;
+    private final Clock clock;
 
     public WorkerDtos.WorkerProfileResponse createProfile(WorkerDtos.CreateWorkerProfileRequest request) {
         User user = userRepository.findById(request.getUserId())
@@ -141,6 +144,7 @@ public class WorkerService {
             .userId(user.getId())
             .username(user.getUsername())
             .fullName(fullName.isBlank() ? user.getUsername() : fullName)
+            .phoneNumber(user.getPhoneNumber())
             .status(WorkerProfile.WorkerStatus.PENDING_VERIFICATION)
             .build();
     }
@@ -396,11 +400,18 @@ public class WorkerService {
             .limit(5)
             .toList();
         List<WorkerDtos.WorkerJobResponse> myJobs = getMyStaffingJobs(username);
+        List<WorkerDtos.WorkerJobResponse> upcomingJobs = myJobs.stream()
+            .filter(job -> job.getStatus() == StaffingJobAcceptance.AcceptanceStatus.ACCEPTED)
+            .filter(job -> Boolean.TRUE.equals(job.getUpcoming()))
+            .sorted(java.util.Comparator.comparing(WorkerDtos.WorkerJobResponse::getEventDate)
+                .thenComparing(WorkerDtos.WorkerJobResponse::getStartTime, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())))
+            .toList();
         return WorkerDtos.WorkerDashboardResponse.builder()
             .profile(profile)
             .profileCompletionPercent(profileCompletion(profile))
             .nearbyOpportunities(opportunities)
             .myJobs(myJobs)
+            .upcomingJobs(upcomingJobs)
             .build();
     }
 
@@ -441,21 +452,28 @@ public class WorkerService {
         }
         WorkerProfile.WorkerType effectiveRole = role != null ? role : (profile == null ? null : profile.getWorkerType());
         Long workerProfileId = profile == null ? null : profile.getId();
+        LocalDateTime now = EventTimes.now(clock);
+        LocalDate today = now.toLocalDate();
         List<StaffingRequest> jobs;
         if (profile != null && profile.getWorkerType() != null && effectiveRole == profile.getWorkerType()) {
             // A worker browsing their own role sees every job type their role family can fill.
-            jobs = staffingRequestRepository.findByStatusAndWorkerTypeInOrderByEventDateAscStartTimeAsc(
+            jobs = staffingRequestRepository.findByStatusAndWorkerTypeInAndEventDateGreaterThanEqualOrderByEventDateAscStartTimeAsc(
                 StaffingRequest.StaffingStatus.OPEN,
-                WorkerRoleFamilies.matchingJobTypes(profile.getWorkerType())
+                WorkerRoleFamilies.matchingJobTypes(profile.getWorkerType()),
+                today
             );
         } else if (effectiveRole != null) {
-            jobs = staffingRequestRepository.findByStatusAndWorkerTypeOrderByEventDateAscStartTimeAsc(StaffingRequest.StaffingStatus.OPEN, effectiveRole);
+            jobs = staffingRequestRepository.findByStatusAndWorkerTypeAndEventDateGreaterThanEqualOrderByEventDateAscStartTimeAsc(
+                StaffingRequest.StaffingStatus.OPEN, effectiveRole, today);
         } else {
-            jobs = staffingRequestRepository.findByStatusOrderByEventDateAscStartTimeAsc(StaffingRequest.StaffingStatus.OPEN);
+            jobs = staffingRequestRepository.findByStatusAndEventDateGreaterThanEqualOrderByEventDateAscStartTimeAsc(
+                StaffingRequest.StaffingStatus.OPEN, today);
         }
         String areaFilter = trimToNull(area);
         String searchFilter = trimToNull(search);
         return jobs.stream()
+            // Never offer a job whose scheduled start (Asia/Kolkata) is now or in the past, including earlier today.
+            .filter(job -> !EventTimes.hasStarted(job.getEventDate(), job.getStartTime(), now))
             .filter(job -> areaFilter == null || job.getArea().equalsIgnoreCase(areaFilter))
             .filter(job -> searchFilter == null
                 || job.getArea().toLowerCase().contains(searchFilter.toLowerCase())
@@ -492,6 +510,10 @@ public class WorkerService {
             .orElseThrow(() -> new IllegalArgumentException("Job not found"));
         if (!WorkerRoleFamilies.canWorkJob(profile.getWorkerType(), job.getWorkerType())) {
             throw new AccessDeniedException("You are not authorized to accept this role.");
+        }
+        // Re-checked under the row lock: a job can expire between listing and acceptance.
+        if (EventTimes.hasStarted(job.getEventDate(), job.getStartTime(), EventTimes.now(clock))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This job's event time has already passed. It can no longer be accepted.");
         }
         if (job.getStatus() != StaffingRequest.StaffingStatus.OPEN || job.getAcceptedWorkers() >= job.getRequiredWorkers()) {
             throw new IllegalArgumentException("All positions have been filled");
@@ -589,6 +611,7 @@ public class WorkerService {
             .additionalRequirements(job.getAdditionalRequirements())
             .status(job.getStatus())
             .alreadyAccepted(alreadyAccepted)
+            .expired(EventTimes.hasStarted(job.getEventDate(), job.getStartTime(), EventTimes.now(clock)))
             .createdAt(job.getCreatedAt())
             .build();
     }
@@ -608,6 +631,7 @@ public class WorkerService {
             .payment(job.getPayment())
             .status(acceptance.getStatus())
             .acceptedAt(acceptance.getAcceptedAt())
+            .upcoming(!EventTimes.hasStarted(job.getEventDate(), job.getStartTime(), EventTimes.now(clock)))
             .build();
     }
 
@@ -623,6 +647,7 @@ public class WorkerService {
             .userId(user.getId())
             .username(user.getUsername())
             .fullName(fullName.isBlank() ? user.getUsername() : fullName)
+            .phoneNumber(user.getPhoneNumber())
             .workerType(profile.getWorkerType())
             .status(profile.getStatus())
             .experienceYears(profile.getExperienceYears())

@@ -4,6 +4,7 @@ import com.daily.cetaring.features.admin.dto.AdminDashboardSummaryDTO;
 import com.daily.cetaring.features.admin.dto.AdminOrderSummaryDTO;
 import com.daily.cetaring.features.admin.dto.AdminBookingDetailsDTO;
 import com.daily.cetaring.features.admin.dto.AdminServiceRequestDetailsDTO;
+import com.daily.cetaring.features.admin.dto.AdminStaffingJobDetailsDTO;
 import com.daily.cetaring.features.admin.dto.EventCreateRequest;
 import com.daily.cetaring.features.admin.dto.OfferCreateRequest;
 import com.daily.cetaring.features.admin.entity.Coupon;
@@ -93,6 +94,12 @@ public class AdminOperationsController {
     @GetMapping("/service-requests/{serviceRequestId}/details")
     public AdminServiceRequestDetailsDTO getServiceRequestDetails(@PathVariable Long serviceRequestId) {
         return adminOperationsService.getServiceRequestDetails(serviceRequestId);
+    }
+
+    /** Worker job details with every worker who accepted it (used for jobs not attributable to a service request). */
+    @GetMapping("/staffing-requests/{requestId}/details")
+    public AdminStaffingJobDetailsDTO getStaffingRequestDetails(@PathVariable Long requestId) {
+        return adminOperationsService.getStaffingJobDetails(requestId);
     }
 
     @PatchMapping("/staffing-requests/{requestId}/status")

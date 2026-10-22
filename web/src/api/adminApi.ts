@@ -1,5 +1,6 @@
 import { http } from './http'
-import type { AdminBookingDetails, AdminDashboardSummary, AdminEvent, AdminOffer, AdminServiceRequestDetails, AdminOrderSummary, BookingDTO, ServiceRequestDTO, StaffingJob, WorkerProfile } from '../types/models'
+import { buildCustomerQueryParams, type CustomerQuery } from '../utils/adminContact'
+import type { AdminBookingDetails, AdminCustomerPage, AdminDashboardSummary, AdminEvent, AdminOffer, AdminServiceRequestDetails, AdminStaffingJobDetails, AdminOrderSummary, BookingDTO, ServiceRequestDTO, StaffingJob, WorkerProfile } from '../types/models'
 
 export interface OfferCreateRequest {
   businessId: number
@@ -73,6 +74,10 @@ export const adminApi = {
     const response = await http.get<ServiceRequestDTO[]>('/admin/service-requests')
     return response.data
   },
+  getStaffingJobDetails: async (staffingRequestId: number): Promise<AdminStaffingJobDetails> => {
+    const response = await http.get<AdminStaffingJobDetails>(`/admin/staffing-requests/${staffingRequestId}/details`)
+    return response.data
+  },
   getServiceRequestDetails: async (serviceRequestId: number): Promise<AdminServiceRequestDetails> => {
     const response = await http.get<AdminServiceRequestDetails>(`/admin/service-requests/${serviceRequestId}/details`)
     return response.data
@@ -91,6 +96,10 @@ export const adminApi = {
   },
   getWorkerProfile: async (profileId: number): Promise<WorkerProfile> => {
     const response = await http.get<WorkerProfile>(`/workers/profiles/${profileId}`)
+    return response.data
+  },
+  getCustomers: async (query: CustomerQuery = {}): Promise<AdminCustomerPage> => {
+    const response = await http.get<AdminCustomerPage>('/admin/customers', { params: buildCustomerQueryParams(query) })
     return response.data
   },
   updateWorkerStatus: async (profileId: number, payload: { status: string; adminUserId?: number; rejectionReason?: string }): Promise<WorkerProfile> => {

@@ -37,7 +37,7 @@ object ApiErrorMapper {
             401 -> IllegalStateException("Your session has expired. Please sign in again.")
             403 -> IllegalArgumentException("You don't have permission to perform this action.")
             404 -> IllegalArgumentException("We couldn't find this $contextLabel.")
-            409 -> IllegalArgumentException("This $contextLabel has already been updated.")
+            409 -> IllegalArgumentException(apiMessage ?: "This $contextLabel has already been updated.")
             in 500..599 -> ServerOfflineException("Something went wrong on our server. Please try again.")
             else -> IllegalArgumentException(apiMessage ?: defaultFallback)
         }

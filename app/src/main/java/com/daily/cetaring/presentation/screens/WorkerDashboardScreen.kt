@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,6 +52,7 @@ import com.daily.cetaring.presentation.components.CaterHubSectionHeader
 import com.daily.cetaring.presentation.components.CaterHubStatusChip
 import com.daily.cetaring.presentation.components.categoryUiMeta
 import com.daily.cetaring.presentation.viewmodel.WorkerUiState
+import com.daily.cetaring.presentation.viewmodel.WorkerJobTiming
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 
 private val Cream = Color(0xFFFFFBF3)
@@ -162,10 +164,13 @@ fun WorkerDashboardScreen(
                         }
                     }
 
+                    val now = remember(d) { WorkerJobTiming.nowInBusinessZone() }
+                    val availableJobs = remember(d, now) { WorkerJobTiming.availableJobs(d.nearbyOpportunities, now) }
+                    val upcomingJobs = remember(d, now) { WorkerJobTiming.upcomingJobs(d.upcomingJobs, d.myJobs, now) }
                     val earnings = d.myJobs.filter { it.status == "COMPLETED" }.sumOf { it.payment.toInt() }
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Stat("Available Jobs", d.nearbyOpportunities.size.toString(), PaleGold, Gold, Modifier.weight(1f))
+                            Stat("Available Jobs", availableJobs.size.toString(), PaleGold, Gold, Modifier.weight(1f))
                             Stat("My Jobs", d.myJobs.size.toString(), PaleGreen, Green, Modifier.weight(1f))
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -175,7 +180,7 @@ fun WorkerDashboardScreen(
                     }
 
                     CaterHubSectionHeader("Jobs for You", "View All", onFindJobsClick)
-                    if (d.nearbyOpportunities.isEmpty()) {
+                    if (availableJobs.isEmpty()) {
                         CaterHubEmptyState(
                             title = "No matching jobs right now",
                             message = "Try another preferred area or check again later.",
@@ -183,7 +188,7 @@ fun WorkerDashboardScreen(
                             onActionClick = { viewModel.loadDashboard() }
                         )
                     } else {
-                        d.nearbyOpportunities.take(5).forEach { job ->
+                        availableJobs.take(5).forEach { job ->
                             WorkerStaffingJobCard(
                                 job = job,
                                 onClick = { onJobClick(job.id) }
@@ -192,11 +197,10 @@ fun WorkerDashboardScreen(
                     }
 
                     CaterHubSectionHeader("Upcoming Jobs")
-                    val upcomingJobs = d.myJobs.filter { it.status == "ACCEPTED" || it.status == "OFFERED" }.take(3)
                     if (upcomingJobs.isEmpty()) {
                         CaterHubEmptyState("No upcoming jobs", "Accepted upcoming jobs will appear here.")
                     } else {
-                        upcomingJobs.forEach {
+                        upcomingJobs.take(3).forEach {
                             BookingMiniCard(it.eventType, it.workerType.label, it.area, it.eventDate, it.startTime, it.status)
                         }
                     }

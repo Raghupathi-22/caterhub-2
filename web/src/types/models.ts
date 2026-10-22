@@ -91,6 +91,8 @@ export interface WorkerProfile {
   userId: number
   username: string
   fullName: string
+  /** Registered mobile number; only returned by admin and own-profile worker endpoints. */
+  phoneNumber?: string
   workerType: string
   status: string
   experienceYears: number
@@ -99,6 +101,25 @@ export interface WorkerProfile {
   languages?: string
   bio?: string
   rejectionReason?: string
+}
+
+export interface AdminCustomer {
+  id: number
+  fullName?: string | null
+  phoneNumber: string
+  email?: string | null
+  active: boolean
+  phoneVerified: boolean
+  registeredAt?: string | null
+  lastLoginAt?: string | null
+}
+
+export interface AdminCustomerPage {
+  content: AdminCustomer[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
 }
 
 export interface WorkerDashboard {
@@ -143,17 +164,22 @@ export interface WorkerJob {
 
 export interface AdminOrderSummary {
   id: number
-  orderType: 'CATERING_ORDER' | 'SERVICE_REQUEST'
+  orderType: 'CATERING_ORDER' | 'SERVICE_REQUEST' | 'STAFFING_JOB'
   reference: string
   serviceType?: string | null
+  serviceCategory?: string | null
   eventType: string
   eventDate: string
+  startTime?: string | null
+  endTime?: string | null
   bookedAt: string
   area: string
   location?: string | null
   totalAmount: number
   status: string
   acceptedWorkerCount: number
+  requestedWorkerCount?: number | null
+  requestedRoles?: string[] | null
   customer: AdminCustomerSummary | null
 }
 
@@ -214,6 +240,8 @@ export interface AdminAcceptedWorker {
   mobileNumber: string
   email?: string | null
   workerType: string
+  requestedWorkerType?: string | null
+  serviceCategory?: string | null
   profileStatus: string
   assignmentStatus?: string
   acceptanceStatus?: string
@@ -244,6 +272,7 @@ export interface AdminBookingDetails extends BookingDTO {
   customer: AdminCustomerSummary
   acceptedWorkers: AdminAcceptedWorker[]
   workerAssignments: AdminWorkerAssignment[]
+  acceptedWorkerCount?: number | null
 }
 
 export interface AdminStaffingJobDetail {
@@ -259,5 +288,28 @@ export interface AdminStaffingJobDetail {
 export interface AdminServiceRequestDetails extends ServiceRequestDTO {
   customer: AdminCustomerSummary
   staffingJobs: AdminStaffingJobDetail[]
+  acceptedWorkers: AdminAcceptedWorker[]
+  requestedWorkerCount?: number | null
+  acceptedWorkerCount?: number | null
+}
+
+export interface AdminStaffingJobDetails {
+  id: number
+  serviceRequestId?: number | null
+  serviceCategory?: string | null
+  workerType: string
+  eventType: string
+  eventDate: string
+  startTime?: string | null
+  endTime?: string | null
+  location?: string | null
+  area?: string | null
+  requiredWorkers: number
+  acceptedWorkerCount: number
+  paymentPerWorker?: number | null
+  additionalRequirements?: string | null
+  status: string
+  createdAt?: string | null
+  customer?: AdminCustomerSummary | null
   acceptedWorkers: AdminAcceptedWorker[]
 }

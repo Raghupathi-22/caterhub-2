@@ -1,23 +1,5 @@
 import { Alert, Stack, Typography } from '@mui/material'
 
-export function AdminCustomersPage() {
-  return (
-    <Stack spacing={1}>
-      <Typography variant="h4" sx={{ fontWeight: 700 }}>Customers</Typography>
-      <Alert severity="info">Customer listing endpoint is not available yet in current backend admin APIs.</Alert>
-    </Stack>
-  )
-}
-
-export function AdminServicesPage() {
-  return (
-    <Stack spacing={1}>
-      <Typography variant="h4" sx={{ fontWeight: 700 }}>Services</Typography>
-      <Alert severity="info">Service management is catalog-driven through /catalog and currently read-only.</Alert>
-    </Stack>
-  )
-}
-
 export function AdminCategoriesPage() {
   return (
     <Stack spacing={1}>

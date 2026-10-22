@@ -24,9 +24,11 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +48,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class WorkerServiceTest {
+
+    /** Fixed business clock: 2026-10-22 10:00 in Hyderabad (04:30 UTC). */
+    private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
+    private static final LocalDateTime NOW_IST = LocalDateTime.of(2026, 10, 22, 10, 0);
+    private final Clock clock = Clock.fixed(NOW_IST.atZone(IST).toInstant(), ZoneId.of("UTC"));
 
     private WorkerService workerService;
 
@@ -80,7 +87,8 @@ class WorkerServiceTest {
             roleRepository,
             bookingRepository,
             staffingRequestRepository,
-            staffingJobAcceptanceRepository
+            staffingJobAcceptanceRepository,
+            clock
         );
     }
 
@@ -376,15 +384,16 @@ class WorkerServiceTest {
 
         when(userRepository.findByUsername("user11")).thenReturn(Optional.of(user));
         when(workerProfileRepository.findByUserIdAndDeletedAtIsNull(11L)).thenReturn(Optional.of(profile));
-        when(staffingRequestRepository.findByStatusAndWorkerTypeInOrderByEventDateAscStartTimeAsc(
-            eq(StaffingRequest.StaffingStatus.OPEN), anyCollection())).thenReturn(List.of(job));
+        when(staffingRequestRepository.findByStatusAndWorkerTypeInAndEventDateGreaterThanEqualOrderByEventDateAscStartTimeAsc(
+            eq(StaffingRequest.StaffingStatus.OPEN), anyCollection(), eq(NOW_IST.toLocalDate()))).thenReturn(List.of(job));
 
         var jobs = workerService.getAvailableStaffingJobs("user11", WorkerProfile.WorkerType.SERVING_STAFF, null, null);
 
         assertEquals(1, jobs.size());
-        verify(staffingRequestRepository).findByStatusAndWorkerTypeInOrderByEventDateAscStartTimeAsc(
+        verify(staffingRequestRepository).findByStatusAndWorkerTypeInAndEventDateGreaterThanEqualOrderByEventDateAscStartTimeAsc(
             StaffingRequest.StaffingStatus.OPEN,
-            WorkerRoleFamilies.matchingJobTypes(WorkerProfile.WorkerType.SERVING_STAFF)
+            WorkerRoleFamilies.matchingJobTypes(WorkerProfile.WorkerType.SERVING_STAFF),
+            NOW_IST.toLocalDate()
         );
     }
 
@@ -490,6 +499,197 @@ class WorkerServiceTest {
         assertEquals(null, response.getBio());
     }
 
+    @Test
+    void adminProfileLookupReturnsTheSelectedWorkersRegisteredPhone() {
+        WorkerProfile selected = workerProfile(20L, WorkerProfile.WorkerStatus.ACTIVE);
+        selected.getUser().setPhoneNumber("+919811112222");
+        when(workerProfileRepository.findById(20L)).thenReturn(Optional.of(selected));
+
+        WorkerDtos.WorkerProfileResponse response = workerService.getProfile(20L);
+
+        assertEquals(20L, response.getId());
+        assertEquals(selected.getUser().getId(), response.getUserId());
+        assertEquals("+919811112222", response.getPhoneNumber());
+    }
+
+    @Test
+    void findWorkerProfilesIncludesEachWorkersOwnPhone() {
+        WorkerProfile first = workerProfile(21L, WorkerProfile.WorkerStatus.ACTIVE);
+        WorkerProfile second = workerProfile(22L, WorkerProfile.WorkerStatus.ACTIVE);
+        when(workerProfileRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(WorkerProfile.WorkerStatus.ACTIVE))
+            .thenReturn(List.of(first, second));
+
+        var profiles = workerService.findWorkerProfiles(null, WorkerProfile.WorkerStatus.ACTIVE);
+
+        assertEquals(first.getUser().getPhoneNumber(), profiles.get(0).getPhoneNumber());
+        assertEquals(second.getUser().getPhoneNumber(), profiles.get(1).getPhoneNumber());
+        assertTrue(!profiles.get(0).getPhoneNumber().equals(profiles.get(1).getPhoneNumber()));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = WorkerProfile.WorkerType.class,
+        names = {"CHEF", "CATERING_BOY", "EVENT_DECORATOR", "DJ", "MAKEUP_ARTIST", "PHOTOGRAPHER", "PRIEST"})
+    void availableJobsExcludePastAndAlreadyStartedJobsForEveryServiceType(WorkerProfile.WorkerType type) {
+        User user = user(11L);
+        WorkerProfile profile = workerProfile(20L, WorkerProfile.WorkerStatus.ACTIVE);
+        profile.setUser(user);
+        profile.setWorkerType(type);
+        StaffingRequest lastMonth = jobAt(1L, type, LocalDate.of(2026, 9, 27), LocalTime.of(18, 0));
+        StaffingRequest startedEarlierToday = jobAt(2L, type, NOW_IST.toLocalDate(), LocalTime.of(9, 59));
+        StaffingRequest startsExactlyNow = jobAt(3L, type, NOW_IST.toLocalDate(), LocalTime.of(10, 0));
+        StaffingRequest laterToday = jobAt(4L, type, NOW_IST.toLocalDate(), LocalTime.of(10, 1));
+        StaffingRequest tomorrow = jobAt(5L, type, NOW_IST.toLocalDate().plusDays(1), LocalTime.of(8, 0));
+
+        when(userRepository.findByUsername("user11")).thenReturn(Optional.of(user));
+        when(workerProfileRepository.findByUserIdAndDeletedAtIsNull(11L)).thenReturn(Optional.of(profile));
+        // Even if the repository returned stale rows, the service must never offer them.
+        when(staffingRequestRepository.findByStatusAndWorkerTypeInAndEventDateGreaterThanEqualOrderByEventDateAscStartTimeAsc(
+            eq(StaffingRequest.StaffingStatus.OPEN), anyCollection(), eq(NOW_IST.toLocalDate())))
+            .thenReturn(List.of(lastMonth, startedEarlierToday, startsExactlyNow, laterToday, tomorrow));
+
+        var jobs = workerService.getAvailableStaffingJobs("user11", null, null, null);
+
+        assertEquals(List.of(4L, 5L), jobs.stream().map(WorkerDtos.StaffingJobResponse::getId).toList());
+        assertTrue(jobs.stream().noneMatch(WorkerDtos.StaffingJobResponse::getExpired));
+    }
+
+    @Test
+    void availableJobsWithoutWorkerProfileAlsoUseBusinessDateLowerBound() {
+        when(userRepository.findByUsername("customer1")).thenReturn(Optional.of(user(1L)));
+        when(workerProfileRepository.findByUserIdAndDeletedAtIsNull(1L)).thenReturn(Optional.empty());
+        when(staffingRequestRepository.findByStatusAndEventDateGreaterThanEqualOrderByEventDateAscStartTimeAsc(
+            StaffingRequest.StaffingStatus.OPEN, NOW_IST.toLocalDate()))
+            .thenReturn(List.of(jobAt(1L, WorkerProfile.WorkerType.CHEF, NOW_IST.toLocalDate(), LocalTime.of(9, 0)),
+                jobAt(2L, WorkerProfile.WorkerType.CHEF, NOW_IST.toLocalDate(), LocalTime.of(19, 0))));
+
+        var jobs = workerService.getAvailableStaffingJobs("customer1", null, null, null);
+
+        assertEquals(List.of(2L), jobs.stream().map(WorkerDtos.StaffingJobResponse::getId).toList());
+    }
+
+    @Test
+    void acceptStaffingJobRejectsPastDatedJobViaDirectApiCall() {
+        User user = user(11L);
+        WorkerProfile profile = workerProfile(20L, WorkerProfile.WorkerStatus.ACTIVE);
+        profile.setUser(user);
+        StaffingRequest job = jobAt(50L, WorkerProfile.WorkerType.CHEF, LocalDate.of(2026, 9, 27), LocalTime.of(18, 0));
+
+        when(userRepository.findByUsername("user11")).thenReturn(Optional.of(user));
+        when(workerProfileRepository.findByUserIdAndDeletedAtIsNull(11L)).thenReturn(Optional.of(profile));
+        when(staffingRequestRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(job));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> workerService.acceptStaffingJob(50L, "user11"));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        assertEquals(1, job.getAcceptedWorkers());
+        assertEquals(StaffingRequest.StaffingStatus.OPEN, job.getStatus());
+        verify(staffingRequestRepository, never()).save(any());
+        verify(staffingJobAcceptanceRepository, never()).save(any());
+    }
+
+    @Test
+    void acceptStaffingJobRejectsJobThatStartedEarlierTodayOrStartsNow() {
+        User user = user(11L);
+        WorkerProfile profile = workerProfile(20L, WorkerProfile.WorkerStatus.ACTIVE);
+        profile.setUser(user);
+        when(userRepository.findByUsername("user11")).thenReturn(Optional.of(user));
+        when(workerProfileRepository.findByUserIdAndDeletedAtIsNull(11L)).thenReturn(Optional.of(profile));
+        when(staffingRequestRepository.findByIdForUpdate(50L))
+            .thenReturn(Optional.of(jobAt(50L, WorkerProfile.WorkerType.CHEF, NOW_IST.toLocalDate(), LocalTime.of(9, 30))));
+        when(staffingRequestRepository.findByIdForUpdate(51L))
+            .thenReturn(Optional.of(jobAt(51L, WorkerProfile.WorkerType.CHEF, NOW_IST.toLocalDate(), LocalTime.of(10, 0))));
+
+        assertThrows(ResponseStatusException.class, () -> workerService.acceptStaffingJob(50L, "user11"));
+        assertThrows(ResponseStatusException.class, () -> workerService.acceptStaffingJob(51L, "user11"));
+        verify(staffingJobAcceptanceRepository, never()).save(any());
+    }
+
+    @Test
+    void acceptStaffingJobAllowsJobLaterToday() {
+        User user = user(11L);
+        WorkerProfile profile = workerProfile(20L, WorkerProfile.WorkerStatus.ACTIVE);
+        profile.setUser(user);
+        StaffingRequest job = jobAt(50L, WorkerProfile.WorkerType.CHEF, NOW_IST.toLocalDate(), LocalTime.of(10, 1));
+        when(userRepository.findByUsername("user11")).thenReturn(Optional.of(user));
+        when(workerProfileRepository.findByUserIdAndDeletedAtIsNull(11L)).thenReturn(Optional.of(profile));
+        when(staffingRequestRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(job));
+        when(staffingRequestRepository.save(any(StaffingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(staffingJobAcceptanceRepository.save(any(StaffingJobAcceptance.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        WorkerDtos.AcceptStaffingJobResponse response = workerService.acceptStaffingJob(50L, "user11");
+
+        assertEquals(2, job.getAcceptedWorkers());
+        assertTrue(response.getMyJob().getUpcoming());
+    }
+
+    @Test
+    void expiryUsesHyderabadTimeNotJvmOrUtcDate() {
+        // 2026-10-21T20:00Z is already 01:30 on 22 Oct in Hyderabad.
+        Clock lateUtcEvening = Clock.fixed(java.time.Instant.parse("2026-10-21T20:00:00Z"), ZoneId.of("UTC"));
+        WorkerService service = new WorkerService(workerProfileRepository, workerAvailabilityRepository, workerDocumentRepository,
+            jobAssignmentRepository, userRepository, roleRepository, bookingRepository, staffingRequestRepository,
+            staffingJobAcceptanceRepository, lateUtcEvening);
+        User user = user(11L);
+        WorkerProfile profile = workerProfile(20L, WorkerProfile.WorkerStatus.ACTIVE);
+        profile.setUser(user);
+        when(userRepository.findByUsername("user11")).thenReturn(Optional.of(user));
+        when(workerProfileRepository.findByUserIdAndDeletedAtIsNull(11L)).thenReturn(Optional.of(profile));
+        when(staffingRequestRepository.findByStatusAndWorkerTypeInAndEventDateGreaterThanEqualOrderByEventDateAscStartTimeAsc(
+            eq(StaffingRequest.StaffingStatus.OPEN), anyCollection(), eq(LocalDate.of(2026, 10, 22))))
+            .thenReturn(List.of(
+                jobAt(1L, WorkerProfile.WorkerType.CHEF, LocalDate.of(2026, 10, 22), LocalTime.of(1, 0)),
+                jobAt(2L, WorkerProfile.WorkerType.CHEF, LocalDate.of(2026, 10, 22), LocalTime.of(2, 0))));
+
+        var jobs = service.getAvailableStaffingJobs("user11", null, null, null);
+
+        assertEquals(List.of(2L), jobs.stream().map(WorkerDtos.StaffingJobResponse::getId).toList());
+    }
+
+    @Test
+    void dashboardKeepsPastAcceptedJobsInHistoryButOnlyFutureOnesInUpcoming() {
+        User user = user(11L);
+        WorkerProfile profile = workerProfile(20L, WorkerProfile.WorkerStatus.ACTIVE);
+        profile.setUser(user);
+        StaffingJobAcceptance past = acceptance(1L, profile, jobAt(1L, WorkerProfile.WorkerType.CHEF, LocalDate.of(2026, 9, 27), LocalTime.of(18, 0)),
+            StaffingJobAcceptance.AcceptanceStatus.ACCEPTED);
+        StaffingJobAcceptance earlierToday = acceptance(2L, profile, jobAt(2L, WorkerProfile.WorkerType.CHEF, NOW_IST.toLocalDate(), LocalTime.of(8, 0)),
+            StaffingJobAcceptance.AcceptanceStatus.ACCEPTED);
+        StaffingJobAcceptance nextWeek = acceptance(3L, profile, jobAt(3L, WorkerProfile.WorkerType.CHEF, NOW_IST.toLocalDate().plusDays(7), LocalTime.of(18, 0)),
+            StaffingJobAcceptance.AcceptanceStatus.ACCEPTED);
+        StaffingJobAcceptance tomorrow = acceptance(4L, profile, jobAt(4L, WorkerProfile.WorkerType.CHEF, NOW_IST.toLocalDate().plusDays(1), LocalTime.of(18, 0)),
+            StaffingJobAcceptance.AcceptanceStatus.ACCEPTED);
+        StaffingJobAcceptance cancelledFuture = acceptance(5L, profile, jobAt(5L, WorkerProfile.WorkerType.CHEF, NOW_IST.toLocalDate().plusDays(2), LocalTime.of(18, 0)),
+            StaffingJobAcceptance.AcceptanceStatus.CANCELLED);
+
+        when(userRepository.findByUsername("user11")).thenReturn(Optional.of(user));
+        when(workerProfileRepository.findByUserIdAndDeletedAtIsNull(11L)).thenReturn(Optional.of(profile));
+        when(staffingJobAcceptanceRepository.findByWorkerProfileIdOrderByAcceptedAtDesc(20L))
+            .thenReturn(List.of(past, earlierToday, nextWeek, tomorrow, cancelledFuture));
+        when(staffingRequestRepository.findByStatusAndWorkerTypeInAndEventDateGreaterThanEqualOrderByEventDateAscStartTimeAsc(
+            any(), anyCollection(), any())).thenReturn(List.of());
+
+        WorkerDtos.WorkerDashboardResponse dashboard = workerService.getWorkerDashboard("user11");
+
+        assertEquals(5, dashboard.getMyJobs().size(), "history keeps every acceptance, including past ones");
+        assertEquals(List.of(4L, 3L), dashboard.getUpcomingJobs().stream().map(WorkerDtos.WorkerJobResponse::getJobId).toList());
+        assertEquals(StaffingJobAcceptance.AcceptanceStatus.ACCEPTED, dashboard.getMyJobs().get(0).getStatus(),
+            "past jobs are not auto-completed");
+        assertEquals(Boolean.FALSE, dashboard.getMyJobs().get(0).getUpcoming());
+    }
+
+    private StaffingRequest jobAt(Long id, WorkerProfile.WorkerType type, LocalDate date, LocalTime start) {
+        StaffingRequest job = staffingRequest(id, 5, 1, type);
+        job.setEventDate(date);
+        job.setStartTime(start);
+        job.setEndTime(start.plusHours(1));
+        return job;
+    }
+
+    private StaffingJobAcceptance acceptance(Long id, WorkerProfile profile, StaffingRequest job, StaffingJobAcceptance.AcceptanceStatus status) {
+        return StaffingJobAcceptance.builder().id(id).workerProfile(profile).staffingRequest(job).status(status)
+            .acceptedAt(NOW_IST.minusDays(id)).build();
+    }
+
     private void stubOwnProfile(User user, WorkerProfile profile) {
         when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
         when(workerProfileRepository.findByUserIdAndDeletedAtIsNull(user.getId())).thenReturn(Optional.of(profile));
@@ -549,7 +749,7 @@ class WorkerServiceTest {
             .createdBy(user(1L))
             .eventType("Wedding Catering")
             .workerType(type)
-            .eventDate(LocalDate.now().plusDays(3))
+            .eventDate(NOW_IST.toLocalDate().plusDays(3))
             .startTime(LocalTime.of(18, 0))
             .endTime(LocalTime.of(23, 0))
             .location("Kondapur Convention Hall")

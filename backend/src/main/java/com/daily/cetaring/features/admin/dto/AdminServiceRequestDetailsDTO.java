@@ -37,7 +37,11 @@ public class AdminServiceRequestDetailsDTO {
     private LocalDateTime createdAt;
     private CustomerDTO customer;
     private List<StaffingJobDTO> staffingJobs;
+    /** Workers whose acceptance is ACCEPTED or COMPLETED (one entry per job acceptance). */
     private List<AcceptedWorkerDTO> acceptedWorkers;
+    /** Total positions requested across staffing jobs; null when no staffing job is linked. */
+    private Integer requestedWorkerCount;
+    private Integer acceptedWorkerCount;
 
     @Data @NoArgsConstructor @AllArgsConstructor @Builder
     public static class CustomerDTO {
@@ -54,6 +58,7 @@ public class AdminServiceRequestDetailsDTO {
         private Long id;
         private WorkerProfile.WorkerType workerType;
         private Integer requiredWorkers;
+        /** Actual ACCEPTED/COMPLETED acceptance records for this job. */
         private Integer acceptedWorkers;
         private Integer remainingPositions;
         private BigDecimal paymentPerWorker;
@@ -71,6 +76,10 @@ public class AdminServiceRequestDetailsDTO {
         private String mobileNumber;
         private String email;
         private WorkerProfile.WorkerType workerType;
+        /** Role requested by the job the worker accepted (may differ from the worker's own role within a role family). */
+        private WorkerProfile.WorkerType requestedWorkerType;
+        /** Catalog category name of the worker's registered role, when known. */
+        private String serviceCategory;
         private WorkerProfile.WorkerStatus profileStatus;
         private StaffingJobAcceptance.AcceptanceStatus acceptanceStatus;
         private LocalDateTime acceptedAt;

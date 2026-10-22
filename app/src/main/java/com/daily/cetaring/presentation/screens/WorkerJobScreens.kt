@@ -59,6 +59,7 @@ import com.daily.cetaring.presentation.components.CaterHubPrimaryButton
 import com.daily.cetaring.presentation.components.CaterHubStatusChip
 import com.daily.cetaring.presentation.components.SummaryRow
 import com.daily.cetaring.presentation.components.categoryUiMeta
+import com.daily.cetaring.presentation.viewmodel.WorkerJobTiming
 import com.daily.cetaring.presentation.viewmodel.WorkerUiState
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 import java.util.Locale
@@ -132,7 +133,7 @@ fun WorkerJobsScreen(viewModel: WorkerViewModel, onBackClick: () -> Unit, onJobC
                 }
             }
             is WorkerUiState.JobsLoaded -> {
-                jobs = state.jobs
+                jobs = WorkerJobTiming.availableJobs(state.jobs, WorkerJobTiming.nowInBusinessZone())
                 loading = false
                 errorMessage = null
             }
@@ -415,11 +416,19 @@ private fun JobDetails(job: StaffingJobResponse, message: String?, onAccept: (()
                 SummaryRow("Requirements", job.additionalRequirements.orEmpty().ifBlank { "No additional requirements" })
             }
         }
+        val acceptable = remember(job) { WorkerJobTiming.isAcceptable(job, WorkerJobTiming.nowInBusinessZone()) }
+        if (!acceptable && job.alreadyAccepted != true) {
+            Text("This event has already started or passed, so it can no longer be accepted.", color = Red, fontWeight = FontWeight.Bold)
+        }
         CaterHubPrimaryButton(
-            if (job.remainingPositions <= 0) "All positions filled" else "Accept Booking",
+            when {
+                !acceptable -> "Event time has passed"
+                job.remainingPositions <= 0 -> "All positions filled"
+                else -> "Accept Booking"
+            },
             { onAccept?.invoke() },
             Modifier.fillMaxWidth(),
-            enabled = job.remainingPositions > 0 && job.alreadyAccepted != true && onAccept != null
+            enabled = acceptable && job.remainingPositions > 0 && job.alreadyAccepted != true && onAccept != null
         )
     }
 }
@@ -476,6 +485,9 @@ private fun MyJobCard(job: WorkerJobResponse) {
                 CaterHubStatusChip(job.status)
             }
             Text("${job.area} · ${job.eventDate} · ${job.startTime}–${job.endTime}", color = Muted)
+            if (job.status == "ACCEPTED" && !WorkerJobTiming.isUpcoming(job, WorkerJobTiming.nowInBusinessZone())) {
+                Text("Past event", color = Muted, fontWeight = FontWeight.Bold)
+            }
             Text("₹${job.payment}", color = Green, fontWeight = FontWeight.ExtraBold)
         }
     }
