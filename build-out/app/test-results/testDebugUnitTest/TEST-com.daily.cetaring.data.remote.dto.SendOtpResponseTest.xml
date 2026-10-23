@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.daily.cetaring.data.remote.dto.SendOtpResponseTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-22T13:45:27.062Z" hostname="DESKTOP-R65B6OU" time="0.196">
+<testsuite name="com.daily.cetaring.data.remote.dto.SendOtpResponseTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-23T07:01:00.612Z" hostname="DESKTOP-R65B6OU" time="0.227">
   <properties/>
-  <testcase name="parsesSuccessfulResponseWithOmittedOptionalMetadata" classname="com.daily.cetaring.data.remote.dto.SendOtpResponseTest" time="0.194"/>
+  <testcase name="parsesSuccessfulResponseWithOmittedOptionalMetadata" classname="com.daily.cetaring.data.remote.dto.SendOtpResponseTest" time="0.225"/>
   <testcase name="parsesSuccessfulResponseWithNullOptionalMetadata" classname="com.daily.cetaring.data.remote.dto.SendOtpResponseTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

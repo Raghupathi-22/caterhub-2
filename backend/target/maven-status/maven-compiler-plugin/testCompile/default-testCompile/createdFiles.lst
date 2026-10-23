@@ -10,6 +10,7 @@ com\daily\cetaring\features\catalog\CatalogControllerTest.class
 com\daily\cetaring\features\worker\service\WorkerServiceTest.class
 com\daily\cetaring\features\auth\service\SmsOtpSenderTest.class
 com\daily\cetaring\features\admin\controller\AdminContactDetailsAuthorizationTest.class
+com\daily\cetaring\features\user\service\UserProfileServiceTest.class
 com\daily\cetaring\config\CorsConfigurationTest.class
 com\daily\cetaring\features\auth\service\AuthServiceTest.class
 com\daily\cetaring\features\admin\controller\AdminContactDetailsAuthorizationTest$Config.class

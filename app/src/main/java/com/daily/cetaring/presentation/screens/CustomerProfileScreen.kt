@@ -1,5 +1,6 @@
 package com.daily.cetaring.presentation.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,53 +8,66 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Color
 import com.daily.cetaring.data.remote.dto.UserDTO
 import com.daily.cetaring.presentation.components.CaterHubErrorState
 import com.daily.cetaring.presentation.components.CaterHubLoadingState
-import com.daily.cetaring.presentation.components.CaterHubPrimaryButton
-import com.daily.cetaring.presentation.components.CaterHubSecondaryButton
-import com.daily.cetaring.presentation.components.CaterHubStatusChip
-import com.daily.cetaring.presentation.components.SummaryRow
+import com.daily.cetaring.presentation.components.ProfileActionGroup
+import com.daily.cetaring.presentation.components.ProfileActionRow
+import com.daily.cetaring.presentation.components.ProfileConfirmDialog
+import com.daily.cetaring.presentation.components.ProfileHeaderCard
+import com.daily.cetaring.presentation.components.ProfileInfoRow
+import com.daily.cetaring.presentation.components.ProfilePalette
+import com.daily.cetaring.presentation.components.ProfileSectionCard
+import com.daily.cetaring.presentation.components.ProfileTextField
+import com.daily.cetaring.presentation.viewmodel.CustomerProfileEditRules
+import com.daily.cetaring.presentation.viewmodel.CustomerProfileEditRules.Field
 import com.daily.cetaring.presentation.viewmodel.CustomerProfileUiState
 import com.daily.cetaring.presentation.viewmodel.CustomerProfileViewModel
 
@@ -68,37 +82,57 @@ fun CustomerProfileScreen(
     onAccountDeleted: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { viewModel.loadProfile() }
-    LaunchedEffect(uiState) { if (uiState is CustomerProfileUiState.LoggedOut) onLoggedOut() }
     LaunchedEffect(uiState) {
-        val state = uiState
-        if (state is CustomerProfileUiState.AccountDeleted) {
-            onAccountDeleted(state.message)
+        when (val state = uiState) {
+            CustomerProfileUiState.LoggedOut -> onLoggedOut()
+            is CustomerProfileUiState.AccountDeleted -> onAccountDeleted(state.message)
+            else -> Unit
         }
+    }
+    val loaded = uiState as? CustomerProfileUiState.Loaded
+    LaunchedEffect(loaded?.saved) {
+        if (loaded?.saved == true) {
+            viewModel.consumeSaved()
+            snackbarHostState.showSnackbar("Profile updated successfully")
+        }
+    }
+    LaunchedEffect(loaded?.actionError) {
+        val message = loaded?.actionError ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.clearErrors()
     }
 
     Scaffold(
-        containerColor = Color(0xFFFFFCF5),
+        containerColor = ProfilePalette.Background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Profile") },
-                navigationIcon = { IconButton(onClick = onBackClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
+                title = { Text("My Profile", color = ProfilePalette.Ink, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = ProfilePalette.Burgundy)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = ProfilePalette.Background)
             )
         }
     ) { padding ->
         when (val state = uiState) {
-            CustomerProfileUiState.Idle, CustomerProfileUiState.Loading -> CaterHubLoadingState("Loading your profile...")
+            CustomerProfileUiState.Idle, CustomerProfileUiState.Loading ->
+                Column(Modifier.padding(padding)) { CaterHubLoadingState("Loading your profile...") }
             is CustomerProfileUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
                 CaterHubErrorState(message = state.message, onRetry = { viewModel.loadProfile() })
             }
-            is CustomerProfileUiState.Loaded -> ProfileContent(
-                user = state.user,
-                saved = state.saved,
+            is CustomerProfileUiState.Loaded -> CustomerProfileContent(
+                state = state,
                 onSave = viewModel::saveProfile,
+                onClearSaveError = viewModel::clearErrors,
                 onBookingsClick = onBookingsClick,
                 onHelpClick = onHelpClick,
-                onLogout = { viewModel.logout() },
-                onDeleteAccount = { viewModel.deleteAccount() },
+                onLogout = viewModel::logout,
+                onDeleteAccount = viewModel::deleteAccount,
                 modifier = Modifier.padding(padding)
             )
             CustomerProfileUiState.LoggedOut, is CustomerProfileUiState.AccountDeleted -> Unit
@@ -107,115 +141,208 @@ fun CustomerProfileScreen(
 }
 
 @Composable
-private fun ProfileContent(
-    user: UserDTO,
-    saved: Boolean,
-    onSave: (String, String, String, String) -> Unit,
+private fun CustomerProfileContent(
+    state: CustomerProfileUiState.Loaded,
+    onSave: (String, String, String) -> Unit,
+    onClearSaveError: () -> Unit,
     onBookingsClick: () -> Unit,
     onHelpClick: () -> Unit,
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var editMode by remember(user.id) { mutableStateOf(false) }
-    var firstName by remember(user.id) { mutableStateOf(user.firstName.orEmpty()) }
-    var lastName by remember(user.id) { mutableStateOf(user.lastName.orEmpty()) }
-    var email by remember(user.id) { mutableStateOf(user.email.orEmpty()) }
-    var phone by remember(user.id) { mutableStateOf(user.phoneNumber) }
-    var showDeleteDialog by remember(user.id) { mutableStateOf(false) }
+    val user = state.user
+    var editMode by rememberSaveable(user.id) { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
 
-    Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-            Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Icon(Icons.Filled.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Column(Modifier.weight(1f)) {
-                    Text(fullName(user), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                    Text("@${user.username}", color = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-                CaterHubStatusChip(accountType(user.roles))
-            }
-        }
-
-        if (saved) Text("Profile saved successfully.", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-
-        Card(shape = RoundedCornerShape(24.dp)) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Personal information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-                    IconButton(onClick = { editMode = !editMode }) {
-                        Icon(if (editMode) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Edit, contentDescription = if (editMode) "Cancel edit" else "Edit profile", tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-
-                if (editMode) {
-                    OutlinedTextField(firstName, { firstName = it }, label = { Text("First name") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(lastName, { lastName = it }, label = { Text("Last name") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(email, { email = it }, label = { Text("Email") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(phone, { phone = it.filter { char -> char.isDigit() || char == '+' }.take(20) }, label = { Text("Mobile number") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
-                    CaterHubPrimaryButton("Save changes", onClick = { onSave(firstName, lastName, email, phone); editMode = false }, modifier = Modifier.fillMaxWidth())
-                } else {
-                    SummaryRow("First name", user.firstName.orEmpty())
-                    SummaryRow("Last name", user.lastName.orEmpty())
-                    SummaryRow("Email", user.email.orEmpty())
-                    SummaryRow("Mobile number", user.phoneNumber)
-                    SummaryRow("Username", user.username)
-                    SummaryRow("Account type", accountType(user.roles))
-                }
-            }
-        }
-
-        Card(shape = RoundedCornerShape(24.dp)) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Account", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-                CaterHubSecondaryButton("My bookings", onBookingsClick, Modifier.fillMaxWidth())
-                CaterHubSecondaryButton("Help & Support", onHelpClick, Modifier.fillMaxWidth())
-                CaterHubSecondaryButton("Logout", onLogout, Modifier.fillMaxWidth())
-                OutlinedButton(
-                    onClick = { showDeleteDialog = true },
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Icon(Icons.Filled.DeleteForever, contentDescription = "Delete account")
-                    Spacer(Modifier.width(8.dp))
-                    Text("Delete Account", fontWeight = FontWeight.Bold)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Securely signs out of this device.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-        Spacer(Modifier.height(12.dp))
+    LaunchedEffect(state.saved) { if (state.saved) editMode = false }
+    BackHandler(enabled = editMode && !state.isSaving) {
+        onClearSaveError()
+        editMode = false
     }
 
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete your CaterHub account?") },
-            text = { Text("Deleting your account will permanently remove your account and associated personal data. This action cannot be undone.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        onDeleteAccount()
-                    }
-                ) {
-                    Text("Delete Account", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .imePadding()
+            .verticalScroll(scrollState)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        ProfileHeaderCard(
+            name = customerDisplayName(user),
+            mobileNumber = user.phoneNumber.takeIf { it.isNotBlank() },
+            mobileVerified = user.isVerified,
+            accountType = accountType(user.roles),
+            imageUrl = user.profileImageUrl,
+            onEditClick = if (editMode) null else ({ editMode = true })
+        )
+
+        if (editMode) {
+            CustomerEditCard(
+                user = user,
+                isSaving = state.isSaving,
+                saveError = state.saveError,
+                onSave = onSave,
+                onCancel = {
+                    onClearSaveError()
+                    editMode = false
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
-                }
+            )
+        } else {
+            ProfileSectionCard(
+                title = "Personal information",
+                icon = Icons.Filled.Person,
+                actionLabel = "Edit",
+                onActionClick = { editMode = true }
+            ) {
+                ProfileInfoRow("First name", user.firstName)
+                ProfileInfoRow("Last name", user.lastName)
+                ProfileInfoRow("Email", user.email)
+                ProfileInfoRow("Mobile number", user.phoneNumber, trailing = if (user.isVerified) {
+                    { Icon(Icons.Filled.Verified, contentDescription = "Verified", tint = ProfilePalette.Green, modifier = Modifier.size(20.dp)) }
+                } else null)
+                ProfileInfoRow("Username", user.username)
+                ProfileInfoRow("Account type", accountType(user.roles), showDivider = false)
             }
+        }
+
+        ProfileActionGroup(title = "Activity") {
+            ProfileActionRow("My Bookings", Icons.AutoMirrored.Filled.EventNote, onBookingsClick, subtitle = "View and track your orders")
+            ProfileActionRow("Help & Support", Icons.AutoMirrored.Filled.HelpOutline, onHelpClick, subtitle = "Call or WhatsApp CaterHub", showDivider = false)
+        }
+
+        ProfileActionGroup(title = "Account") {
+            ProfileActionRow(
+                "Logout", Icons.AutoMirrored.Filled.Logout, { showLogoutDialog = true },
+                subtitle = "Sign out of this device", showChevron = false, enabled = !state.isDeleting
+            )
+            ProfileActionRow(
+                "Delete Account", Icons.Filled.DeleteOutline, { showDeleteDialog = true },
+                subtitle = "Permanently remove your account",
+                destructive = true, showChevron = false, showDivider = false,
+                enabled = !state.isSaving,
+                loading = state.isDeleting
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+
+    if (showLogoutDialog) {
+        ProfileConfirmDialog(
+            title = "Log out of CaterHub?",
+            message = "You'll need to verify your mobile number with an OTP to sign in again.",
+            confirmLabel = "Logout",
+            icon = Icons.AutoMirrored.Filled.Logout,
+            onConfirm = { showLogoutDialog = false; onLogout() },
+            onDismiss = { showLogoutDialog = false }
+        )
+    }
+    if (showDeleteDialog && !state.isSaving) {
+        ProfileConfirmDialog(
+            title = "Delete your CaterHub account?",
+            message = "Deleting your account will permanently remove your account and associated personal data. This action cannot be undone.",
+            confirmLabel = "Delete Account",
+            destructive = true,
+            icon = Icons.Filled.DeleteOutline,
+            onConfirm = { showDeleteDialog = false; onDeleteAccount() },
+            onDismiss = { showDeleteDialog = false }
         )
     }
 }
 
-private fun fullName(user: UserDTO): String = listOf(user.firstName, user.lastName)
+@Composable
+private fun CustomerEditCard(
+    user: UserDTO,
+    isSaving: Boolean,
+    saveError: String?,
+    onSave: (String, String, String) -> Unit,
+    onCancel: () -> Unit
+) {
+    var firstName by rememberSaveable(user.id) { mutableStateOf(user.firstName.orEmpty()) }
+    var lastName by rememberSaveable(user.id) { mutableStateOf(user.lastName.orEmpty()) }
+    var email by rememberSaveable(user.id) { mutableStateOf(user.email.orEmpty()) }
+    var showErrors by rememberSaveable(user.id) { mutableStateOf(false) }
+    val errors = CustomerProfileEditRules.validate(firstName, lastName, email)
+    val visibleErrors = if (showErrors) errors else emptyMap()
+
+    ProfileSectionCard(title = "Edit personal information", icon = Icons.Filled.Person) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
+            ProfileTextField(
+                value = firstName,
+                onValueChange = { firstName = it.take(CustomerProfileEditRules.MAX_NAME_LENGTH) },
+                label = "First name",
+                error = visibleErrors[Field.FIRST_NAME],
+                enabled = !isSaving,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)
+            )
+            ProfileTextField(
+                value = lastName,
+                onValueChange = { lastName = it.take(CustomerProfileEditRules.MAX_NAME_LENGTH) },
+                label = "Last name (optional)",
+                error = visibleErrors[Field.LAST_NAME],
+                enabled = !isSaving,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)
+            )
+            ProfileTextField(
+                value = email,
+                onValueChange = { email = it.trim().take(CustomerProfileEditRules.MAX_EMAIL_LENGTH) },
+                label = "Email (optional)",
+                error = visibleErrors[Field.EMAIL],
+                enabled = !isSaving,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done)
+            )
+            ProfileTextField(
+                value = user.phoneNumber,
+                onValueChange = {},
+                label = "Mobile number",
+                enabled = false,
+                readOnly = true,
+                supporting = "Verified by OTP. Contact support to change your mobile number.",
+                trailingIcon = { Icon(Icons.Filled.Lock, contentDescription = "Locked", tint = ProfilePalette.Muted) }
+            )
+
+            if (saveError != null) {
+                Text(saveError, color = ProfilePalette.Danger, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            }
+
+            Row(
+                Modifier.fillMaxWidth().padding(top = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    enabled = !isSaving,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ProfilePalette.Ink),
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                ) { Text("Cancel", fontWeight = FontWeight.SemiBold) }
+                Button(
+                    onClick = {
+                        showErrors = true
+                        if (errors.isEmpty()) onSave(firstName, lastName, email)
+                    },
+                    enabled = !isSaving,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ProfilePalette.Burgundy, contentColor = androidx.compose.ui.graphics.Color.White),
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = androidx.compose.ui.graphics.Color.White)
+                    } else {
+                        Text("Save", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun customerDisplayName(user: UserDTO): String = listOf(user.firstName, user.lastName)
     .filterNot { it.isNullOrBlank() }
     .joinToString(" ")
     .ifBlank { user.username }
@@ -225,3 +352,4 @@ private fun accountType(roles: List<String>): String = when {
     roles.any { it.contains("WORKER") } -> "Worker"
     else -> "Customer"
 }
+

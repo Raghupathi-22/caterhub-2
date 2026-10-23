@@ -628,12 +628,18 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable(AppRoute.WORKER_PROFILE) {
+                        // Mobile number cached from the OTP-verified sign-in session.
+                        val workerMobile by authLocalDataSource.phoneNumberFlow.collectAsState(initial = null)
                         WorkerProfileScreen(
                             viewModel = workerViewModel,
+                            mobileNumber = workerMobile?.takeIf { it.isNotBlank() },
                             onBackClick = { navController.popBackStack() },
                             onEditClick = {
                                 navController.navigate(AppRoute.WORKER_EDIT_PROFILE) { launchSingleTop = true }
                             },
+                            onFindJobsClick = { navController.navigate(AppRoute.WORKER_JOBS) { launchSingleTop = true } },
+                            onMyJobsClick = { navController.navigate(AppRoute.WORKER_MY_JOBS) { launchSingleTop = true } },
+                            onHelpClick = { navController.navigate(AppRoute.HELP_SUPPORT) { launchSingleTop = true } },
                             onLogoutClick = {
                                 authViewModel.logout()
                                 workerViewModel.reset()

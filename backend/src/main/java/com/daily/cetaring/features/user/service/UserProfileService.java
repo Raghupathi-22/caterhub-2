@@ -40,14 +40,14 @@ public class UserProfileService {
             throw new IllegalArgumentException("Email already exists");
         }
         String phone = trimToNull(request.getPhoneNumber());
-        if (phone != null && !phone.equals(user.getPhoneNumber()) && userRepository.existsByPhoneNumber(phone)) {
-            throw new IllegalArgumentException("Phone number already exists");
+        // The mobile number is the OTP-verified login identity; it cannot be changed through this endpoint.
+        if (phone != null && !phone.equals(user.getPhoneNumber())) {
+            throw new IllegalArgumentException("Mobile number changes require OTP verification. Please contact support.");
         }
 
         user.setFirstName(trimToNull(request.getFirstName()));
         user.setLastName(trimToNull(request.getLastName()));
         if (email != null) user.setEmail(email);
-        if (phone != null) user.setPhoneNumber(phone);
 
         return userMapper.toDTO(userRepository.save(user));
     }

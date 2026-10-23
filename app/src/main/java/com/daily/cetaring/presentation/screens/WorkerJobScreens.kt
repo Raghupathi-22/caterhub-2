@@ -8,20 +8,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -490,113 +486,5 @@ private fun MyJobCard(job: WorkerJobResponse) {
             }
             Text("₹${job.payment}", color = Green, fontWeight = FontWeight.ExtraBold)
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun WorkerProfileScreen(
-    viewModel: WorkerViewModel,
-    onBackClick: () -> Unit,
-    onLogoutClick: () -> Unit,
-    onEditClick: () -> Unit = {}
-) {
-    val uiState by viewModel.uiState.collectAsState()
-    val profileSaved by viewModel.profileSavedNotice.collectAsState()
-    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
-    // Always re-read from the backend so values saved on the edit screen are shown.
-    LaunchedEffect(Unit) { viewModel.loadProfile() }
-    LaunchedEffect(profileSaved) {
-        if (profileSaved) {
-            viewModel.consumeProfileSavedNotice()
-            snackbarHostState.showSnackbar("Profile updated successfully")
-        }
-    }
-
-    Scaffold(
-        containerColor = Cream,
-        topBar = { WorkerTopBar("My Profile", onBackClick) },
-        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        when (val state = uiState) {
-            WorkerUiState.Loading, WorkerUiState.Idle -> CaterHubLoadingState("Loading your profile...")
-            is WorkerUiState.Error -> Column(Modifier.padding(padding).padding(20.dp)) {
-                CaterHubErrorState(message = state.message, onRetry = { viewModel.loadProfile() })
-            }
-            is WorkerUiState.ProfileLoaded -> ProfileContent(state.profile, onEditClick, onLogoutClick, Modifier.padding(padding))
-            else -> Unit
-        }
-    }
-}
-
-@Composable
-private fun ProfileContent(profile: WorkerProfileResponse, onEdit: () -> Unit, onLogout: () -> Unit, modifier: Modifier) {
-    Column(modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PaleRed)) {
-                        Icon(Icons.Filled.Person, null, tint = Red, modifier = Modifier.padding(16.dp))
-                    }
-                    Column(Modifier.padding(start = 14.dp).weight(1f)) {
-                        Text(profile.fullName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Ink)
-                        Text(ServiceCatalog.categoryForWorkerType(profile.workerType)?.title ?: profile.workerType?.category ?: "Category not selected", color = Green)
-                    }
-                    CaterHubStatusChip(profile.status.label)
-                }
-                androidx.compose.material3.Button(
-                    onClick = onEdit,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = Red,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text("Edit Profile", fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
-                }
-                androidx.compose.material3.HorizontalDivider(color = Border)
-                ProfileRow("Verification status", profile.status.label)
-                ProfileRow("Service category", ServiceCatalog.categoryForWorkerType(profile.workerType)?.title ?: profile.workerType?.category ?: "Not selected")
-                ProfileRow("Service role", profile.workerType?.label ?: "Not selected")
-                ProfileRow("Age", profile.age?.let { "$it years" } ?: "Not added")
-                ProfileRow("Experience", "${profile.experienceYears} years")
-                ProfileRow("Skills", profile.skills.orEmpty().ifBlank { "Not added" })
-                ProfileRow("Languages", profile.languages.orEmpty().ifBlank { "Not added" })
-                ProfileRow("Preferred areas", profile.preferredAreas.orEmpty().ifBlank { "Not added" })
-                ProfileRow("About me", profile.bio.orEmpty().ifBlank { "Not added" })
-                ProfileRow("Rating", "${profile.rating}")
-                ProfileRow("Reviews", "${profile.totalRatings}")
-            }
-        }
-
-        Text("Account status", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = Red)
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = PaleGreen)) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(profile.status.label, color = Green, fontWeight = FontWeight.ExtraBold)
-                Text(
-                    if (profile.status.name == "ACTIVE")
-                        "Your service profile is active and can be matched to customer bookings."
-                    else
-                        "Your profile will become bookable after CaterHub admin verification.",
-                    color = Ink
-                )
-            }
-        }
-
-        CaterHubPrimaryButton("Logout", onLogout, Modifier.fillMaxWidth())
-    }
-}
-
-@Composable
-private fun ProfileRow(label: String, value: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label.uppercase(), style = MaterialTheme.typography.labelMedium, color = Green, fontWeight = FontWeight.Bold)
-        Text(value, color = Ink, fontWeight = FontWeight.Medium)
     }
 }

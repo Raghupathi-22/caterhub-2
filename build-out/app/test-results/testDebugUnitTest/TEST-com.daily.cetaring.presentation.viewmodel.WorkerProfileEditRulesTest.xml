@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRulesTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-22T13:45:27.726Z" hostname="DESKTOP-R65B6OU" time="0.015">
+<testsuite name="com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRulesTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-23T07:01:01.447Z" hostname="DESKTOP-R65B6OU" time="0.027">
   <properties/>
-  <testcase name="overlongBioIsRejected" classname="com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRulesTest" time="0.003"/>
+  <testcase name="overlongBioIsRejected" classname="com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRulesTest" time="0.004"/>
   <testcase name="requestIsTrimmedAndOptionalFieldsBecomeNull" classname="com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRulesTest" time="0.001"/>
-  <testcase name="ageOutsideAllowedRangeIsRejected" classname="com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRulesTest" time="0.0"/>
+  <testcase name="ageOutsideAllowedRangeIsRejected" classname="com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRulesTest" time="0.001"/>
   <testcase name="validProfilePasses" classname="com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRulesTest" time="0.001"/>
-  <testcase name="requiredFieldsAreRejectedWhenBlank" classname="com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRulesTest" time="0.009"/>
+  <testcase name="requiredFieldsAreRejectedWhenBlank" classname="com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRulesTest" time="0.013"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

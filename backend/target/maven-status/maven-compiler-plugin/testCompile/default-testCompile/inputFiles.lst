@@ -12,6 +12,7 @@ C:\app\application\caterhub-carering\backend\src\test\java\com\daily\cetaring\fe
 C:\app\application\caterhub-carering\backend\src\test\java\com\daily\cetaring\features\catalog\CatalogControllerTest.java
 C:\app\application\caterhub-carering\backend\src\test\java\com\daily\cetaring\features\catalog\ServiceCatalogTest.java
 C:\app\application\caterhub-carering\backend\src\test\java\com\daily\cetaring\features\health\controller\HealthControllerTest.java
+C:\app\application\caterhub-carering\backend\src\test\java\com\daily\cetaring\features\user\service\UserProfileServiceTest.java
 C:\app\application\caterhub-carering\backend\src\test\java\com\daily\cetaring\features\worker\controller\WorkerControllerProfileUpdateTest.java
 C:\app\application\caterhub-carering\backend\src\test\java\com\daily\cetaring\features\worker\service\WorkerRoleFamiliesTest.java
 C:\app\application\caterhub-carering\backend\src\test\java\com\daily\cetaring\features\worker\service\WorkerServiceTest.java

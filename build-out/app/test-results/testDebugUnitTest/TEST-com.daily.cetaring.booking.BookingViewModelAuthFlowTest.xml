@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-22T13:45:18.596Z" hostname="DESKTOP-R65B6OU" time="8.319">
+<testsuite name="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-23T07:00:52.785Z" hostname="DESKTOP-R65B6OU" time="7.629">
   <properties/>
-  <testcase name="otpSuccessResumesPendingSubmissionAutomatically" classname="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" time="8.089"/>
-  <testcase name="expiredSessionAfterAuthenticatedSubmitRequestsReLogin" classname="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" time="0.054"/>
-  <testcase name="duplicateSubmitTriggersOnlyOneBookingRequest" classname="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" time="0.054"/>
-  <testcase name="submitWithoutSessionRequestsOtpAndSkipsApiCall" classname="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" time="0.058"/>
-  <testcase name="submitWithCustomerSessionSubmitsDirectly" classname="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" time="0.06"/>
+  <testcase name="otpSuccessResumesPendingSubmissionAutomatically" classname="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" time="7.367"/>
+  <testcase name="expiredSessionAfterAuthenticatedSubmitRequestsReLogin" classname="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" time="0.063"/>
+  <testcase name="duplicateSubmitTriggersOnlyOneBookingRequest" classname="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" time="0.064"/>
+  <testcase name="submitWithoutSessionRequestsOtpAndSkipsApiCall" classname="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" time="0.066"/>
+  <testcase name="submitWithCustomerSessionSubmitsDirectly" classname="com.daily.cetaring.booking.BookingViewModelAuthFlowTest" time="0.065"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

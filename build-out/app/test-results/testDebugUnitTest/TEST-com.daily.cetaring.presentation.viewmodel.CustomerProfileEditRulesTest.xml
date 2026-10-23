@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.daily.cetaring.presentation.viewmodel.CustomerProfileEditRulesTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-23T07:01:01.402Z" hostname="DESKTOP-R65B6OU" time="0.009">
+  <properties/>
+  <testcase name="invalidOrOverlongEmailIsRejected" classname="com.daily.cetaring.presentation.viewmodel.CustomerProfileEditRulesTest" time="0.004"/>
+  <testcase name="overlongLastNameIsRejected" classname="com.daily.cetaring.presentation.viewmodel.CustomerProfileEditRulesTest" time="0.0"/>
+  <testcase name="blankFirstNameIsRejected" classname="com.daily.cetaring.presentation.viewmodel.CustomerProfileEditRulesTest" time="0.001"/>
+  <testcase name="requestIsTrimmedAndNeverChangesVerifiedPhone" classname="com.daily.cetaring.presentation.viewmodel.CustomerProfileEditRulesTest" time="0.003"/>
+  <testcase name="validProfilePasses" classname="com.daily.cetaring.presentation.viewmodel.CustomerProfileEditRulesTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

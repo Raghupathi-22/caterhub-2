@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.daily.cetaring.domain.catalog.MenuCatalogTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-22T13:45:27.262Z" hostname="DESKTOP-R65B6OU" time="0.051">
+<testsuite name="com.daily.cetaring.domain.catalog.MenuCatalogTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-23T07:01:00.844Z" hostname="DESKTOP-R65B6OU" time="0.063">
   <properties/>
-  <testcase name="biryaniSearchFindsBiryaniItems" classname="com.daily.cetaring.domain.catalog.MenuCatalogTest" time="0.05"/>
-  <testcase name="categoryFilterLimitsItemsToSelectedCategory" classname="com.daily.cetaring.domain.catalog.MenuCatalogTest" time="0.001"/>
+  <testcase name="biryaniSearchFindsBiryaniItems" classname="com.daily.cetaring.domain.catalog.MenuCatalogTest" time="0.061"/>
+  <testcase name="categoryFilterLimitsItemsToSelectedCategory" classname="com.daily.cetaring.domain.catalog.MenuCatalogTest" time="0.002"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

@@ -111,6 +111,56 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BusinessCenter
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Celebration
+import androidx.compose.material.icons.filled.ChildCare
+import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.TempleHindu
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import com.daily.cetaring.presentation.components.BookingBottomActionBar
+import com.daily.cetaring.presentation.components.BookingCard
+import com.daily.cetaring.presentation.components.BookingCardShape
+import com.daily.cetaring.presentation.components.BookingDatePickerDialog
+import com.daily.cetaring.presentation.components.BookingDateRules
+import com.daily.cetaring.presentation.components.BookingFlowTheme
+import com.daily.cetaring.presentation.components.BookingFlowTopBar
+import com.daily.cetaring.presentation.components.BookingIconTile
+import com.daily.cetaring.presentation.components.BookingLightSystemBars
+import com.daily.cetaring.presentation.components.BookingPalette
+import com.daily.cetaring.presentation.components.BookingPickerField
+import com.daily.cetaring.presentation.components.BookingPrimaryButton
+import com.daily.cetaring.presentation.components.BookingSecondaryButton
+import com.daily.cetaring.presentation.components.BookingSectionTitle
+import com.daily.cetaring.presentation.components.BookingSelectableCard
+import com.daily.cetaring.presentation.components.BookingSelectionIndicator
+import com.daily.cetaring.presentation.components.BookingSelectionMode
+import com.daily.cetaring.presentation.components.BookingStepHeading
+import com.daily.cetaring.presentation.components.BookingStepProgress
+import com.daily.cetaring.presentation.components.BookingTextField
+import com.daily.cetaring.presentation.components.BookingTimePickerDialog
 
 private val Cream = Color(0xFFFFFCF5)
 private val Maroon = Color(0xFF971B1E)
@@ -129,6 +179,14 @@ private const val CustomGuestValidationMessage = "Enter a guest count between 1 
 private const val BookingFlowStepCount = 5
 private const val BookingFlowReviewStepIndex = BookingFlowStepCount - 1
 
+private val BookingFlowStepTitles = listOf(
+    "Event & guests",
+    "Food services",
+    "Plan & location",
+    "Date & time",
+    "Review"
+)
+
 @Composable
 fun BookingFlowScreen(
     viewModel: BookingViewModel,
@@ -140,12 +198,15 @@ fun BookingFlowScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    var step by remember { mutableIntStateOf(0) }
+    var step by rememberSaveable { mutableIntStateOf(0) }
+    val scrollState = rememberScrollState()
+    val isSubmitting = uiState is BookingUiState.Loading
     val currentStepValidation = remember(step, draft) {
         if (step == BookingFlowReviewStepIndex) BookingValidationResult.Valid else viewModel.validateStep(step)
     }
-    val canContinue = currentStepValidation is BookingValidationResult.Valid &&
-        uiState !is BookingUiState.Loading
+    val canContinue = currentStepValidation is BookingValidationResult.Valid && !isSubmitting
+
+    LaunchedEffect(step) { scrollState.scrollTo(0) }
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
@@ -160,324 +221,277 @@ fun BookingFlowScreen(
         }
     }
 
-    Scaffold(
-        containerColor = Cream,
-        topBar = { BookingTopBar("Book your event", onBackClick) },
-        snackbarHost = { SnackbarHost(snackbar) }
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .imePadding()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ProgressHeader(step, BookingFlowStepCount)
+    BookingFlowTheme {
+        BookingLightSystemBars()
+        Scaffold(
+            containerColor = BookingPalette.Background,
+            topBar = { BookingFlowTopBar("Book catering", onBackClick) },
+            snackbarHost = { SnackbarHost(snackbar) },
+            bottomBar = {
+                BookingBottomActionBar {
+                    BookingSecondaryButton(
+                        text = if (step == 0) "Cancel" else "Back",
+                        onClick = { if (step == 0) onBackClick() else step-- },
+                        modifier = Modifier.weight(1f),
+                        enabled = !isSubmitting
+                    )
+                    BookingPrimaryButton(
+                        text = if (step == BookingFlowReviewStepIndex) "Submit Booking" else "Continue",
+                        loadingText = "Submitting…",
+                        enabled = canContinue,
+                        loading = isSubmitting,
+                        onClick = {
+                            val validation = if (step == BookingFlowReviewStepIndex) {
+                                BookingValidationResult.Valid
+                            } else {
+                                viewModel.validateStep(step)
+                            }
 
-            Column(
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                when (step) {
-                    0 -> EventStep(draft, viewModel)
-                    1 -> FoodServiceSelectionStep(draft, viewModel)
-                    2 -> CateringPlanAndLocationStep(draft, viewModel)
-                    3 -> DateTimeStep(draft, viewModel)
-                    else -> ReviewStep(draft) { step = it }
+                            if (validation is BookingValidationResult.Invalid) {
+                                coroutineScope.launch { snackbar.showSnackbar(validation.message) }
+                            } else if (step < BookingFlowReviewStepIndex) {
+                                step++
+                            } else {
+                                viewModel.submitBooking()
+                            }
+                        },
+                        modifier = Modifier.weight(1.4f)
+                    )
                 }
             }
+        ) { padding ->
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                BookingStepProgress(
+                    stepIndex = step,
+                    stepTitles = BookingFlowStepTitles,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp)
+                )
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(scrollState)
+                        .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    when (step) {
+                        0 -> EventStep(draft, viewModel)
+                        1 -> FoodServiceSelectionStep(draft, viewModel)
+                        2 -> CateringPlanAndLocationStep(draft, viewModel)
+                        3 -> DateTimeStep(draft, viewModel)
+                        else -> ReviewStep(draft, enabled = !isSubmitting) { step = it }
+                    }
+                }
+            }
+        }
+    }
+}
 
+/** Number of columns for selection grids, reduced on narrow screens or with large font scaling. */
+@Composable
+private fun responsiveColumns(maxWidth: Dp, wide: Int, regular: Int, compact: Int): Int {
+    val fontScale = LocalDensity.current.fontScale
+    val effectiveWidth = maxWidth / fontScale.coerceAtLeast(1f)
+    return when {
+        effectiveWidth >= 560.dp -> wide
+        effectiveWidth >= 280.dp -> regular
+        else -> compact
+    }
+}
+
+@Composable
+private fun <T> SelectionGrid(
+    items: List<T>,
+    columns: Int,
+    spacing: Dp = 10.dp,
+    itemContent: @Composable (T, Modifier) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(spacing)) {
+        items.chunked(columns).forEach { rowItems ->
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(spacing)
             ) {
-                CaterHubSecondaryButton(
-                    text = if (step == 0) "Cancel" else "Back",
-                    onClick = { if (step == 0) onBackClick() else step-- },
-                    modifier = Modifier.weight(1f),
-                    enabled = uiState !is BookingUiState.Loading
-                )
-
-                CaterHubPrimaryButton(
-                    text = if (step == BookingFlowReviewStepIndex) "Submit Booking" else "Continue",
-                    enabled = canContinue,
-                    onClick = {
-                        val validation = if (step == BookingFlowReviewStepIndex) {
-                            BookingValidationResult.Valid
-                        } else {
-                            viewModel.validateStep(step)
-                        }
-
-                        if (validation is BookingValidationResult.Invalid) {
-                            coroutineScope.launch { snackbar.showSnackbar(validation.message) }
-                        } else if (step < BookingFlowReviewStepIndex) {
-                            step++
-                        } else {
-                            viewModel.submitBooking()
-                        }
-                    },
-                    loading = uiState is BookingUiState.Loading,
-                    modifier = Modifier.weight(1.25f)
-                )
+                rowItems.forEach { item ->
+                    itemContent(item, Modifier.weight(1f).fillMaxHeight())
+                }
+                repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
 }
 
-@Composable
-private fun ProgressHeader(step: Int, totalSteps: Int) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            "Step ${step + 1} of $totalSteps",
-            color = Green,
-            fontWeight = FontWeight.ExtraBold
-        )
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
-            repeat(totalSteps) { index ->
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(5.dp),
-                    shape = RoundedCornerShape(50),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (index <= step) Green else Border
-                    )
-                ) {}
-            }
-        }
-    }
+private fun eventTypeIcon(event: EventTypeDefinition): ImageVector = when (event.id) {
+    "birthday" -> Icons.Filled.Cake
+    "wedding", "engagement" -> Icons.Filled.Favorite
+    "reception" -> Icons.Filled.Celebration
+    "anniversary" -> Icons.Filled.Favorite
+    "baby_shower", "naming_ceremony" -> Icons.Filled.ChildCare
+    "housewarming" -> Icons.Filled.Home
+    "pooja" -> Icons.Filled.TempleHindu
+    "corporate" -> Icons.Filled.BusinessCenter
+    "school_college" -> Icons.Filled.School
+    "festival" -> Icons.Filled.AutoAwesome
+    "party" -> Icons.Filled.Celebration
+    else -> Icons.Filled.Event
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
-    Text(
-        "Tell us about your event",
-        color = Maroon,
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.ExtraBold
-    )
-    Text(
-        "Choose the occasion and expected guest count.",
-        color = Muted
-    )
-    Text(
-        text = draft.eventType?.let { EventTypeCatalog.displayNameForBackendValue(it) } ?: "Select event type",
-        color = if (draft.eventType == null) Muted else TextDark,
-        fontWeight = FontWeight.SemiBold
+    BookingStepHeading(
+        title = "Tell us about your event",
+        subtitle = "Choose the occasion and how many guests you expect."
     )
 
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp)
-    ) {
-        EventTypeCatalog.eventTypes.forEach { event ->
-            EventTypeCard(
-                event = event,
-                selected = draft.eventType == event.backendValue,
-                onClick = { viewModel.updateDraft { it.copy(eventType = event.backendValue) } }
-            )
-        }
-    }
-
-    Text(
-        "Guest count",
-        color = TextDark,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.ExtraBold
-    )
-
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        BookingOptions.guestQuickOptions.forEach { guests ->
-            GuestCountOptionCard(
-                label = "$guests guests",
-                selected = draft.guestCountSelection == BookingOptions.guestSelectionPreset && draft.guestCount == guests,
-                onClick = {
-                    viewModel.updateDraft {
-                        it.copy(
-                            guestCount = guests,
-                            guestCountSelection = BookingOptions.guestSelectionPreset,
-                            customGuestCountInput = ""
+    BookingCard {
+        BookingSectionTitle(
+            "Event type",
+            Icons.Filled.Event,
+            trailing = draft.eventType?.let { selected ->
+                {
+                    Text(
+                        EventTypeCatalog.displayNameForBackendValue(selected),
+                        color = BookingPalette.Burgundy,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 8.dp).widthIn(max = 160.dp)
+                    )
+                }
+            }
+        )
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val columns = responsiveColumns(maxWidth, wide = 3, regular = 2, compact = 1)
+            SelectionGrid(EventTypeCatalog.eventTypes, columns) { event, itemModifier ->
+                val selected = draft.eventType == event.backendValue
+                BookingSelectableCard(
+                    selected = selected,
+                    onClick = { viewModel.updateDraft { it.copy(eventType = event.backendValue) } },
+                    modifier = itemModifier,
+                    contentPadding = 12.dp
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BookingIconTile(eventTypeIcon(event), selected, size = 36.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            event.displayName,
+                            color = BookingPalette.Ink,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
-            )
+            }
         }
-        GuestCountOptionCard(
-            label = "Custom guest count",
-            selected = draft.guestCountSelection == BookingOptions.guestSelectionCustom,
-            onClick = {
-                viewModel.updateDraft {
-                    it.copy(
-                        guestCountSelection = BookingOptions.guestSelectionCustom,
-                        guestCount = if (it.customGuestCountInput.isBlank()) null else it.guestCount
+    }
+
+    BookingCard {
+        BookingSectionTitle(
+            "Guest count",
+            Icons.Filled.Groups,
+            trailing = draft.guestCount?.let { count ->
+                {
+                    Text(
+                        "$count guests",
+                        color = BookingPalette.Burgundy,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 8.dp)
                     )
                 }
             }
         )
-    }
-
-    if (draft.guestCountSelection == BookingOptions.guestSelectionCustom) {
-        val invalidCustomGuestCount = draft.customGuestCountInput.isNotBlank() && draft.guestCount == null
-        OutlinedTextField(
-            value = draft.customGuestCountInput,
-            onValueChange = { value ->
-                if (value.length > BookingOptions.maxGuestInputLength) return@OutlinedTextField
-                if (value.isNotEmpty() && !value.all(Char::isDigit)) return@OutlinedTextField
-                val parsed = value.toIntOrNull()?.takeIf { it in 1..BookingOptions.maxGuestCount }
-                viewModel.updateDraft {
-                    it.copy(
-                        guestCountSelection = BookingOptions.guestSelectionCustom,
-                        customGuestCountInput = value,
-                        guestCount = parsed
-                    )
+        val customOption = -1
+        val guestOptions = BookingOptions.guestQuickOptions + customOption
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val columns = responsiveColumns(maxWidth, wide = 6, regular = 3, compact = 2)
+            SelectionGrid(guestOptions, columns, spacing = 8.dp) { guests, itemModifier ->
+                val isCustom = guests == customOption
+                val selected = if (isCustom) {
+                    draft.guestCountSelection == BookingOptions.guestSelectionCustom
+                } else {
+                    draft.guestCountSelection == BookingOptions.guestSelectionPreset && draft.guestCount == guests
                 }
-            },
-            label = { Text("Custom guest count") },
-            placeholder = { Text("Enter number of guests") },
-            supportingText = {
-                if (invalidCustomGuestCount) {
-                    Text(CustomGuestValidationMessage)
-                }
-            },
-            isError = invalidCustomGuestCount,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Number,
-                imeAction = ImeAction.Done
-            ),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun FoodServiceSelectionStep(
-    draft: BookingDraft,
-    viewModel: BookingViewModel
-) {
-    Text(
-        "What would you like to serve?",
-        color = Maroon,
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.ExtraBold
-    )
-    Text(
-        "Select one or more food services for your event.",
-        color = Muted
-    )
-
-    BookingOptions.cateringMealServiceOptions.forEach { option ->
-        val selected = option.type in draft.selectedFoodServices
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    viewModel.updateDraft { current ->
-                        val updated = current.selectedFoodServices.toMutableSet()
-                        if (!updated.add(option.type)) {
-                            updated.remove(option.type)
+                BookingSelectableCard(
+                    selected = selected,
+                    onClick = {
+                        viewModel.updateDraft {
+                            if (isCustom) {
+                                it.copy(
+                                    guestCountSelection = BookingOptions.guestSelectionCustom,
+                                    guestCount = if (it.customGuestCountInput.isBlank()) null else it.guestCount
+                                )
+                            } else {
+                                it.copy(
+                                    guestCount = guests,
+                                    guestCountSelection = BookingOptions.guestSelectionPreset,
+                                    customGuestCountInput = ""
+                                )
+                            }
                         }
-                        current.copy(selectedFoodServices = updated)
+                    },
+                    modifier = itemModifier,
+                    contentPadding = 10.dp
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            if (isCustom) "Custom" else guests.toString(),
+                            color = if (selected) BookingPalette.Burgundy else BookingPalette.Ink,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            if (isCustom) "Enter count" else "guests",
+                            color = BookingPalette.Muted,
+                            style = MaterialTheme.typography.labelSmall,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+
+        if (draft.guestCountSelection == BookingOptions.guestSelectionCustom) {
+            val invalidCustomGuestCount = draft.customGuestCountInput.isNotBlank() && draft.guestCount == null
+            BookingTextField(
+                value = draft.customGuestCountInput,
+                onValueChange = { value ->
+                    if (value.length > BookingOptions.maxGuestInputLength) return@BookingTextField
+                    if (value.isNotEmpty() && !value.all(Char::isDigit)) return@BookingTextField
+                    val parsed = value.toIntOrNull()?.takeIf { it in 1..BookingOptions.maxGuestCount }
+                    viewModel.updateDraft {
+                        it.copy(
+                            guestCountSelection = BookingOptions.guestSelectionCustom,
+                            customGuestCountInput = value,
+                            guestCount = parsed
+                        )
                     }
                 },
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (selected) SoftGreen.copy(alpha = 0.65f) else Color.White
-            ),
-            border = BorderStroke(
-                width = if (selected) 2.dp else 1.dp,
-                color = if (selected) Green else Border
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 4.dp else 1.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (selected) Green else Color(0xFFFFF7E6)
-                    )
-                ) {
-                    Icon(
-                        imageVector = mealServiceIcon(option.type),
-                        contentDescription = option.displayName,
-                        tint = if (selected) Color.White else Green,
-                        modifier = Modifier.padding(9.dp)
-                    )
-                }
-                Spacer(Modifier.size(10.dp))
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        option.displayName,
-                        color = TextDark,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        option.description,
-                        color = Muted,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                if (selected) {
-                    Icon(
-                        Icons.Filled.CheckCircle,
-                        contentDescription = "Selected",
-                        tint = Green,
-                        modifier = Modifier.size(22.dp)
-                    )
-                } else {
-                    Icon(
-                        Icons.Filled.Check,
-                        contentDescription = null,
-                        tint = Border,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-        }
-    }
-
-    val selectedServices = draft.selectedFoodServices
-        .sortedBy { it.sortOrder }
-        .map { it.backendLabel }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9EC)),
-        border = BorderStroke(1.dp, Border)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                "${selectedServices.size} services selected",
-                color = Green,
-                fontWeight = FontWeight.ExtraBold
-            )
-            Text(
-                if (selectedServices.isEmpty()) "Select at least one service to continue."
-                else "Selected: ${selectedServices.joinToString(" • ")}",
-                color = if (selectedServices.isEmpty()) Muted else TextDark,
-                style = MaterialTheme.typography.bodySmall
+                label = "Number of guests",
+                placeholder = "Enter number of guests",
+                supportingText = if (invalidCustomGuestCount) CustomGuestValidationMessage else "Between 1 and 2,000 guests",
+                isError = invalidCustomGuestCount,
+                leadingIcon = Icons.Filled.Groups,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                )
             )
         }
     }
@@ -492,92 +506,93 @@ private fun mealServiceIcon(type: CateringMealServiceType): ImageVector = when (
 }
 
 @Composable
-private fun EventTypeCard(
-    event: EventTypeDefinition,
-    selected: Boolean,
-    onClick: () -> Unit
+private fun FoodServiceSelectionStep(
+    draft: BookingDraft,
+    viewModel: BookingViewModel
 ) {
-    val icon = when (event.id) {
-        "birthday" -> Icons.Filled.Cake
-        "wedding", "engagement", "reception", "anniversary" -> Icons.Filled.Favorite
-        "housewarming" -> Icons.Filled.Home
-        "corporate", "school_college" -> Icons.Filled.Groups
-        "baby_shower", "naming_ceremony" -> Icons.Filled.Cake
-        "festival", "party" -> Icons.Filled.Star
-        else -> Icons.Filled.Event
-    }
+    BookingStepHeading(
+        title = "What would you like to serve?",
+        subtitle = "Select one or more food services for your event."
+    )
 
-    Card(
-        modifier = Modifier
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(17.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) Green else Color(0xFFFFFCF7)
-        ),
-        border = BorderStroke(
-            if (selected) 2.dp else 1.dp,
-            if (selected) Green else Border
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (selected) 5.dp else 1.dp
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = if (selected) Color.White else Green,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(Modifier.size(7.dp))
-            Text(
-                event.displayName,
-                color = if (selected) Color.White else TextDark,
-                fontWeight = FontWeight.Bold
-            )
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        BookingOptions.cateringMealServiceOptions.forEach { option ->
+            val selected = option.type in draft.selectedFoodServices
+            BookingSelectableCard(
+                selected = selected,
+                mode = BookingSelectionMode.Multiple,
+                onClick = {
+                    viewModel.updateDraft { current ->
+                        val updated = current.selectedFoodServices.toMutableSet()
+                        if (!updated.add(option.type)) {
+                            updated.remove(option.type)
+                        }
+                        current.copy(selectedFoodServices = updated)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    BookingIconTile(mealServiceIcon(option.type), selected, size = 44.dp)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            option.displayName,
+                            color = BookingPalette.Ink,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            option.description,
+                            color = BookingPalette.Muted,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    BookingSelectionIndicator(selected = selected)
+                }
+            }
         }
     }
-}
 
-@Composable
-private fun GuestCountOptionCard(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(17.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) Green else Color(0xFFFFFCF7)
-        ),
-        border = BorderStroke(
-            width = if (selected) 2.dp else 1.dp,
-            color = if (selected) Green else Border
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (selected) 5.dp else 1.dp
-        )
+    val selectedServices = draft.selectedFoodServices
+        .sortedBy { it.sortOrder }
+        .map { it.backendLabel }
+    val count = selectedServices.size
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = BookingCardShape,
+        color = if (count > 0) BookingPalette.GreenSoft else BookingPalette.AmberSoft,
+        border = BorderStroke(1.dp, if (count > 0) BookingPalette.Green.copy(alpha = 0.25f) else BookingPalette.Border)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                Icons.Filled.Groups,
+                if (count > 0) Icons.Filled.CheckCircle else Icons.Filled.Info,
                 contentDescription = null,
-                tint = if (selected) Color.White else Green,
-                modifier = Modifier.size(20.dp)
+                tint = if (count > 0) BookingPalette.Green else BookingPalette.Amber
             )
-            Spacer(Modifier.size(7.dp))
-            Text(
-                label,
-                color = if (selected) Color.White else TextDark,
-                fontWeight = FontWeight.Bold
-            )
+            Spacer(Modifier.width(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    when (count) {
+                        0 -> "No services selected"
+                        1 -> "1 service selected"
+                        else -> "$count services selected"
+                    },
+                    color = BookingPalette.Ink,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    if (count == 0) "Select at least one service to continue."
+                    else selectedServices.joinToString(" • "),
+                    color = BookingPalette.Muted,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
@@ -587,168 +602,128 @@ private fun CateringPlanAndLocationStep(
     draft: BookingDraft,
     viewModel: BookingViewModel
 ) {
-    Text(
-        "Choose your catering plan",
-        color = Maroon,
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.ExtraBold
-    )
-    Text(
-        "Choose a vegetarian or non-vegetarian package, or customize your menu.",
-        color = Muted
+    BookingStepHeading(
+        title = "Choose your catering plan",
+        subtitle = "Pick a vegetarian or non-vegetarian package, or build a custom menu."
     )
 
     val selectedFoodType = draft.cateringFoodType.ifBlank { BookingOptions.foodTypeNonVegetarian }
     val visiblePlans = BookingOptions.plansByFoodType(selectedFoodType)
+    val foodTypes = listOf(
+        Triple(BookingOptions.foodTypeVegetarian, "Vegetarian", Icons.Filled.Eco),
+        Triple(BookingOptions.foodTypeNonVegetarian, "Non-Veg", Icons.Filled.Restaurant),
+        Triple(BookingOptions.foodTypeCustom, "Custom", Icons.Filled.AutoAwesome)
+    )
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        FoodTypeSelectorOption(
-            emoji = "🥬",
-            label = "Vegetarian",
-            selected = selectedFoodType == BookingOptions.foodTypeVegetarian,
-            onClick = {
-                val defaultPlan = BookingOptions.defaultPlanForFoodType(BookingOptions.foodTypeVegetarian)
-                viewModel.updateDraft {
-                    it.copy(
-                        cateringFoodType = BookingOptions.foodTypeVegetarian,
-                        cateringPlan = defaultPlan.backendValue
-                    )
+    BookingCard {
+        BookingSectionTitle("Food preference", Icons.Filled.RestaurantMenu)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val columns = responsiveColumns(maxWidth, wide = 3, regular = 3, compact = 1)
+            SelectionGrid(foodTypes, columns, spacing = 8.dp) { (type, label, icon), itemModifier ->
+                val selected = selectedFoodType == type
+                BookingSelectableCard(
+                    selected = selected,
+                    onClick = {
+                        val defaultPlan = BookingOptions.defaultPlanForFoodType(type)
+                        viewModel.updateDraft {
+                            it.copy(
+                                cateringFoodType = type,
+                                cateringPlan = defaultPlan.backendValue
+                            )
+                        }
+                    },
+                    modifier = itemModifier,
+                    contentPadding = 10.dp
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            icon,
+                            contentDescription = null,
+                            tint = if (selected) BookingPalette.Burgundy else BookingPalette.Green,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Text(
+                            label,
+                            color = BookingPalette.Ink,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
-            },
-            modifier = Modifier.weight(1f)
-        )
-        FoodTypeSelectorOption(
-            emoji = "🍗",
-            label = "Non-Vegetarian",
-            selected = selectedFoodType == BookingOptions.foodTypeNonVegetarian,
-            onClick = {
-                val defaultPlan = BookingOptions.defaultPlanForFoodType(BookingOptions.foodTypeNonVegetarian)
-                viewModel.updateDraft {
-                    it.copy(
-                        cateringFoodType = BookingOptions.foodTypeNonVegetarian,
-                        cateringPlan = defaultPlan.backendValue
-                    )
-                }
-            },
-            modifier = Modifier.weight(1f)
-        )
-        FoodTypeSelectorOption(
-            emoji = "✨",
-            label = "Custom",
-            selected = selectedFoodType == BookingOptions.foodTypeCustom,
-            onClick = {
-                val defaultPlan = BookingOptions.defaultPlanForFoodType(BookingOptions.foodTypeCustom)
-                viewModel.updateDraft {
-                    it.copy(
-                        cateringFoodType = BookingOptions.foodTypeCustom,
-                        cateringPlan = defaultPlan.backendValue
-                    )
-                }
-            },
-            modifier = Modifier.weight(1f)
-        )
+            }
+        }
     }
 
-    visiblePlans.forEach { plan ->
-        PlanCard(
-            option = plan,
-            selected = draft.cateringPlan == plan.backendValue
-        ) {
-            viewModel.updateDraft { it.copy(cateringPlan = plan.backendValue) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        visiblePlans.forEach { plan ->
+            PlanCard(
+                option = plan,
+                selected = draft.cateringPlan == plan.backendValue
+            ) {
+                viewModel.updateDraft { it.copy(cateringPlan = plan.backendValue) }
+            }
         }
     }
 
     if (draft.cateringPlan == BookingOptions.planCustomMenu) {
-        OutlinedTextField(
+        BookingTextField(
             value = draft.foodRequirements,
-            onValueChange = {
-                viewModel.updateDraft { current -> current.copy(foodRequirements = it) }
-            },
-            label = { Text("Your menu requirements") },
-            placeholder = { Text("Example: Chicken Biryani, Paneer Curry, Gulab Jamun...") },
+            onValueChange = { viewModel.updateDraft { current -> current.copy(foodRequirements = it) } },
+            label = "Your menu requirements",
+            placeholder = "Example: Chicken Biryani, Paneer Curry, Gulab Jamun…",
+            singleLine = false,
             minLines = 3,
-            modifier = Modifier.fillMaxWidth()
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
         )
     }
 
-    SectionLabel("Event location", Icons.Filled.LocationOn)
-
-    OutlinedTextField(
-        value = draft.address,
-        onValueChange = { value -> viewModel.updateDraft { it.copy(address = value) } },
-        label = { Text("Event address", color = TextDark) },
-        placeholder = { Text("Enter full event address", color = Muted) },
-        minLines = 2,
-        singleLine = false,
-        modifier = Modifier.fillMaxWidth(),
-        textStyle = androidx.compose.ui.text.TextStyle(color = TextDark)
-    )
-    OutlinedTextField(
-        value = draft.area,
-        onValueChange = { value -> viewModel.updateDraft { it.copy(area = value) } },
-        label = { Text("Area / locality", color = TextDark) },
-        placeholder = { Text("Enter area / locality", color = Muted) },
-        modifier = Modifier.fillMaxWidth(),
-        textStyle = androidx.compose.ui.text.TextStyle(color = TextDark)
-    )
-    OutlinedTextField(
-        value = draft.city,
-        onValueChange = { value -> viewModel.updateDraft { it.copy(city = value) } },
-        label = { Text("City", color = TextDark) },
-        modifier = Modifier.fillMaxWidth(),
-        textStyle = androidx.compose.ui.text.TextStyle(color = TextDark)
-    )
-    OutlinedTextField(
-        value = draft.landmark,
-        onValueChange = { value -> viewModel.updateDraft { it.copy(landmark = value) } },
-        label = { Text("Landmark (optional)", color = TextDark) },
-        placeholder = { Text("Optional landmark", color = Muted) },
-        modifier = Modifier.fillMaxWidth(),
-        textStyle = androidx.compose.ui.text.TextStyle(color = TextDark)
-    )
-}
-
-@Composable
-private fun FoodTypeSelectorOption(
-    emoji: String,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) Green else Color(0xFFFFFCF7)
-        ),
-        border = BorderStroke(
-            width = if (selected) 2.dp else 1.dp,
-            color = if (selected) Green else Border
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (selected) 4.dp else 1.dp
+    BookingCard {
+        BookingSectionTitle("Event location", Icons.Filled.LocationOn)
+        BookingTextField(
+            value = draft.address,
+            onValueChange = { value -> viewModel.updateDraft { it.copy(address = value) } },
+            label = "Event address",
+            placeholder = "House / building, street",
+            singleLine = false,
+            minLines = 2,
+            maxLines = 4,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
         )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 11.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(emoji, fontSize = 16.sp)
-            Spacer(Modifier.size(6.dp))
-            Text(
-                label,
-                color = if (selected) Color.White else TextDark,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp
+        BookingTextField(
+            value = draft.area,
+            onValueChange = { value -> viewModel.updateDraft { it.copy(area = value) } },
+            label = "Area / locality",
+            placeholder = "Enter area or locality",
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Next
             )
-        }
+        )
+        BookingTextField(
+            value = draft.city,
+            onValueChange = { value -> viewModel.updateDraft { it.copy(city = value) } },
+            label = "City",
+            placeholder = "Enter city",
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Next
+            )
+        )
+        BookingTextField(
+            value = draft.landmark,
+            onValueChange = { value -> viewModel.updateDraft { it.copy(landmark = value) } },
+            label = "Landmark (optional)",
+            placeholder = "Nearby landmark",
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Done
+            )
+        )
     }
 }
 
@@ -758,97 +733,65 @@ private fun PlanCard(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) SoftGreen.copy(alpha = 0.60f) else Color.White
-        ),
-        border = BorderStroke(
-            width = if (selected) 2.dp else 1.dp,
-            color = if (selected) Green else Border
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (selected) 5.dp else 2.dp
-        )
+    BookingSelectableCard(
+        selected = selected,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = 16.dp
     ) {
-        Column(Modifier.padding(17.dp)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            BookingSelectionIndicator(selected = selected, radio = true, modifier = Modifier.padding(top = 2.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRowCompat {
                     Text(
-                        text = when (option.foodType) {
-                            BookingOptions.foodTypeVegetarian -> "🥬"
-                            BookingOptions.foodTypeNonVegetarian -> "🍗"
-                            else -> "✨"
-                        },
-                        fontSize = 16.sp
+                        option.title,
+                        color = BookingPalette.Ink,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.ExtraBold
                     )
-                    Text(option.title, color = if (selected) Green else TextDark, fontWeight = FontWeight.ExtraBold)
-                }
-                if (option.popular) {
-                    Card(
-                        shape = RoundedCornerShape(999.dp),
-                        colors = CardDefaults.cardColors(containerColor = SoftGold)
-                    ) {
-                        Text(
-                            text = "POPULAR",
-                            color = Gold,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 10.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
+                    if (option.popular) {
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = BookingPalette.AmberSoft
+                        ) {
+                            Text(
+                                "POPULAR",
+                                color = BookingPalette.Amber,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
-                if (selected) {
-                    Icon(
-                        Icons.Filled.CheckCircle,
-                        contentDescription = "Selected",
-                        tint = Green
-                    )
-                }
-            }
-            Text(
-                option.pricePerPerson?.let { "₹$it / person" } ?: "Build your own menu",
-                color = TextDark,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(4.dp))
-            option.description?.let {
-                Text(it, color = Muted, lineHeight = 20.sp)
-                Spacer(Modifier.height(2.dp))
-            }
-            option.menuItems.forEach { item ->
-                Text("• $item", color = Muted, lineHeight = 20.sp)
-            }
-            if (option.backendValue == BookingOptions.planCustomMenu) {
-                Spacer(Modifier.height(8.dp))
                 Text(
-                    "Customize Menu",
-                    color = Green,
-                    fontWeight = FontWeight.ExtraBold,
-                    style = MaterialTheme.typography.labelLarge
+                    option.pricePerPerson?.let { "₹$it / person" } ?: "Price on request",
+                    color = if (selected) BookingPalette.Burgundy else BookingPalette.Green,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                option.description?.let {
+                    Text(it, color = BookingPalette.Ink, style = MaterialTheme.typography.bodyMedium)
+                }
+                Text(
+                    option.menuItems.joinToString(" • "),
+                    color = BookingPalette.Muted,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SectionLabel(text: String, icon: ImageVector) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = Gold, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.size(7.dp))
-        Text(text, color = TextDark, fontWeight = FontWeight.ExtraBold)
-    }
+private fun FlowRowCompat(content: @Composable () -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        itemVerticalAlignment = Alignment.CenterVertically
+    ) { content() }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -857,220 +800,216 @@ private fun DateTimeStep(
     draft: BookingDraft,
     viewModel: BookingViewModel
 ) {
-    var showDate by remember { mutableStateOf(false) }
-    var showTime by remember { mutableStateOf(false) }
+    var showDate by rememberSaveable { mutableStateOf(false) }
+    var showTime by rememberSaveable { mutableStateOf(false) }
 
-    val today = remember {
-        Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
-    }
-
-    val dateState = rememberDatePickerState(
-        initialSelectedDateMillis = draft.eventDate.takeIf { it.isNotBlank() }?.let {
-            runCatching {
-                LocalDate.parse(it, BookingDateStorageFormatter)
-                    .atStartOfDay(java.time.ZoneId.systemDefault())
-                    .toInstant()
-                    .toEpochMilli()
-            }.getOrNull()
-        },
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean =
-                utcTimeMillis >= today
-
-            override fun isSelectableYear(year: Int): Boolean =
-                year >= Calendar.getInstance().get(Calendar.YEAR)
-        }
-    )
-    val timeState = rememberTimePickerState(
-        initialHour = draft.eventTime.takeIf { it.isNotBlank() }?.let {
-            runCatching { LocalTime.parse(it, BookingTimeStorageFormatter).hour }.getOrNull()
-        } ?: 12,
-        initialMinute = draft.eventTime.takeIf { it.isNotBlank() }?.let {
-            runCatching { LocalTime.parse(it, BookingTimeStorageFormatter).minute }.getOrNull()
-        } ?: 0,
-        is24Hour = false
+    BookingStepHeading(
+        title = "When is your event?",
+        subtitle = "Choose the event date and start time, and share any food preferences."
     )
 
-    Text(
-        "When is your event?",
-        color = Maroon,
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.ExtraBold
-    )
-    Text(
-        "Choose the event date and start time.",
-        color = Muted
-    )
-
-    PickerField("Date", draft.eventDate.takeIf { it.isNotBlank() }?.let(::formatBookingDate) ?: "Select date") {
-        showDate = true
-    }
-
-    PickerField("Time", draft.eventTime.takeIf { it.isNotBlank() }?.let(::formatBookingTime) ?: "Select time") {
-        showTime = true
-    }
-
-    OutlinedTextField(
-        value = draft.foodRequirements,
-        onValueChange = { value ->
-            viewModel.updateDraft { it.copy(foodRequirements = value) }
-        },
-        label = { Text("Food requirements (optional)") },
-        minLines = 2,
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    OutlinedTextField(
-        value = draft.specialInstructions,
-        onValueChange = { value ->
-            viewModel.updateDraft { it.copy(specialInstructions = value) }
-        },
-        label = { Text("Additional instructions (optional)") },
-        minLines = 2,
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    if (showDate) {
-        DatePickerDialog(
-            onDismissRequest = { showDate = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    dateState.selectedDateMillis?.let { millis ->
-                        val formatter = SimpleDateFormat(
-                            "yyyy-MM-dd",
-                            Locale.ENGLISH
-                        ).apply {
-                            timeZone = TimeZone.getDefault()
-                        }
-                        viewModel.updateDraft {
-                            it.copy(eventDate = formatter.format(millis))
-                        }
-                    }
-                    showDate = false
-                }) {
-                    Text("Confirm")
+    BookingCard {
+        BookingSectionTitle("Date & time", Icons.Filled.CalendarMonth)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val sideBySide = responsiveColumns(maxWidth, wide = 2, regular = 1, compact = 1) > 1
+            val dateField = @Composable { modifier: Modifier ->
+                BookingPickerField(
+                    label = "Event date",
+                    value = draft.eventDate.takeIf { it.isNotBlank() }?.let(::formatBookingDate),
+                    placeholder = "Select date",
+                    icon = Icons.Filled.CalendarMonth,
+                    onClick = { showDate = true },
+                    modifier = modifier
+                )
+            }
+            val timeField = @Composable { modifier: Modifier ->
+                BookingPickerField(
+                    label = "Start time",
+                    value = draft.eventTime.takeIf { it.isNotBlank() }?.let(::formatBookingTime),
+                    placeholder = "Select time",
+                    icon = Icons.Filled.Schedule,
+                    onClick = { showTime = true },
+                    modifier = modifier
+                )
+            }
+            if (sideBySide) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    dateField(Modifier.weight(1f))
+                    timeField(Modifier.weight(1f))
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDate = false }) {
-                    Text("Cancel")
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    dateField(Modifier.fillMaxWidth())
+                    timeField(Modifier.fillMaxWidth())
                 }
             }
-        ) {
-            DatePicker(state = dateState)
         }
+    }
+
+    BookingCard {
+        BookingSectionTitle("Requirements", Icons.AutoMirrored.Filled.Notes)
+        BookingTextField(
+            value = draft.foodRequirements,
+            onValueChange = { value -> viewModel.updateDraft { it.copy(foodRequirements = value) } },
+            label = "Food requirements (optional)",
+            placeholder = "Dietary needs, spice level, must-have dishes…",
+            singleLine = false,
+            minLines = 2,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+        )
+        BookingTextField(
+            value = draft.specialInstructions,
+            onValueChange = { value -> viewModel.updateDraft { it.copy(specialInstructions = value) } },
+            label = "Additional instructions (optional)",
+            placeholder = "Serving time, setup, parking or access details…",
+            singleLine = false,
+            minLines = 2,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+        )
+    }
+
+    if (showDate) {
+        val dateState = rememberDatePickerState(
+            initialSelectedDateMillis = BookingDateRules.utcMillisForIsoDate(draft.eventDate),
+            selectableDates = remember {
+                object : SelectableDates {
+                    override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                        BookingDateRules.isSelectableDate(utcTimeMillis)
+
+                    override fun isSelectableYear(year: Int): Boolean =
+                        BookingDateRules.isSelectableYear(year)
+                }
+            }
+        )
+        BookingDatePickerDialog(
+            state = dateState,
+            onDismiss = { showDate = false },
+            onConfirm = { millis ->
+                viewModel.updateDraft { it.copy(eventDate = BookingDateRules.isoDateForUtcMillis(millis)) }
+                showDate = false
+            }
+        )
     }
 
     if (showTime) {
-        AlertDialog(
-            onDismissRequest = { showTime = false },
-            title = { Text("Select event time") },
-            text = { TimePicker(state = timeState) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.updateDraft {
-                        it.copy(
-                            eventTime = "%02d:%02d".format(
-                                timeState.hour,
-                                timeState.minute
-                            )
-                        )
-                    }
-                    showTime = false
-                }) {
-                    Text("Confirm")
+        val initialTime = draft.eventTime.takeIf { it.isNotBlank() }?.let {
+            runCatching { LocalTime.parse(it, BookingTimeStorageFormatter) }.getOrNull()
+        }
+        val timeState = rememberTimePickerState(
+            initialHour = initialTime?.hour ?: 12,
+            initialMinute = initialTime?.minute ?: 0,
+            is24Hour = false
+        )
+        BookingTimePickerDialog(
+            state = timeState,
+            onDismiss = { showTime = false },
+            onConfirm = {
+                viewModel.updateDraft {
+                    it.copy(eventTime = "%02d:%02d".format(Locale.ENGLISH, timeState.hour, timeState.minute))
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTime = false }) {
-                    Text("Cancel")
-                }
+                showTime = false
             }
         )
     }
 }
 
 @Composable
-private fun PickerField(
-    label: String,
-    value: String,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(17.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Border)
+private fun ReviewStep(draft: BookingDraft, enabled: Boolean, onEdit: (Int) -> Unit) {
+    BookingStepHeading(
+        title = "Review your booking",
+        subtitle = "Check the details below before submitting your request."
+    )
+
+    ReviewSection("Event", Icons.Filled.Event, editStep = 0, enabled = enabled, onEdit = onEdit) {
+        ReviewDetail("Event type", EventTypeCatalog.displayNameForBackendValue(draft.eventType).ifBlank { "Not selected" })
+        ReviewDetail("Guests", draft.guestCount?.let { "$it guests" } ?: "Not selected")
+    }
+
+    ReviewSection("Food services", Icons.Filled.LunchDining, editStep = 1, enabled = enabled, onEdit = onEdit) {
+        ReviewDetail("Services", draft.selectedFoodServicesLabel())
+    }
+
+    val plan = BookingOptions.planByBackendValue(draft.cateringPlan)
+    ReviewSection("Plan & location", Icons.Filled.RestaurantMenu, editStep = 2, enabled = enabled, onEdit = onEdit) {
+        ReviewDetail("Catering plan", draft.cateringPlan.ifBlank { BookingOptions.fullCatering })
+        plan?.pricePerPerson?.let { ReviewDetail("Plan price", "₹$it / person") }
+        ReviewDetail("Location", draft.deliveryAddress().ifBlank { "Not provided" })
+    }
+
+    ReviewSection("Date & requirements", Icons.Filled.CalendarMonth, editStep = 3, enabled = enabled, onEdit = onEdit) {
+        ReviewDetail("Date", draft.eventDate.takeIf { it.isNotBlank() }?.let(::formatBookingDate) ?: "Not selected")
+        ReviewDetail("Start time", formatBookingReviewTimeRange(draft.eventTime))
+        ReviewDetail("Food requirements", draft.foodRequirements.ifBlank { "Standard plan menu" })
+        if (draft.specialInstructions.isNotBlank()) {
+            ReviewDetail("Additional instructions", draft.specialInstructions)
+        }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = BookingCardShape,
+        color = BookingPalette.GreenSoft,
+        border = BorderStroke(1.dp, BookingPalette.Green.copy(alpha = 0.25f))
     ) {
-        Column(
-            Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(label, color = Green, fontWeight = FontWeight.Bold)
-            Text(
-                value,
-                color = TextDark,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Info, contentDescription = null, tint = BookingPalette.Green)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Total", color = BookingPalette.Muted, style = MaterialTheme.typography.labelMedium)
+                Text(
+                    "To be quoted",
+                    color = BookingPalette.Ink,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "CaterHub will confirm the final quote for your request.",
+                    color = BookingPalette.Muted,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ReviewStep(draft: BookingDraft, onEdit: (Int) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            "Review your booking",
-            color = Maroon,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.ExtraBold
+private fun ReviewSection(
+    title: String,
+    icon: ImageVector,
+    editStep: Int,
+    enabled: Boolean,
+    onEdit: (Int) -> Unit,
+    content: @Composable () -> Unit
+) {
+    BookingCard {
+        BookingSectionTitle(
+            title,
+            icon,
+            trailing = {
+                TextButton(
+                    onClick = { onEdit(editStep) },
+                    enabled = enabled,
+                    colors = ButtonDefaults.textButtonColors(contentColor = BookingPalette.Burgundy)
+                ) {
+                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Edit", fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics {
+                        contentDescription = "Edit $title"
+                    })
+                }
+            }
         )
-        IconButton(onClick = { onEdit(0) }) {
-            Icon(Icons.Filled.Edit, "Edit booking", tint = Maroon)
-        }
+        HorizontalDivider(color = BookingPalette.Divider)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { content() }
     }
+}
 
-    ReviewRequestCard(
-        eventType = EventTypeCatalog.displayNameForBackendValue(draft.eventType),
-        eventDate = formatBookingDate(draft.eventDate),
-        timeRange = formatBookingReviewTimeRange(draft.eventTime),
-        location = draft.deliveryAddress(),
-        services = listOf(
-            ReviewLineItem(
-                title = "Food Services",
-                subtitle = draft.selectedFoodServicesLabel(),
-                amountText = null
-            ),
-            ReviewLineItem(
-                title = "Catering Plan",
-                subtitle = draft.cateringPlan.ifBlank { BookingOptions.fullCatering },
-                amountText = null
-            ),
-            ReviewLineItem(
-                title = "Guest Count",
-                subtitle = "${draft.guestCount ?: 0} guests",
-                amountText = null
-            ),
-            ReviewLineItem(
-                title = "Food requirements",
-                subtitle = draft.foodRequirements.ifBlank { "Standard plan menu" },
-                amountText = null
-            )
-        ),
-        totalLabel = "To be quoted"
-    )
+@Composable
+private fun ReviewDetail(label: String, value: String) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, color = BookingPalette.Muted, style = MaterialTheme.typography.labelMedium)
+        Text(value, color = BookingPalette.Ink, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+    }
 }
 
 @Composable
