@@ -63,7 +63,7 @@ object ServiceCatalog {
         ServiceCategoryDefinition(
             "decoration",
             "Decoration",
-            "Stage, mandap, entrance and backdrop decoration",
+            "Event, stage & mandap, floral, balloon and entrance decor",
             "DECORATION",
             CategoryVisualTone.DECORATION
         ),
@@ -91,7 +91,7 @@ object ServiceCatalog {
         ServiceCategoryDefinition(
             "religious-ceremony",
             "Religious & Ceremony",
-            "Pujari, rituals & ceremony support",
+            "Purohit for poojas, homams & traditional ceremonies",
             "RELIGIOUS_CEREMONY",
             CategoryVisualTone.RELIGIOUS
         ),
@@ -331,15 +331,20 @@ object ServiceCatalog {
             roles.firstOrNull { it.id == "kitchen-helper" }?.copy(categoryId = "catering-staff", title = "Kitchen Helper")
         )
 
-        "decoration" -> roles.filter {
-            it.id in setOf(
-                "stage-setup-worker",
-                "mandap-decorator",
-                "entrance-decorator",
-                "backdrop-decorator",
-                "decoration-supervisor"
-            )
-        }
+        // Overlapping decorator roles are consolidated into four customer options. Each one books an
+        // existing role id/WorkerType; the backend's WorkerRoleFamilies routes it to related decorators.
+        "decoration" -> listOfNotNull(
+            roles.firstOrNull { it.id == "event-decorator" }?.copy(title = "Event Decoration"),
+            roles.firstOrNull { it.id == "mandap-decorator" }?.copy(title = "Stage & Mandap Decoration"),
+            roles.firstOrNull { it.id == "balloon-decorator" }?.copy(title = "Balloon & Floral Decoration"),
+            roles.firstOrNull { it.id == "entrance-decorator" }?.copy(title = "Entrance & Backdrop Decoration")
+        )
+
+        // Pujari, Priest, Pandit, Pooja and Homam specialists overlap for customers, so a single
+        // "Purohit" option books the existing PUJARI role (matched by priest/pandit/homam workers).
+        "religious-ceremony" -> listOfNotNull(
+            roles.firstOrNull { it.id == "pujari" }?.copy(title = "Purohit")
+        )
 
         "photography-video" -> listOfNotNull(
             roles.firstOrNull { it.id == "photographer" }?.copy(
@@ -424,7 +429,7 @@ object ServiceCatalog {
             Triple("event-decorator", "Event Decorator", "Event, wedding, entrance and backdrop decor"),
             Triple("mandap-decorator", "Stage & Mandap Decorator", "Stage and mandap decoration"),
             Triple("balloon-decorator", "Balloon Decorator", "Balloon arches, walls and themes"),
-            Triple("flower-decorator", "Floral Decorator", "Fresh flower and garland decoration"),
+            Triple("flower-decorator", "Floral Decorator", "Fresh flower, garland and balloon & floral decor"),
             Triple("stage-setup-worker", "Decoration Assistant", "Stage setup and tent/shamiana work")
         ),
         "entertainment" to listOf(
@@ -451,9 +456,9 @@ object ServiceCatalog {
         ),
         "religious-ceremony" to listOf(
             Triple("pujari", "Priest/Pujari", "Pujari, priest and pandit jobs"),
-            Triple("homam-specialist", "Vedic Ritual Specialist", "Homam and Vedic rituals"),
+            Triple("homam-specialist", "Vedic Ritual Specialist", "Homam, Vedic rituals and Purohit jobs"),
             Triple("pooja-specialist", "Ceremony Assistant", "Pooja and ceremony support"),
-            Triple("wedding-ritual-specialist", "Traditional Ceremony Specialist", "Traditional wedding rituals")
+            Triple("wedding-ritual-specialist", "Traditional Ceremony Specialist", "Traditional wedding rituals and Purohit jobs")
         )
     )
 

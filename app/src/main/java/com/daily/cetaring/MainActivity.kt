@@ -51,6 +51,7 @@ import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 import com.daily.cetaring.ui.theme.CetaringTheme
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import com.daily.cetaring.presentation.screens.ServiceCategoryScreen
 import com.daily.cetaring.presentation.screens.ServiceRequestScreen
 import com.daily.cetaring.domain.catalog.ServiceCatalog
 
@@ -61,8 +62,11 @@ private object AppRoute {
     const val HOME = "home"
     const val BOOKING_FLOW = "booking_flow"
     const val BOOKING_AUTH = "booking_auth"
+    const val SERVICE_AUTH = "service_auth"
     const val MENU = "menu"
-    const val SERVICE_REQUEST = "service_request/{categoryId}"
+    const val MENU_PATTERN = "menu?category={category}"
+    const val SERVICE_CATEGORY = "service_category/{categoryId}"
+    const val SERVICE_REQUEST = "service_request/{categoryId}?service={serviceId}"
     const val BOOKINGS = "bookings"
     const val BOOKING_SUCCESS = "booking_success/{bookingId}"
     const val BOOKING_DETAILS = "booking_details/{source}/{bookingId}"
@@ -79,7 +83,11 @@ private object AppRoute {
     const val WORKER_LOGIN = "worker_login"
 }
 
-private fun serviceRequestRoute(categoryId: String) = "service_request/$categoryId"
+private fun serviceRequestRoute(categoryId: String, serviceId: String? = null) =
+    if (serviceId == null) "service_request/$categoryId" else "service_request/$categoryId?service=${android.net.Uri.encode(serviceId)}"
+private const val RESUME_SERVICE_SUBMISSION_KEY = "resume_service_submission"
+private fun serviceCategoryRoute(categoryId: String) = "service_category/$categoryId"
+private fun menuRoute(menuCategoryId: String) = "menu?category=${android.net.Uri.encode(menuCategoryId)}"
 private fun bookingDetailsRoute(source: String, bookingId: Long) = "booking_details/$source/$bookingId"
 
 class MainActivity : ComponentActivity() {
@@ -159,6 +167,27 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Guests and workers must sign in as a customer before a customer booking is submitted.
+                val canSubmitCustomerBooking = session?.let { (token, roles) ->
+                    !token.isNullOrBlank() && AuthRoleRouter.destinationForRoles(
+                        roles = AuthRoleRouter.parseStoredRoles(roles),
+                        fallback = AuthDestination.CUSTOMER_HOME
+                    ) != AuthDestination.WORKER_DASHBOARD
+                } ?: false
+
+                // A guest who signed in mid-booking has no HOME entry on the back stack yet.
+                fun navigateHome() {
+                    val homeOnBackStack = runCatching { navController.getBackStackEntry(AppRoute.HOME) }.isSuccess
+                    navController.navigate(AppRoute.HOME) {
+                        if (homeOnBackStack) {
+                            popUpTo(AppRoute.HOME) { inclusive = false }
+                        } else {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                        launchSingleTop = true
+                    }
+                }
+
                 fun routeAfterAuth(
                     response: com.daily.cetaring.data.remote.dto.AuthResponse,
                     preferredDestination: AuthDestination
@@ -204,8 +233,13 @@ class MainActivity : ComponentActivity() {
                     navController = navController,
                     startDestination = AppRoute.AUTH_LANDING
                 ) {
-                    composable(AppRoute.AUTH_LANDING) {
+                    composable(AppRoute.AUTH_LANDING) { landingEntry ->
                         AuthLandingScreen(
+                            onServiceCategoryClick = { categoryId ->
+                                if (landingEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                    navController.navigate(serviceCategoryRoute(categoryId))
+                                }
+                            },
                             onCreateAccountClick = {
                                 authViewModel.resetOtpState()
                                 navController.navigate(AppRoute.CUSTOMER_REGISTER)
@@ -253,7 +287,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    composable(AppRoute.HOME) {
+                    composable(AppRoute.HOME) { homeEntry ->
                         HomeScreen(
                             viewModel = homeViewModel,
                             onBookCateringClick = {
@@ -262,11 +296,9 @@ class MainActivity : ComponentActivity() {
                             },
                             onMenuClick = { navController.navigate(AppRoute.MENU) },
                             onServiceCategoryClick = { categoryId ->
-                                if (categoryId == "catering-food") {
-                                    bookingViewModel.startNewBooking()
-                                    navController.navigate(AppRoute.BOOKING_FLOW)
-                                } else {
-                                    navController.navigate(serviceRequestRoute(categoryId))
+                                // Ignore repeated taps while the previous navigation is still in progress.
+                                if (homeEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                    navController.navigate(serviceCategoryRoute(categoryId))
                                 }
                             },
                             onBookingsClick = { navController.navigate(AppRoute.BOOKINGS) },
@@ -310,8 +342,16 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    composable(AppRoute.MENU) {
+                    composable(
+                        route = AppRoute.MENU_PATTERN,
+                        arguments = listOf(navArgument("category") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        })
+                    ) { menuEntry ->
                         MenuScreen(
+                            initialCategoryId = menuEntry.arguments?.getString("category"),
                             onBackClick = { navController.popBackStack() },
                             onBookCateringClick = {
                                 bookingViewModel.startNewBooking()
@@ -375,8 +415,40 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable(
-                        route = AppRoute.SERVICE_REQUEST,
+                        route = AppRoute.SERVICE_CATEGORY,
                         arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
+                    ) { entry ->
+                        val categoryId = entry.arguments?.getString("categoryId") ?: return@composable
+                        val validCategoryId = ServiceCatalog.category(categoryId)?.id ?: "event-support"
+                        fun whenResumed(action: () -> Unit) {
+                            if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) action()
+                        }
+                        ServiceCategoryScreen(
+                            categoryId = validCategoryId,
+                            onBackClick = { whenResumed { navController.popBackStack() } },
+                            onBookService = { serviceId ->
+                                whenResumed { navController.navigate(serviceRequestRoute(validCategoryId, serviceId)) }
+                            },
+                            onBookCatering = {
+                                whenResumed {
+                                    bookingViewModel.startNewBooking()
+                                    navController.navigate(AppRoute.BOOKING_FLOW)
+                                }
+                            },
+                            onExploreMenu = { menuCategoryId -> whenResumed { navController.navigate(menuRoute(menuCategoryId)) } }
+                        )
+                    }
+
+                    composable(
+                        route = AppRoute.SERVICE_REQUEST,
+                        arguments = listOf(
+                            navArgument("categoryId") { type = NavType.StringType },
+                            navArgument("serviceId") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            }
+                        )
                     ) { entry ->
                         val categoryId = entry.arguments?.getString("categoryId") ?: return@composable
                         val validCategoryId = ServiceCatalog.category(categoryId)?.id ?: "event-support"
@@ -384,20 +456,64 @@ class MainActivity : ComponentActivity() {
                         fun whenResumed(action: () -> Unit) {
                             if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) action()
                         }
+                        val resumeSubmission by entry.savedStateHandle
+                            .getStateFlow(RESUME_SERVICE_SUBMISSION_KEY, false)
+                            .collectAsState()
                         ServiceRequestScreen(
                             serviceType = validCategoryId,
+                            preselectedServiceId = entry.arguments?.getString("serviceId"),
                             workerRepository = workerRepository,
                             onBackClick = { navController.popBackStack() },
+                            isAuthenticated = canSubmitCustomerBooking,
+                            onAuthRequired = {
+                                whenResumed {
+                                    authViewModel.resetOtpState()
+                                    navController.navigate(AppRoute.SERVICE_AUTH)
+                                }
+                            },
+                            resumeSubmissionAfterAuth = resumeSubmission,
+                            onResumeSubmissionHandled = { entry.savedStateHandle[RESUME_SERVICE_SUBMISSION_KEY] = false },
                             onSubmitted = { },
                             onViewMyBookings = { whenResumed { navController.navigate(AppRoute.BOOKINGS) } },
-                            onBackToHome = {
-                                whenResumed {
-                                    navController.navigate(AppRoute.HOME) {
-                                        popUpTo(AppRoute.HOME) { inclusive = false }
-                                        launchSingleTop = true
-                                    }
+                            onBackToHome = { whenResumed { navigateHome() } }
+                        )
+                    }
+
+                    composable(AppRoute.SERVICE_AUTH) {
+                        OtpAuthScreen(
+                            viewModel = authViewModel,
+                            isRegistration = false,
+                            userType = "CUSTOMER",
+                            onBackClick = {
+                                authViewModel.resetOtpState()
+                                navController.popBackStack()
+                            },
+                            onAuthSuccess = { response ->
+                                val destination = AuthRoleRouter.destinationForRoles(
+                                    roles = runCatching { response.user.roles }.getOrNull(),
+                                    fallback = AuthDestination.CUSTOMER_HOME
+                                )
+                                authViewModel.resetOtpState()
+                                if (destination == AuthDestination.WORKER_DASHBOARD) {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Please sign in with a customer account to submit this request.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                } else {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Verified successfully. Submitting your request...",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    navController.previousBackStackEntry?.savedStateHandle?.set(RESUME_SERVICE_SUBMISSION_KEY, true)
                                 }
-                            }
+                                navController.popBackStack()
+                            },
+                            onSwitchMode = { },
+                            titleOverride = "Login to submit your request",
+                            subtitleOverride = "Enter your mobile number to securely submit your service request.",
+                            showModeSwitch = false
                         )
                     }
 
@@ -423,11 +539,7 @@ class MainActivity : ComponentActivity() {
                             viewModel = bookingViewModel,
                             bookingId = bookingId,
                             onViewBooking = { navController.navigate(bookingDetailsRoute("catering", it)) },
-                            onHome = {
-                                navController.navigate(AppRoute.HOME) {
-                                    popUpTo(AppRoute.HOME) { inclusive = true }
-                                }
-                            }
+                            onHome = { navigateHome() }
                         )
                     }
 

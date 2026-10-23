@@ -78,10 +78,13 @@ private data class MenuSection(
 @Composable
 fun MenuScreen(
     onBackClick: () -> Unit,
-    onBookCateringClick: () -> Unit
+    onBookCateringClick: () -> Unit,
+    initialCategoryId: String? = null
 ) {
     var query by remember { mutableStateOf("") }
-    var selectedCategoryId by remember { mutableStateOf(MenuCatalog.FILTER_ALL) }
+    var selectedCategoryId by remember {
+        mutableStateOf(initialCategoryId?.takeIf { id -> MenuCatalog.categories.any { it.id == id } } ?: MenuCatalog.FILTER_ALL)
+    }
 
     val visibleItems = remember(selectedCategoryId, query) {
         MenuCatalog.filteredItems(selectedCategoryId = selectedCategoryId, query = query)

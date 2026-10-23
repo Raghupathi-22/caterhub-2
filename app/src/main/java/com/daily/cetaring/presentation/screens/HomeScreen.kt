@@ -44,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,9 +52,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.daily.cetaring.config.SupportContact
-import com.daily.cetaring.domain.catalog.ServiceCatalog
 import com.daily.cetaring.presentation.components.CaterHubSupportCard
-import com.daily.cetaring.presentation.components.categoryUiMeta
+import com.daily.cetaring.presentation.components.ServiceCategoryGrid
+import com.daily.cetaring.presentation.components.ServiceImage
+import com.daily.cetaring.presentation.components.ServiceImagery
 import com.daily.cetaring.presentation.viewmodel.HomeViewModel
 
 private val Cream = Color(0xFFFFFCF5)
@@ -228,39 +230,12 @@ private fun HomeHero(onBookCateringClick: () -> Unit) {
 @Composable
 private fun HomeCategories(onCategoryClick: (String) -> Unit) {
     SectionTitle("Service Categories")
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ServiceCatalog.customerCategories.forEach { category ->
-            val visual = categoryUiMeta(category)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 92.dp)
-                    .clickable { onCategoryClick(category.id) },
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Border),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier.size(58.dp).background(visual.accent.copy(alpha = 0.12f), RoundedCornerShape(18.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(visual.icon, contentDescription = null, tint = visual.accent, modifier = Modifier.size(26.dp))
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(category.title, color = Ink, fontWeight = FontWeight.ExtraBold)
-                        Text(category.subtitle, color = Muted, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = visual.accent)
-                }
-            }
-        }
-    }
+    Text(
+        "Explore every CaterHub service and book in a few taps.",
+        color = Muted,
+        style = MaterialTheme.typography.bodyMedium
+    )
+    ServiceCategoryGrid(onCategoryClick = onCategoryClick)
 }
 
 @Composable

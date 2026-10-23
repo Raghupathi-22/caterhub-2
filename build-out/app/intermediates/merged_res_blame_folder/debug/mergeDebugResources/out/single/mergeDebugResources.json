@@ -1,0 +1,150 @@
+[
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-mdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-mdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "com.daily.cetaring.app-debug-74:/drawable-nodpi_svc_decoration_balloon_arch.webp.flat",
+        "source": "com.daily.cetaring.app-main-69:/drawable-nodpi/svc_decoration_balloon_arch.webp"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-anydpi-v26\\ic_launcher.xml"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_public_biryani.jpg.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\public_biryani.jpg"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_public_beverages.jpg.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\public_beverages.jpg"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable-nodpi_svc_entertainment_dj_booth.webp.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable-nodpi\\svc_entertainment_dj_booth.webp"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-hdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "com.daily.cetaring.app-debug-74:/drawable-nodpi_svc_photography_camera.webp.flat",
+        "source": "com.daily.cetaring.app-main-69:/drawable-nodpi/svc_photography_camera.webp"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_ic_launcher_foreground.xml.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_public_hero_food.jpg.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\public_hero_food.jpg"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_public_offer_family.jpg.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\public_offer_family.jpg"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-mdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "com.daily.cetaring.app-debug-74:/drawable-nodpi_svc_photography_video_camera.webp.flat",
+        "source": "com.daily.cetaring.app-main-69:/drawable-nodpi/svc_photography_video_camera.webp"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\xml_network_security_config.xml.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-68:\\xml\\network_security_config.xml"
+    },
+    {
+        "merged": "com.daily.cetaring.app-debug-74:/drawable-nodpi_svc_religious_purohit_homam.webp.flat",
+        "source": "com.daily.cetaring.app-main-69:/drawable-nodpi/svc_religious_purohit_homam.webp"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_public_desserts.jpg.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\public_desserts.jpg"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_public_logo.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\public_logo.png"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\xml_data_extraction_rules.xml.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\xml\\data_extraction_rules.xml"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-xhdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_ic_launcher_background.xml.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\ic_launcher_background.xml"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-anydpi-v26\\ic_launcher_round.xml"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\xml_backup_rules.xml.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\xml\\backup_rules.xml"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_ic_launcher_monochrome.xml.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\ic_launcher_monochrome.xml"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_public_offer_wedding.jpg.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\public_offer_wedding.jpg"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable-nodpi_svc_beauty_mehndi.webp.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable-nodpi\\svc_beauty_mehndi.webp"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_public_veg_specials.jpg.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\public_veg_specials.jpg"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-xxxhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-xxhdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable-nodpi_svc_entertainment_mixing_desk.webp.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable-nodpi\\svc_entertainment_mixing_desk.webp"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-hdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-hdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-xhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable-nodpi_svc_religious_pooja_thali.webp.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable-nodpi\\svc_religious_pooja_thali.webp"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-xxhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_public_main_course.jpg.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\public_main_course.jpg"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable_public_starters.jpg.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable\\public_starters.jpg"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\mipmap-xxxhdpi\\ic_launcher_round.png"
+    },
+    {
+        "merged": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-debug-74:\\drawable-nodpi_svc_decoration_floral_table.webp.flat",
+        "source": "C:\\Users\\Raghupathi\\.gradle\\daemon\\8.13\\com.daily.cetaring.app-main-69:\\drawable-nodpi\\svc_decoration_floral_table.webp"
+    }
+]

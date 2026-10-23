@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.daily.cetaring.data.remote.RetryInterceptorTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-22T13:45:26.935Z" hostname="DESKTOP-R65B6OU" time="0.123">
+  <properties/>
+  <testcase name="retriesOnceWhenServerReturnsFiveHundred" classname="com.daily.cetaring.data.remote.RetryInterceptorTest" time="0.123"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

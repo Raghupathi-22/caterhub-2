@@ -46,6 +46,9 @@ import com.daily.cetaring.data.remote.dto.WorkerType
 import com.daily.cetaring.data.repository.WorkerRepository
 import com.daily.cetaring.domain.catalog.EventTypeCatalog
 import com.daily.cetaring.domain.catalog.ServiceCatalog
+import com.daily.cetaring.domain.catalog.ServiceListingCatalog
+import com.daily.cetaring.presentation.components.ServiceImage
+import com.daily.cetaring.presentation.components.ServiceImagery
 import com.daily.cetaring.presentation.components.categoryUiMeta
 import com.daily.cetaring.presentation.components.ReviewLineItem
 import com.daily.cetaring.presentation.components.ReviewRequestCard
@@ -81,7 +84,8 @@ private data class ServiceItem(
     val price: Int,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val workerType: WorkerType? = null,
-    val quoteOnly: Boolean = false
+    val quoteOnly: Boolean = false,
+    val priceUnit: String = if (workerType == null) "item" else "person"
 )
 
 private data class ServiceCategory(
@@ -157,7 +161,8 @@ private fun categoryFor(type: String): ServiceCategory {
             price = role.defaultUnitPrice ?: 0,
             icon = roleIcon(category.id, role.id),
             workerType = role.workerType,
-            quoteOnly = role.quoteOnly
+            quoteOnly = role.quoteOnly,
+            priceUnit = ServiceListingCatalog.priceUnitFor(category.id, role)
         )
     }
     return ServiceCategory(
@@ -231,13 +236,23 @@ fun ServiceRequestScreen(
     serviceType: String,
     workerRepository: WorkerRepository,
     onBackClick: () -> Unit,
+    preselectedServiceId: String? = null,
+    isAuthenticated: Boolean = true,
+    onAuthRequired: () -> Unit = {},
+    resumeSubmissionAfterAuth: Boolean = false,
+    onResumeSubmissionHandled: () -> Unit = {},
     onSubmitted: () -> Unit = {},
     onViewMyBookings: () -> Unit = {},
     onBackToHome: () -> Unit = {}
 ) {
     val category = remember(serviceType) { categoryFor(serviceType) }
     val items = category.items
-    val selected = remember(serviceType) { mutableStateMapOf<String, Int>() }
+    val selected = remember(serviceType) {
+        mutableStateMapOf<String, Int>().apply {
+            // A service chosen on the category listing arrives pre-selected; it can still be changed here.
+            if (preselectedServiceId != null && items.any { it.id == preselectedServiceId }) put(preselectedServiceId, 1)
+        }
+    }
     var step by rememberSaveable(serviceType) { mutableIntStateOf(0) }
     var eventType by rememberSaveable(serviceType) { mutableStateOf<String?>(null) }
     var eventDate by rememberSaveable(serviceType) { mutableStateOf("") }
@@ -268,6 +283,97 @@ fun ServiceRequestScreen(
         area = area
     )
     val eventDetailsValid = isEventDetailsValid(eventDetails)
+
+    fun submitRequest() {
+        scope.launch {
+            submitting = true
+            error = null
+            try {
+                val selectedItems = items.filter { (selected[it.id] ?: 0) > 0 }
+                val staffingItems = selectedItems.filter { it.workerType != null }
+                val selectedNames = selectedItems.map { it.name }
+
+                val details = selectedItems.joinToString("; ") { item ->
+                    val qty = selected[item.id] ?: 0
+                    if (item.quoteOnly) "${item.name}: selected x$qty (quote)" else "${item.name}: $qty x ₹${item.price}"
+                }
+
+                if (category.id == "catering-staff") {
+                    // Atomic backend flow: create the customer request and all
+                    // matching staffing jobs in one transaction. This guarantees
+                    // workers never see a job for a request that failed to book.
+                    workerRepository.createCateringStaffBooking(
+                        CreateCateringStaffBookingRequest(
+                            eventType = requireNotNull(eventType),
+                            eventDate = eventDate,
+                            startTime = startTime,
+                            endTime = endTime,
+                            location = location,
+                            area = area,
+                            selectedServices = selectedNames,
+                            instructions = notes.ifBlank { null },
+                            details = "Catering staff: $details",
+                            totalAmount = BigDecimal(fixedTotal),
+                            staffing = staffingItems.map { item ->
+                                CateringStaffLineItem(
+                                    workerType = item.workerType!!,
+                                    requiredWorkers = selected[item.id] ?: 0,
+                                    payment = BigDecimal(item.price.coerceAtLeast(1))
+                                )
+                            }
+                        )
+                    )
+                } else {
+                    staffingItems.forEach { item ->
+                        val qty = selected[item.id] ?: 0
+                        workerRepository.createStaffingRequest(
+                            CreateStaffingRequest(
+                                requireNotNull(eventType), item.workerType!!, eventDate, startTime, endTime,
+                                location, area, qty, BigDecimal(item.price.coerceAtLeast(1)), notes.ifBlank { null }
+                            )
+                        )
+                    }
+                    workerRepository.createServiceRequest(
+                        ServiceRequestRequest(
+                            serviceType = category.serviceType,
+                            eventType = requireNotNull(eventType),
+                            eventDate = eventDate,
+                            startTime = startTime,
+                            endTime = endTime,
+                            location = location,
+                            area = area,
+                            selectedServices = selectedNames,
+                            instructions = notes.ifBlank { null },
+                            details = "Services: $details",
+                            quoteBased = hasQuoteServices,
+                            totalAmount = BigDecimal(fixedTotal)
+                        )
+                    )
+                }
+                submittedSummary = SubmittedServiceRequestSummary(
+                    categoryTitle = category.title.removePrefix("Book "),
+                    eventType = requireNotNull(eventType),
+                    eventDate = eventDate,
+                    startTime = startTime,
+                    endTime = endTime,
+                    location = "$area, $location"
+                )
+                onSubmitted()
+            } catch (e: Exception) {
+                error = e.message ?: "Unable to submit request. Please try again."
+            } finally {
+                submitting = false
+            }
+        }
+    }
+
+    // After the customer completes OTP login, finish the submission they had already confirmed.
+    LaunchedEffect(resumeSubmissionAfterAuth, isAuthenticated) {
+        if (resumeSubmissionAfterAuth && isAuthenticated) {
+            onResumeSubmissionHandled()
+            if (step == 2 && submittedSummary == null && !submitting && hasSelection && eventDetailsValid) submitRequest()
+        }
+    }
 
     if (submittedSummary != null) {
         val summary = checkNotNull(submittedSummary)
@@ -366,6 +472,7 @@ fun ServiceRequestScreen(
                         items.forEach { item ->
                             val count = selected[item.id] ?: 0
                             ServiceItemCard(
+                            categoryId = category.id,
                                 item = item,
                                 count = count,
                                 onMinus = { selected[item.id] = (count - 1).coerceAtLeast(0) },
@@ -455,7 +562,7 @@ fun ServiceRequestScreen(
                                 val qty = selected[item.id] ?: 0
                                 ReviewLineItem(
                                     title = "${qty} × ${item.name}",
-                                    subtitle = if (item.quoteOnly) "To be quoted" else "₹${item.price} per ${if (item.workerType == null) "item" else "person"}",
+                                    subtitle = if (item.quoteOnly) "To be quoted" else "₹${item.price} per ${item.priceUnit}",
                                     amountText = if (item.quoteOnly) null else "₹${qty * item.price}"
                                 )
                             },
@@ -489,86 +596,7 @@ fun ServiceRequestScreen(
                             }
                             if (error == null) step++
                         } else {
-                            scope.launch {
-                                submitting = true
-                                error = null
-                                try {
-                                    val selectedItems = items.filter { (selected[it.id] ?: 0) > 0 }
-                                    val staffingItems = selectedItems.filter { it.workerType != null }
-                                    val selectedNames = selectedItems.map { it.name }
-
-                                    val details = selectedItems.joinToString("; ") { item ->
-                                        val qty = selected[item.id] ?: 0
-                                        if (item.quoteOnly) "${item.name}: selected x$qty (quote)" else "${item.name}: $qty x ₹${item.price}"
-                                    }
-
-                                    if (category.id == "catering-staff") {
-                                        // Atomic backend flow: create the customer request and all
-                                        // matching staffing jobs in one transaction. This guarantees
-                                        // workers never see a job for a request that failed to book.
-                                        workerRepository.createCateringStaffBooking(
-                                            CreateCateringStaffBookingRequest(
-                                                eventType = requireNotNull(eventType),
-                                                eventDate = eventDate,
-                                                startTime = startTime,
-                                                endTime = endTime,
-                                                location = location,
-                                                area = area,
-                                                selectedServices = selectedNames,
-                                                instructions = notes.ifBlank { null },
-                                                details = "Catering staff: $details",
-                                                totalAmount = BigDecimal(fixedTotal),
-                                                staffing = staffingItems.map { item ->
-                                                    CateringStaffLineItem(
-                                                        workerType = item.workerType!!,
-                                                        requiredWorkers = selected[item.id] ?: 0,
-                                                        payment = BigDecimal(item.price.coerceAtLeast(1))
-                                                    )
-                                                }
-                                            )
-                                        )
-                                    } else {
-                                        staffingItems.forEach { item ->
-                                            val qty = selected[item.id] ?: 0
-                                            workerRepository.createStaffingRequest(
-                                                CreateStaffingRequest(
-                                                    requireNotNull(eventType), item.workerType!!, eventDate, startTime, endTime,
-                                                    location, area, qty, BigDecimal(item.price.coerceAtLeast(1)), notes.ifBlank { null }
-                                                )
-                                            )
-                                        }
-                                        workerRepository.createServiceRequest(
-                                            ServiceRequestRequest(
-                                                serviceType = category.serviceType,
-                                                eventType = requireNotNull(eventType),
-                                                eventDate = eventDate,
-                                                startTime = startTime,
-                                                endTime = endTime,
-                                                location = location,
-                                                area = area,
-                                                selectedServices = selectedNames,
-                                                instructions = notes.ifBlank { null },
-                                                details = "Services: $details",
-                                                quoteBased = hasQuoteServices,
-                                                totalAmount = BigDecimal(fixedTotal)
-                                            )
-                                        )
-                                    }
-                                    submittedSummary = SubmittedServiceRequestSummary(
-                                        categoryTitle = category.title.removePrefix("Book "),
-                                        eventType = requireNotNull(eventType),
-                                        eventDate = eventDate,
-                                        startTime = startTime,
-                                        endTime = endTime,
-                                        location = "$area, $location"
-                                    )
-                                    onSubmitted()
-                                } catch (e: Exception) {
-                                    error = e.message ?: "Unable to submit request. Please try again."
-                                } finally {
-                                    submitting = false
-                                }
-                            }
+                            if (isAuthenticated) submitRequest() else onAuthRequired()
                         }
                     },
                     enabled = !submitting && (step != 0 || hasSelection) && (step != 1 || eventDetailsValid),
@@ -750,13 +778,13 @@ private fun CategoryHeader(category: ServiceCategory) {
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Card(
+            ServiceImage(
+                visual = remember(category.id) { ServiceImagery.categoryVisual(category.id) },
+                contentDescription = null,
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = category.color.copy(alpha = 0.12f))
-            ) {
-                val visual = categoryUiMeta(ServiceCatalog.category(category.id) ?: ServiceCatalog.category("other-event-services")!!)
-                Icon(visual.icon, null, tint = visual.accent, modifier = Modifier.padding(12.dp))
-            }
+                iconSize = 24.dp,
+                modifier = Modifier.size(56.dp)
+            )
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(category.title.removePrefix("Book "), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = TextDark)
@@ -767,17 +795,21 @@ private fun CategoryHeader(category: ServiceCategory) {
 }
 
 @Composable
-private fun ServiceItemCard(item: ServiceItem, count: Int, onMinus: () -> Unit, onPlus: () -> Unit, onCount: (Int) -> Unit) {
+private fun ServiceItemCard(categoryId: String, item: ServiceItem, count: Int, onMinus: () -> Unit, onPlus: () -> Unit, onCount: (Int) -> Unit) {
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Border)) {
         Column(Modifier.padding(15.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Card(shape = RoundedCornerShape(15.dp), colors = CardDefaults.cardColors(containerColor = if (item.quoteOnly) Green.copy(.10f) else Maroon.copy(.08f))) {
-                    Icon(item.icon, null, tint = if (item.quoteOnly) Green else Maroon, modifier = Modifier.padding(12.dp).size(28.dp))
-                }
+                ServiceImage(
+                    visual = remember(categoryId, item.id) { ServiceImagery.serviceVisual(categoryId, item.id) },
+                    contentDescription = null,
+                    shape = RoundedCornerShape(15.dp),
+                    iconSize = 24.dp,
+                    modifier = Modifier.size(56.dp)
+                )
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(item.name, fontWeight = FontWeight.ExtraBold, color = TextDark)
-                    Text(if (item.quoteOnly) "Price: To be quoted" else "₹${item.price} / ${if (item.workerType == null) "item" else "person"}", color = if (item.quoteOnly) Green else Maroon, fontWeight = FontWeight.Bold)
+                    Text(if (item.quoteOnly) "Price: To be quoted" else "₹${item.price} / ${item.priceUnit}", color = if (item.quoteOnly) Green else Maroon, fontWeight = FontWeight.Bold)
                 }
                 if (item.quoteOnly) {
                     OutlinedButton(onClick = { if (count == 0) onPlus() else onMinus() }) {

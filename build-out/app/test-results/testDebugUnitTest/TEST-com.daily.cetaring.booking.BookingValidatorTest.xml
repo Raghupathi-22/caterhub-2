@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.daily.cetaring.booking.BookingValidatorTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-22T13:45:18.537Z" hostname="DESKTOP-R65B6OU" time="0.044">
+  <properties/>
+  <testcase name="fullDraftIsValidForSubmit" classname="com.daily.cetaring.booking.BookingValidatorTest" time="0.032"/>
+  <testcase name="staffingRequiresPositiveWorkerOfferAndEndTime" classname="com.daily.cetaring.booking.BookingValidatorTest" time="0.008"/>
+  <testcase name="guestCountMustBePositiveAndWithinBusinessLimit" classname="com.daily.cetaring.booking.BookingValidatorTest" time="0.0"/>
+  <testcase name="eventTypeIsMandatory" classname="com.daily.cetaring.booking.BookingValidatorTest" time="0.002"/>
+  <testcase name="customGuestCountIsValidatedAsPositiveInteger" classname="com.daily.cetaring.booking.BookingValidatorTest" time="0.0"/>
+  <testcase name="foodServiceSelectionIsRequired" classname="com.daily.cetaring.booking.BookingValidatorTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

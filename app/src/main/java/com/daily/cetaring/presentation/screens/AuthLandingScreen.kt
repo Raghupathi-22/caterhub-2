@@ -3,6 +3,7 @@ package com.daily.cetaring.presentation.screens
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.RoomService
+import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +74,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.daily.cetaring.config.SupportContact
+import com.daily.cetaring.presentation.components.ServiceCategoryGrid
 import com.daily.cetaring.R
 
 private val Cream = Color(0xFFFFFCF6)
@@ -94,9 +98,12 @@ fun AuthLandingScreen(
     onCustomerLoginClick: () -> Unit,
     onWorkerRegisterClick: () -> Unit,
     onWorkerLoginClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    onServiceCategoryClick: (String) -> Unit = {}
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // Saveable so returning from registration/login keeps the tab the visitor was on.
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    BackHandler(enabled = selectedTab != 0) { selectedTab = 0 }
 
     Scaffold(
         containerColor = Cream,
@@ -109,15 +116,20 @@ fun AuthLandingScreen(
                 padding = padding,
                 onBook = onCreateAccountClick,
                 onCustomerLogin = onCustomerLoginClick,
-                onWorkerRegister = onWorkerRegisterClick,
                 onWorkerLogin = onWorkerLoginClick,
-                onMenuClick = onMenuClick
+                onMenuClick = onMenuClick,
+                onServiceCategoryClick = onServiceCategoryClick
             )
             1 -> OffersScreenContent(
                 padding = padding,
                 onBook = onCreateAccountClick
             )
-            else -> QualityScreenContent(padding = padding, onBook = onCreateAccountClick)
+            2 -> QualityScreenContent(padding = padding, onBook = onCreateAccountClick)
+            else -> PartnerScreenContent(
+                padding = padding,
+                onBecomePartner = onWorkerRegisterClick,
+                onPartnerLogin = onWorkerLoginClick
+            )
         }
     }
 }
@@ -127,9 +139,9 @@ private fun PublicHomeContent(
     padding: androidx.compose.foundation.layout.PaddingValues,
     onBook: () -> Unit,
     onCustomerLogin: () -> Unit,
-    onWorkerRegister: () -> Unit,
     onWorkerLogin: () -> Unit,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    onServiceCategoryClick: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -166,7 +178,7 @@ private fun PublicHomeContent(
 
         PremiumBookCateringCard(onClick = onBook)
         PremiumMenuCard(onClick = onMenuClick)
-        PublicJoinCtaSection(onWorkerRegister = onWorkerRegister)
+        PublicServiceCategories(onCategoryClick = onServiceCategoryClick)
 
         OffersPreview(onBook)
         SpecialitiesPreview()
@@ -175,6 +187,20 @@ private fun PublicHomeContent(
         ContactCard()
         Spacer(Modifier.height(6.dp))
     }
+}
+
+@Composable
+private fun PublicServiceCategories(onCategoryClick: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Our Services", color = Maroon, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+        Text(
+            "Browse every service freely. You only need to log in when you confirm a booking.",
+            color = Muted,
+            fontSize = 14.sp,
+            lineHeight = 20.sp
+        )
+    }
+    ServiceCategoryGrid(onCategoryClick = onCategoryClick)
 }
 
 @Composable
@@ -365,43 +391,6 @@ private fun HomeActionCard(
 }
 
 @Composable
-private fun PublicJoinCtaSection(onWorkerRegister: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text("Become a CaterHub Partner", color = Maroon, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
-            Text("Work with CaterHub and earn with your skills", color = Green, fontWeight = FontWeight.Bold)
-            Text(
-                "Join as a catering professional, chef, decorator, DJ, photographer, beauty professional, or other event service provider.",
-                color = TextDark,
-                fontSize = 13.sp,
-                lineHeight = 19.sp
-            )
-            Card(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onWorkerRegister),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Green)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Become a Partner →", color = Color.White, fontWeight = FontWeight.ExtraBold)
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun OffersPreview(onBook: () -> Unit) {
     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Cream2), border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
         Column(Modifier.padding(14.dp)) {
@@ -578,5 +567,6 @@ fun PublicBottomBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
         NavigationBarItem(selected = selectedTab == 0, onClick = { onTabSelected(0) }, icon = { Icon(Icons.Filled.Home, null) }, label = { Text("Home") }, colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Maroon, selectedTextColor = Maroon, indicatorColor = Color(0xFFFFE8E8)))
         NavigationBarItem(selected = selectedTab == 1, onClick = { onTabSelected(1) }, icon = { Icon(Icons.Filled.Celebration, null) }, label = { Text("Offers") }, colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Maroon, selectedTextColor = Maroon, indicatorColor = Color(0xFFFFE8E8)))
         NavigationBarItem(selected = selectedTab == 2, onClick = { onTabSelected(2) }, icon = { Icon(Icons.Filled.CheckCircle, null) }, label = { Text("Quality") }, colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Maroon, selectedTextColor = Maroon, indicatorColor = Color(0xFFFFE8E8)))
+        NavigationBarItem(selected = selectedTab == 3, onClick = { onTabSelected(3) }, icon = { Icon(Icons.Filled.Work, null) }, label = { Text("Partner") }, colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Maroon, selectedTextColor = Maroon, indicatorColor = Color(0xFFFFE8E8)))
     }
 }
