@@ -1,0 +1,24 @@
+# Build outputs
+build/
+build-out/
+backend/target/
+*.apk
+*.aab
+*.dex
+
+# Gradle / Kotlin caches
+.gradle/
+.kotlin/
+local.properties
+
+# IDE
+.idea/
+backend/.idea/
+*.iml
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

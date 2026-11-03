@@ -4,6 +4,7 @@ import com.daily.cetaring.presentation.components.ServiceImagery
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -130,13 +131,36 @@ class ServiceListingCatalogTest {
     }
 
     @Test
+    fun homeSearchFindsCategoriesAndTheirExistingServiceListings() {
+        val results = ServiceListingCatalog.searchCustomerCatalogue("chef")
+
+        assertTrue(results.any { it.categoryId == "catering-staff" && it.listingId == null })
+        assertTrue(results.any { it.categoryId == "catering-staff" && it.listingId == "chef" })
+        assertTrue(results.all { ServiceCatalog.category(it.categoryId) != null })
+    }
+
+    @Test
+    fun homeSearchIsCaseInsensitiveAndBlankSearchHasNoResults() {
+        assertEquals(emptyList<ServiceDiscoveryResult>(), ServiceListingCatalog.searchCustomerCatalogue("  "))
+        assertEquals(
+            ServiceListingCatalog.searchCustomerCatalogue("Photographer"),
+            ServiceListingCatalog.searchCustomerCatalogue("photographer")
+        )
+        assertTrue(ServiceListingCatalog.searchCustomerCatalogue("no-such-service").isEmpty())
+    }
+
+    @Test
     fun everyListingResolvesToAVisualWithoutRepeatingTheHeroPhoto() {
         ServiceCatalog.customerCategories.forEach { category ->
             val hero = ServiceImagery.bannerVisual(category.id).photoRes
-            ServiceListingCatalog.listingsFor(category.id).forEach { listing ->
+            assertNotNull("${category.id} has no category photo", ServiceImagery.categoryVisual(category.id).photoRes)
+            val listingPhotos = ServiceListingCatalog.listingsFor(category.id).map { listing ->
                 val visual = ServiceImagery.serviceVisual(category.id, listing.id)
+                assertNotNull("${category.id}/${listing.id} has no service photo", visual.photoRes)
                 if (hero != null) assertFalse(visual.photoRes == hero)
+                visual.photoRes
             }
+            assertEquals("${category.id} reuses a photo across service cards", listingPhotos.size, listingPhotos.toSet().size)
         }
     }
 }

@@ -1,5 +1,15 @@
 package com.daily.cetaring.presentation.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
+import com.daily.cetaring.presentation.components.EventDateSelector
+import com.daily.cetaring.presentation.components.EventTimeSelector
+import com.daily.cetaring.presentation.components.EventTypeGrid
+import com.daily.cetaring.presentation.components.ScheduleMessage
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -52,15 +62,12 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -88,7 +95,6 @@ import com.daily.cetaring.data.remote.dto.CustomerBookingUiModel
 import com.daily.cetaring.data.remote.dto.BookingValidationResult
 import com.daily.cetaring.data.remote.dto.CateringMealServiceType
 import com.daily.cetaring.domain.catalog.EventTypeCatalog
-import com.daily.cetaring.domain.catalog.EventTypeDefinition
 import com.daily.cetaring.presentation.components.CaterHubEmptyState
 import com.daily.cetaring.presentation.components.CaterHubErrorState
 import com.daily.cetaring.presentation.components.CaterHubLoadingState
@@ -143,12 +149,9 @@ import androidx.compose.ui.unit.Dp
 import com.daily.cetaring.presentation.components.BookingBottomActionBar
 import com.daily.cetaring.presentation.components.BookingCard
 import com.daily.cetaring.presentation.components.BookingCardShape
-import com.daily.cetaring.presentation.components.BookingDatePickerDialog
-import com.daily.cetaring.presentation.components.BookingDateRules
 import com.daily.cetaring.presentation.components.BookingFlowTheme
 import com.daily.cetaring.presentation.components.BookingFlowTopBar
 import com.daily.cetaring.presentation.components.BookingIconTile
-import com.daily.cetaring.presentation.components.BookingLightSystemBars
 import com.daily.cetaring.presentation.components.BookingPalette
 import com.daily.cetaring.presentation.components.BookingPickerField
 import com.daily.cetaring.presentation.components.BookingPrimaryButton
@@ -160,7 +163,7 @@ import com.daily.cetaring.presentation.components.BookingSelectionMode
 import com.daily.cetaring.presentation.components.BookingStepHeading
 import com.daily.cetaring.presentation.components.BookingStepProgress
 import com.daily.cetaring.presentation.components.BookingTextField
-import com.daily.cetaring.presentation.components.BookingTimePickerDialog
+import com.daily.cetaring.ui.theme.CaterHubLightSystemBars
 
 private val Cream = Color(0xFFFFFCF5)
 private val Maroon = Color(0xFF971B1E)
@@ -199,14 +202,11 @@ fun BookingFlowScreen(
     val snackbar = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var step by rememberSaveable { mutableIntStateOf(0) }
-    val scrollState = rememberScrollState()
     val isSubmitting = uiState is BookingUiState.Loading
     val currentStepValidation = remember(step, draft) {
         if (step == BookingFlowReviewStepIndex) BookingValidationResult.Valid else viewModel.validateStep(step)
     }
     val canContinue = currentStepValidation is BookingValidationResult.Valid && !isSubmitting
-
-    LaunchedEffect(step) { scrollState.scrollTo(0) }
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
@@ -222,7 +222,7 @@ fun BookingFlowScreen(
     }
 
     BookingFlowTheme {
-        BookingLightSystemBars()
+        CaterHubLightSystemBars()
         Scaffold(
             containerColor = BookingPalette.Background,
             topBar = { BookingFlowTopBar("Book catering", onBackClick) },
@@ -270,20 +270,31 @@ fun BookingFlowScreen(
                     stepTitles = BookingFlowStepTitles,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp)
                 )
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .verticalScroll(scrollState)
-                        .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    when (step) {
-                        0 -> EventStep(draft, viewModel)
-                        1 -> FoodServiceSelectionStep(draft, viewModel)
-                        2 -> CateringPlanAndLocationStep(draft, viewModel)
-                        3 -> DateTimeStep(draft, viewModel)
-                        else -> ReviewStep(draft, enabled = !isSubmitting) { step = it }
+                AnimatedContent(
+                    targetState = step,
+                    transitionSpec = {
+                        val forward = targetState > initialState
+                        (fadeIn(tween(240, delayMillis = 60)) +
+                            slideInHorizontally(tween(280)) { width -> if (forward) width / 8 else -width / 8 })
+                            .togetherWith(fadeOut(tween(140)))
+                    },
+                    label = "bookingStep",
+                    modifier = Modifier.weight(1f).fillMaxWidth()
+                ) { shownStep ->
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        when (shownStep) {
+                            0 -> EventStep(draft, viewModel)
+                            1 -> FoodServiceSelectionStep(draft, viewModel)
+                            2 -> CateringPlanAndLocationStep(draft, viewModel)
+                            3 -> DateTimeStep(draft, viewModel)
+                            else -> ReviewStep(draft, enabled = !isSubmitting) { step = it }
+                        }
                     }
                 }
             }
@@ -327,21 +338,6 @@ private fun <T> SelectionGrid(
     }
 }
 
-private fun eventTypeIcon(event: EventTypeDefinition): ImageVector = when (event.id) {
-    "birthday" -> Icons.Filled.Cake
-    "wedding", "engagement" -> Icons.Filled.Favorite
-    "reception" -> Icons.Filled.Celebration
-    "anniversary" -> Icons.Filled.Favorite
-    "baby_shower", "naming_ceremony" -> Icons.Filled.ChildCare
-    "housewarming" -> Icons.Filled.Home
-    "pooja" -> Icons.Filled.TempleHindu
-    "corporate" -> Icons.Filled.BusinessCenter
-    "school_college" -> Icons.Filled.School
-    "festival" -> Icons.Filled.AutoAwesome
-    "party" -> Icons.Filled.Celebration
-    else -> Icons.Filled.Event
-}
-
 @Composable
 private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
     BookingStepHeading(
@@ -357,7 +353,7 @@ private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
                 {
                     Text(
                         EventTypeCatalog.displayNameForBackendValue(selected),
-                        color = BookingPalette.Burgundy,
+                        color = BookingPalette.Accent,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -367,33 +363,10 @@ private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
                 }
             }
         )
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val columns = responsiveColumns(maxWidth, wide = 3, regular = 2, compact = 1)
-            SelectionGrid(EventTypeCatalog.eventTypes, columns) { event, itemModifier ->
-                val selected = draft.eventType == event.backendValue
-                BookingSelectableCard(
-                    selected = selected,
-                    onClick = { viewModel.updateDraft { it.copy(eventType = event.backendValue) } },
-                    modifier = itemModifier,
-                    contentPadding = 12.dp
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth().heightIn(min = 40.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        BookingIconTile(eventTypeIcon(event), selected, size = 36.dp)
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            event.displayName,
-                            color = BookingPalette.Ink,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-        }
+        EventTypeGrid(
+            selectedBackendValue = draft.eventType,
+            onSelect = { event -> viewModel.updateDraft { it.copy(eventType = event.backendValue) } }
+        )
     }
 
     BookingCard {
@@ -404,7 +377,7 @@ private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
                 {
                     Text(
                         "$count guests",
-                        color = BookingPalette.Burgundy,
+                        color = BookingPalette.Accent,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(start = 8.dp)
@@ -451,7 +424,7 @@ private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
                     ) {
                         Text(
                             if (isCustom) "Custom" else guests.toString(),
-                            color = if (selected) BookingPalette.Burgundy else BookingPalette.Ink,
+                            color = if (selected) BookingPalette.Accent else BookingPalette.Ink,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
@@ -643,7 +616,7 @@ private fun CateringPlanAndLocationStep(
                         Icon(
                             icon,
                             contentDescription = null,
-                            tint = if (selected) BookingPalette.Burgundy else BookingPalette.Green,
+                            tint = if (selected) BookingPalette.Accent else BookingPalette.Green,
                             modifier = Modifier.size(22.dp)
                         )
                         Text(
@@ -767,7 +740,7 @@ private fun PlanCard(
                 }
                 Text(
                     option.pricePerPerson?.let { "₹$it / person" } ?: "Price on request",
-                    color = if (selected) BookingPalette.Burgundy else BookingPalette.Green,
+                    color = if (selected) BookingPalette.Accent else BookingPalette.Green,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -794,55 +767,40 @@ private fun FlowRowCompat(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DateTimeStep(
     draft: BookingDraft,
     viewModel: BookingViewModel
 ) {
-    var showDate by rememberSaveable { mutableStateOf(false) }
-    var showTime by rememberSaveable { mutableStateOf(false) }
-
     BookingStepHeading(
         title = "When is your event?",
-        subtitle = "Choose the event date and start time, and share any food preferences."
+        subtitle = "Pick a date and start time, and share any food preferences."
     )
 
+    val scheduleValidation = remember(draft.eventDate, draft.eventTime) { viewModel.validateStep(3) }
+    val showScheduleError = draft.eventDate.isNotBlank() && draft.eventTime.isNotBlank() &&
+        scheduleValidation is BookingValidationResult.Invalid
+
     BookingCard {
-        BookingSectionTitle("Date & time", Icons.Filled.CalendarMonth)
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val sideBySide = responsiveColumns(maxWidth, wide = 2, regular = 1, compact = 1) > 1
-            val dateField = @Composable { modifier: Modifier ->
-                BookingPickerField(
-                    label = "Event date",
-                    value = draft.eventDate.takeIf { it.isNotBlank() }?.let(::formatBookingDate),
-                    placeholder = "Select date",
-                    icon = Icons.Filled.CalendarMonth,
-                    onClick = { showDate = true },
-                    modifier = modifier
-                )
-            }
-            val timeField = @Composable { modifier: Modifier ->
-                BookingPickerField(
-                    label = "Start time",
-                    value = draft.eventTime.takeIf { it.isNotBlank() }?.let(::formatBookingTime),
-                    placeholder = "Select time",
-                    icon = Icons.Filled.Schedule,
-                    onClick = { showTime = true },
-                    modifier = modifier
-                )
-            }
-            if (sideBySide) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    dateField(Modifier.weight(1f))
-                    timeField(Modifier.weight(1f))
-                }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    dateField(Modifier.fillMaxWidth())
-                    timeField(Modifier.fillMaxWidth())
-                }
-            }
+        BookingSectionTitle("Date", Icons.Filled.CalendarMonth)
+        EventDateSelector(
+            isoDate = draft.eventDate.takeIf { it.isNotBlank() },
+            onDateSelected = { iso -> viewModel.updateDraft { it.copy(eventDate = iso) } },
+            isError = showScheduleError
+        )
+        BookingSectionTitle("Start time", Icons.Filled.Schedule)
+        EventTimeSelector(
+            label = "Start time",
+            time = draft.eventTime.takeIf { it.isNotBlank() },
+            onTimeSelected = { time -> viewModel.updateDraft { it.copy(eventTime = time) } },
+            defaultTime = LocalTime.NOON,
+            isError = showScheduleError,
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (showScheduleError) {
+            ScheduleMessage((scheduleValidation as BookingValidationResult.Invalid).message, isError = true)
+        } else if (draft.eventDate.isBlank() || draft.eventTime.isBlank()) {
+            ScheduleMessage("Choose both a date and a start time to continue.", isError = false)
         }
     }
 
@@ -865,50 +823,6 @@ private fun DateTimeStep(
             singleLine = false,
             minLines = 2,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
-        )
-    }
-
-    if (showDate) {
-        val dateState = rememberDatePickerState(
-            initialSelectedDateMillis = BookingDateRules.utcMillisForIsoDate(draft.eventDate),
-            selectableDates = remember {
-                object : SelectableDates {
-                    override fun isSelectableDate(utcTimeMillis: Long): Boolean =
-                        BookingDateRules.isSelectableDate(utcTimeMillis)
-
-                    override fun isSelectableYear(year: Int): Boolean =
-                        BookingDateRules.isSelectableYear(year)
-                }
-            }
-        )
-        BookingDatePickerDialog(
-            state = dateState,
-            onDismiss = { showDate = false },
-            onConfirm = { millis ->
-                viewModel.updateDraft { it.copy(eventDate = BookingDateRules.isoDateForUtcMillis(millis)) }
-                showDate = false
-            }
-        )
-    }
-
-    if (showTime) {
-        val initialTime = draft.eventTime.takeIf { it.isNotBlank() }?.let {
-            runCatching { LocalTime.parse(it, BookingTimeStorageFormatter) }.getOrNull()
-        }
-        val timeState = rememberTimePickerState(
-            initialHour = initialTime?.hour ?: 12,
-            initialMinute = initialTime?.minute ?: 0,
-            is24Hour = false
-        )
-        BookingTimePickerDialog(
-            state = timeState,
-            onDismiss = { showTime = false },
-            onConfirm = {
-                viewModel.updateDraft {
-                    it.copy(eventTime = "%02d:%02d".format(Locale.ENGLISH, timeState.hour, timeState.minute))
-                }
-                showTime = false
-            }
         )
     }
 }
@@ -989,7 +903,7 @@ private fun ReviewSection(
                 TextButton(
                     onClick = { onEdit(editStep) },
                     enabled = enabled,
-                    colors = ButtonDefaults.textButtonColors(contentColor = BookingPalette.Burgundy)
+                    colors = ButtonDefaults.textButtonColors(contentColor = BookingPalette.Accent)
                 ) {
                     Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))

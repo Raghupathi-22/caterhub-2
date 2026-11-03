@@ -49,10 +49,14 @@ import com.daily.cetaring.presentation.viewmodel.CustomerProfileViewModel
 import com.daily.cetaring.presentation.viewmodel.HomeViewModel
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 import com.daily.cetaring.ui.theme.CetaringTheme
+import com.daily.cetaring.ui.theme.CaterHubLightSystemBars
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import com.daily.cetaring.presentation.screens.ServiceCategoryScreen
 import com.daily.cetaring.presentation.screens.ServiceRequestScreen
+import com.daily.cetaring.presentation.screens.CustomerAccountPrivacyScreen
+import com.daily.cetaring.presentation.screens.SettingsScreen
+import com.daily.cetaring.presentation.screens.WorkerAccountPrivacyScreen
 import com.daily.cetaring.domain.catalog.ServiceCatalog
 
 private object AppRoute {
@@ -73,6 +77,8 @@ private object AppRoute {
     const val WORKER_ONBOARDING = "worker_onboarding"
     const val WORKER_DASHBOARD = "worker_dashboard"
     const val CUSTOMER_PROFILE = "customer_profile"
+    const val SETTINGS = "settings/{accountType}"
+    const val ACCOUNT_PRIVACY = "account_privacy/{accountType}"
     const val WORKER_JOBS = "worker_jobs"
     const val WORKER_JOB_DETAILS = "worker_job_details/{jobId}"
     const val WORKER_MY_JOBS = "worker_my_jobs"
@@ -89,6 +95,8 @@ private const val RESUME_SERVICE_SUBMISSION_KEY = "resume_service_submission"
 private fun serviceCategoryRoute(categoryId: String) = "service_category/$categoryId"
 private fun menuRoute(menuCategoryId: String) = "menu?category=${android.net.Uri.encode(menuCategoryId)}"
 private fun bookingDetailsRoute(source: String, bookingId: Long) = "booking_details/$source/$bookingId"
+private fun settingsRoute(isWorker: Boolean) = "settings/${if (isWorker) "worker" else "customer"}"
+private fun accountPrivacyRoute(isWorker: Boolean) = "account_privacy/${if (isWorker) "worker" else "customer"}"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -126,6 +134,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CetaringTheme {
+                CaterHubLightSystemBars()
                 val navController = rememberNavController()
                 val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
                 val session by combine(
@@ -328,18 +337,48 @@ class MainActivity : ComponentActivity() {
                             onBackClick = { navController.popBackStack() },
                             onBookingsClick = { navController.navigate(AppRoute.BOOKINGS) },
                             onHelpClick = { navController.navigate(AppRoute.HELP_SUPPORT) },
+                            onSettingsClick = { navController.navigate(settingsRoute(isWorker = false)) },
                             onLoggedOut = {
-                                navController.navigate(AppRoute.AUTH_LANDING) {
-                                    popUpTo(AppRoute.HOME) { inclusive = true }
-                                }
-                            },
-                            onAccountDeleted = { message ->
-                                Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
                                 navController.navigate(AppRoute.AUTH_LANDING) {
                                     popUpTo(AppRoute.HOME) { inclusive = true }
                                 }
                             }
                         )
+                    }
+
+                    composable(
+                        route = AppRoute.SETTINGS,
+                        arguments = listOf(navArgument("accountType") { type = NavType.StringType })
+                    ) { entry ->
+                        val isWorker = entry.arguments?.getString("accountType") == "worker"
+                        SettingsScreen(
+                            isWorker = isWorker,
+                            onBackClick = { navController.popBackStack() },
+                            onAccountPrivacyClick = {
+                                navController.navigate(accountPrivacyRoute(isWorker))
+                            }
+                        )
+                    }
+
+                    composable(
+                        route = AppRoute.ACCOUNT_PRIVACY,
+                        arguments = listOf(navArgument("accountType") { type = NavType.StringType })
+                    ) { entry ->
+                        val isWorker = entry.arguments?.getString("accountType") == "worker"
+                        if (isWorker) {
+                            WorkerAccountPrivacyScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onHelpClick = { navController.navigate(AppRoute.HELP_SUPPORT) }
+                            )
+                        } else {
+                            CustomerAccountPrivacyScreen(
+                                customerProfileViewModel = customerProfileViewModel,
+                                onBackClick = { navController.popBackStack() },
+                                onAccountDeleted = { message ->
+                                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                                }
+                            )
+                        }
                     }
 
                     composable(
@@ -640,6 +679,7 @@ class MainActivity : ComponentActivity() {
                             onFindJobsClick = { navController.navigate(AppRoute.WORKER_JOBS) { launchSingleTop = true } },
                             onMyJobsClick = { navController.navigate(AppRoute.WORKER_MY_JOBS) { launchSingleTop = true } },
                             onHelpClick = { navController.navigate(AppRoute.HELP_SUPPORT) { launchSingleTop = true } },
+                            onSettingsClick = { navController.navigate(settingsRoute(isWorker = true)) { launchSingleTop = true } },
                             onLogoutClick = {
                                 authViewModel.logout()
                                 workerViewModel.reset()

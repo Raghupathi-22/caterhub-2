@@ -49,7 +49,19 @@ import com.daily.cetaring.domain.catalog.ServiceCatalog
 import com.daily.cetaring.domain.catalog.ServiceListingCatalog
 import com.daily.cetaring.presentation.components.ServiceImage
 import com.daily.cetaring.presentation.components.ServiceImagery
-import com.daily.cetaring.presentation.components.categoryUiMeta
+import com.daily.cetaring.presentation.components.BookingBottomActionBar
+import com.daily.cetaring.presentation.components.BookingFlowTopBar
+import com.daily.cetaring.presentation.components.BookingPalette
+import com.daily.cetaring.presentation.components.BookingPrimaryButton
+import com.daily.cetaring.presentation.components.BookingSecondaryButton
+import com.daily.cetaring.presentation.components.BookingStepProgress
+import com.daily.cetaring.presentation.components.EventDateSelector
+import com.daily.cetaring.presentation.components.EventTimeRangeRow
+import com.daily.cetaring.presentation.components.EventTimeRules
+import com.daily.cetaring.presentation.components.EventTimeSelector
+import com.daily.cetaring.presentation.components.EventTypeSelectorField
+import com.daily.cetaring.presentation.components.ScheduleMessage
+import com.daily.cetaring.presentation.components.BookingFlowTheme
 import com.daily.cetaring.presentation.components.ReviewLineItem
 import com.daily.cetaring.presentation.components.ReviewRequestCard
 import kotlinx.coroutines.launch
@@ -57,26 +69,21 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.LocalDateTime
-import java.time.ZoneId
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
-import java.util.TimeZone
 import java.time.format.DateTimeFormatter
 
-private val Cream = Color(0xFFFFFCF5)
-private val Maroon = Color(0xFF971B1E)
-private val Gold = Color(0xFFC58A16)
-private val Green = Color(0xFF0A672A)
-private val TextDark = Color(0xFF292524)
-private val Muted = Color(0xFF6B625B)
-private val Border = Color(0xFFE4D9C6)
+private val Cream = BookingPalette.Ivory
+private val Gold = BookingPalette.ChampagneDeep
+private val Green = BookingPalette.Emerald
+private val TextDark = BookingPalette.Ink
+private val Muted = BookingPalette.Muted
+private val Border = BookingPalette.Border
 private val DateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val TimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 private val DateDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 private val DateReviewFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 private val TimeDisplayFormatter = DateTimeFormatter.ofPattern("h:mm a")
-private val TimePickerDisplayFormatter = DateTimeFormatter.ofPattern("hh : mm a")
+
+private val ServiceRequestStepTitles = listOf("Services", "Event details", "Review")
 
 private data class ServiceItem(
     val id: String,
@@ -153,7 +160,8 @@ internal val SubmittedServiceRequestSummarySaver: Saver<SubmittedServiceRequestS
 
 private fun categoryFor(type: String): ServiceCategory {
     val category = ServiceCatalog.category(type) ?: ServiceCatalog.category("event-support")!!
-    val color = categoryUiMeta(category).accent
+    // Booking screens use the emerald booking accent rather than per-category brand reds.
+    val color = BookingPalette.Emerald
     val items = ServiceCatalog.customerRolesForCategory(category.id).map { role ->
         ServiceItem(
             id = role.id,
@@ -263,9 +271,6 @@ fun ServiceRequestScreen(
     var notes by rememberSaveable(serviceType) { mutableStateOf("") }
     var submitting by rememberSaveable(serviceType) { mutableStateOf(false) }
     var error by rememberSaveable(serviceType) { mutableStateOf<String?>(null) }
-    var showDatePicker by rememberSaveable(serviceType) { mutableStateOf(false) }
-    var showStartPicker by rememberSaveable(serviceType) { mutableStateOf(false) }
-    var showEndPicker by rememberSaveable(serviceType) { mutableStateOf(false) }
     var submittedSummary by rememberSaveable(serviceType, stateSaver = SubmittedServiceRequestSummarySaver) {
         mutableStateOf<SubmittedServiceRequestSummary?>(null)
     }
@@ -446,26 +451,54 @@ fun ServiceRequestScreen(
         return
     }
 
+    BookingFlowTheme {
     Scaffold(
-        containerColor = Cream,
-        topBar = {
-            TopAppBar(
-                title = { Text(category.title, color = TextDark, fontWeight = FontWeight.Bold) },
-                navigationIcon = { IconButton(onClick = onBackClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = category.color) } }
-            )
+        containerColor = BookingPalette.Background,
+        topBar = { BookingFlowTopBar(category.title, onBackClick) },
+        bottomBar = {
+            BookingBottomActionBar {
+                BookingSecondaryButton(
+                    text = if (step == 0) "Cancel" else "Back",
+                    onClick = { if (step == 0) onBackClick() else { step--; error = null } },
+                    enabled = !submitting,
+                    modifier = Modifier.weight(1f)
+                )
+                BookingPrimaryButton(
+                    text = if (step == 2) "Submit Request" else "Continue",
+                    loading = submitting,
+                    loadingText = "Submitting?",
+                    onClick = {
+                        if (step < 2) {
+                            error = when {
+                                step == 0 && !hasSelection -> "Please select at least one service."
+                                step == 1 -> eventDetailsValidationMessage(eventDetails)
+                                else -> null
+                            }
+                            if (error == null) step++
+                        } else {
+                            if (isAuthenticated) submitRequest() else onAuthRequired()
+                        }
+                    },
+                    enabled = !submitting && (step != 0 || hasSelection) && (step != 1 || eventDetailsValid),
+                    modifier = Modifier.weight(1.4f)
+                )
+            }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp, vertical = 8.dp)) {
-            Text("Step ${step + 1} of 3", color = category.color, fontWeight = FontWeight.ExtraBold)
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                repeat(3) { i ->
-                    Card(Modifier.weight(1f).height(5.dp), shape = RoundedCornerShape(50), colors = CardDefaults.cardColors(containerColor = if (i <= step) category.color else Border)) {}
-                }
-            }
-            Spacer(Modifier.height(14.dp))
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            BookingStepProgress(
+                stepIndex = step,
+                stepTitles = ServiceRequestStepTitles,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp)
+            )
 
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 when (step) {
                     0 -> {
                         CategoryHeader(category = category)
@@ -494,34 +527,51 @@ fun ServiceRequestScreen(
                                 modifier = Modifier.padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                EventTypeField(eventType, category.color) {
-                                    eventType = it
-                                    error = null
-                                }
-
-                                PickerField(
-                                    label = "Date",
-                                    value = eventDate.takeIf { it.isNotBlank() }?.let(::displayDate) ?: "Select date",
-                                    onClick = { showDatePicker = true }
+                                EventTypeSelectorField(
+                                    selectedBackendValue = eventType,
+                                    onSelected = {
+                                        eventType = it.backendValue
+                                        error = null
+                                    }
                                 )
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    PickerField(
-                                        label = "Start time",
-                                        value = startTime.takeIf { it.isNotBlank() }?.let(::displayTime) ?: "Select time",
-                                        onClick = { showStartPicker = true },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    PickerField(
-                                        label = "End time",
-                                        value = endTime.takeIf { it.isNotBlank() }?.let(::displayTime) ?: "Select time",
-                                        onClick = { showEndPicker = true },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
+                                ScheduleHeading("Date")
+                                EventDateSelector(
+                                    isoDate = eventDate.takeIf { it.isNotBlank() },
+                                    onDateSelected = {
+                                        eventDate = it
+                                        error = null
+                                    }
+                                )
 
-                                if (startTime.isNotBlank() && endTime.isNotBlank() && !isValidTimeRange(startTime, endTime)) {
-                                    Text("End time must be after start time", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                                val invalidRange = startTime.isNotBlank() && endTime.isNotBlank() &&
+                                    !isValidTimeRange(startTime, endTime)
+                                ScheduleHeading("Time")
+                                EventTimeRangeRow(
+                                    start = { modifier ->
+                                        EventTimeSelector(
+                                            label = "Start time",
+                                            time = startTime.takeIf { it.isNotBlank() },
+                                            onTimeSelected = { startTime = it; error = null },
+                                            defaultTime = LocalTime.of(18, 0),
+                                            isError = invalidRange,
+                                            modifier = modifier
+                                        )
+                                    },
+                                    end = { modifier ->
+                                        EventTimeSelector(
+                                            label = "End time",
+                                            time = endTime.takeIf { it.isNotBlank() },
+                                            onTimeSelected = { endTime = it; error = null },
+                                            defaultTime = startTime.toLocalTimeOrNull()?.plusHours(3) ?: LocalTime.of(21, 0),
+                                            isError = invalidRange,
+                                            modifier = modifier
+                                        )
+                                    }
+                                )
+
+                                if (invalidRange) {
+                                    ScheduleMessage("End time must be after start time", isError = true)
                                 }
 
                                 SectionLabel()
@@ -579,169 +629,15 @@ fun ServiceRequestScreen(
                 }
             }
 
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) }
-
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = { if (step == 0) onBackClick() else step-- }, modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(18.dp)) {
-                    Text(if (step == 0) "Cancel" else "Back", fontWeight = FontWeight.Bold)
-                }
-                Button(
-                    onClick = {
-                        if (step < 2) {
-                            error = when {
-                                step == 0 && !hasSelection -> "Please select at least one service."
-                                step == 1 -> eventDetailsValidationMessage(eventDetails)
-                                else -> null
-                            }
-                            if (error == null) step++
-                        } else {
-                            if (isAuthenticated) submitRequest() else onAuthRequired()
-                        }
-                    },
-                    enabled = !submitting && (step != 0 || hasSelection) && (step != 1 || eventDetailsValid),
-                    modifier = Modifier.weight(1f).height(54.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = category.color)
-                ) {
-                    Text(if (submitting) "Submitting…" else if (step == 2) "Submit Request" else "Continue", fontWeight = FontWeight.Bold)
-                }
+                error?.let { ScheduleMessage(it, isError = true, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
             }
         }
     }
-
-    if (showDatePicker) {
-        val today = remember {
-            Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }.timeInMillis
-        }
-        val state = rememberDatePickerState(
-            initialSelectedDateMillis = eventDate.toLocalDateOrNull()
-                ?.atStartOfDay(ZoneId.systemDefault())
-                ?.toInstant()
-                ?.toEpochMilli(),
-            selectableDates = object : SelectableDates {
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= today
-                override fun isSelectableYear(year: Int): Boolean = year >= Calendar.getInstance().get(Calendar.YEAR)
-            }
-        )
-        AlertDialog(
-            onDismissRequest = { showDatePicker = false },
-            containerColor = Color.White,
-            title = {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Select date", color = TextDark, fontWeight = FontWeight.ExtraBold)
-                    Text("Choose your event date", color = Muted, style = MaterialTheme.typography.bodySmall)
-                }
-            },
-            text = {
-                DatePicker(state = state)
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let { millis ->
-                        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).apply {
-                            timeZone = TimeZone.getDefault()
-                        }
-                        eventDate = formatter.format(millis)
-                        error = null
-                    }
-                    showDatePicker = false
-                }) { Text("Confirm", color = category.color) }
-            },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
-        )
-    }
-
-    if (showStartPicker) {
-        CaterHubTimePickerDialog(
-            title = "Start time",
-            subtitle = "Select start time",
-            initial = startTime.toLocalTimeOrNull() ?: LocalTime.now().withSecond(0).withNano(0),
-            onDismiss = { showStartPicker = false },
-            onConfirm = { startTime = it.format(TimeFormatter); showStartPicker = false; error = null },
-            accent = category.color
-        )
-    }
-
-    if (showEndPicker) {
-        CaterHubTimePickerDialog(
-            title = "End time",
-            subtitle = "Select end time",
-            initial = endTime.toLocalTimeOrNull() ?: LocalTime.now().plusHours(1).withSecond(0).withNano(0),
-            onDismiss = { showEndPicker = false },
-            onConfirm = { endTime = it.format(TimeFormatter); showEndPicker = false; error = null },
-            accent = category.color
-        )
-    }
 }
 
 
-@Composable
-private fun PickerField(
-    label: String,
-    value: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(17.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Border)
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(label, color = Green, fontWeight = FontWeight.Bold)
-            Text(value, color = TextDark, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
-private fun CaterHubTimePickerDialog(
-    title: String,
-    subtitle: String,
-    initial: LocalTime,
-    onDismiss: () -> Unit,
-    onConfirm: (LocalTime) -> Unit,
-    accent: Color
-) {
-    val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = false)
-    val selectedTime = LocalTime.of(state.hour, state.minute)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White,
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, color = TextDark, fontWeight = FontWeight.ExtraBold)
-                Text(subtitle, color = Muted, style = MaterialTheme.typography.bodySmall)
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    selectedTime.format(TimePickerDisplayFormatter),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = TextDark
-                )
-                TimeInput(state = state)
-            }
-        },
-        confirmButton = { TextButton(onClick = { onConfirm(selectedTime) }) { Text("Confirm", color = accent) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-private fun isValidTimeRange(start: String, end: String): Boolean {
-    val s = start.toLocalTimeOrNull() ?: return false
-    val e = end.toLocalTimeOrNull() ?: return false
-    return e.isAfter(s)
-}
+private fun isValidTimeRange(start: String, end: String): Boolean =
+    EventTimeRules.isEndAfterStart(start, end)
 
 private fun isEventDetailsValid(details: EventDetailsState): Boolean =
     eventDetailsValidationMessage(details) == null
@@ -809,7 +705,7 @@ private fun ServiceItemCard(categoryId: String, item: ServiceItem, count: Int, o
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(item.name, fontWeight = FontWeight.ExtraBold, color = TextDark)
-                    Text(if (item.quoteOnly) "Price: To be quoted" else "₹${item.price} / ${item.priceUnit}", color = if (item.quoteOnly) Green else Maroon, fontWeight = FontWeight.Bold)
+                    Text(if (item.quoteOnly) "Price: To be quoted" else "₹${item.price} / ${item.priceUnit}", color = if (item.quoteOnly) Green else TextDark, fontWeight = FontWeight.Bold)
                 }
                 if (item.quoteOnly) {
                     OutlinedButton(onClick = { if (count == 0) onPlus() else onMinus() }) {
@@ -848,74 +744,9 @@ private fun TotalCard(total: Int, color: Color, hasQuoteOnly: Boolean) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EventTypeField(
-    value: String?,
-    accent: Color,
-    onChange: (String) -> Unit
-) {
-    var showDialog by remember { mutableStateOf(false) }
-    PickerField(
-        label = "Event type",
-        value = value?.let { EventTypeCatalog.displayNameForBackendValue(it) } ?: "Select event type",
-        onClick = { showDialog = true }
-    )
-    if (showDialog) {
-        ModalBottomSheet(
-            onDismissRequest = { showDialog = false },
-            containerColor = Color.White,
-            dragHandle = { BottomSheetDefaults.DragHandle() }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("Choose event type", style = MaterialTheme.typography.titleLarge, color = TextDark, fontWeight = FontWeight.ExtraBold)
-                Text("Select the occasion for your booking", color = Muted)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 360.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    EventTypeCatalog.eventTypes.forEach { option ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .clickable {
-                                    onChange(option.backendValue)
-                                    showDialog = false
-                                }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = value == option.backendValue,
-                                onClick = {
-                                    onChange(option.backendValue)
-                                    showDialog = false
-                                },
-                                colors = RadioButtonDefaults.colors(selectedColor = accent)
-                            )
-                            Text(option.displayName, color = TextDark)
-                        }
-                    }
-                }
-                TextButton(
-                    onClick = { showDialog = false },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Close", color = accent, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
+private fun ScheduleHeading(text: String) {
+    Text(text, fontWeight = FontWeight.ExtraBold, color = TextDark, modifier = Modifier.padding(top = 4.dp))
 }
 
 @Composable

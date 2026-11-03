@@ -276,8 +276,8 @@ fun CaterHubSupportCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFEAF4E7)),
-        border = BorderStroke(1.dp, Color(0xFFCFE2CB)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -288,12 +288,12 @@ fun CaterHubSupportCard(
                 text = "Need help with your booking?",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF292524)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "Facing an issue or have a query?\nWe're here to help.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF4F4740)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),

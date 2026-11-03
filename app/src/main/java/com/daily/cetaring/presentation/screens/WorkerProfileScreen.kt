@@ -18,10 +18,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.WarningAmber
@@ -80,6 +80,7 @@ fun WorkerProfileScreen(
     onFindJobsClick: () -> Unit,
     onMyJobsClick: () -> Unit,
     onHelpClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -117,6 +118,7 @@ fun WorkerProfileScreen(
                 onFindJobsClick = onFindJobsClick,
                 onMyJobsClick = onMyJobsClick,
                 onHelpClick = onHelpClick,
+                onSettingsClick = onSettingsClick,
                 onLogoutClick = onLogoutClick,
                 modifier = Modifier.padding(padding)
             )
@@ -136,11 +138,11 @@ private fun WorkerProfileContent(
     onFindJobsClick: () -> Unit,
     onMyJobsClick: () -> Unit,
     onHelpClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
     val categoryLabel = ServiceCatalog.categoryForWorkerType(profile.workerType)?.title ?: profile.workerType?.category
     val roleLabel = profile.workerType?.label
     val statusStyle = workerStatusStyle(profile.status)
@@ -218,13 +220,12 @@ private fun WorkerProfileContent(
 
         ProfileActionGroup(title = "Account") {
             ProfileActionRow(
-                "Logout", Icons.AutoMirrored.Filled.Logout, { showLogoutDialog = true },
-                subtitle = "Sign out of this device", showChevron = false
+                "Settings", Icons.Filled.Settings, onSettingsClick,
+                subtitle = "Account preferences and privacy"
             )
             ProfileActionRow(
-                "Delete Account", Icons.Filled.DeleteOutline, { showDeleteDialog = true },
-                subtitle = "Handled by CaterHub support for worker accounts",
-                destructive = true, showChevron = false, showDivider = false
+                "Logout", Icons.AutoMirrored.Filled.Logout, { showLogoutDialog = true },
+                subtitle = "Sign out of this device", showChevron = false, showDivider = false
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -238,19 +239,6 @@ private fun WorkerProfileContent(
             icon = Icons.AutoMirrored.Filled.Logout,
             onConfirm = { showLogoutDialog = false; onLogoutClick() },
             onDismiss = { showLogoutDialog = false }
-        )
-    }
-    if (showDeleteDialog) {
-        // Worker deletion is support-assisted on the backend (jobs and payouts must be settled first).
-        ProfileConfirmDialog(
-            title = "Delete your worker account?",
-            message = "Worker accounts are deleted by CaterHub support so that assigned jobs and payments can be settled first. " +
-                "Contact support to request permanent deletion of your account and personal data.",
-            confirmLabel = "Contact Support",
-            destructive = true,
-            icon = Icons.Filled.DeleteOutline,
-            onConfirm = { showDeleteDialog = false; onHelpClick() },
-            onDismiss = { showDeleteDialog = false }
         )
     }
 }

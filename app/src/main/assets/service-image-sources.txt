@@ -1,0 +1,42 @@
+CaterHub customer service photography
+====================================
+
+All Pexels photographs below are bundled under the Pexels Content License:
+https://www.pexels.com/license/
+
+The source links point to the Pexels search used to select the listed photograph. The Pexels
+photo ID is included so the exact source can be located. Images are resized and converted to
+WebP for the Android app; they are used as service/category illustrations, not redistributed
+as a stock-photo library. Attribution is not required by the Pexels Content License.
+
+Android drawable                          Pexels photo ID   Search/source
+----------------------------------------  ----------------  --------------------------------------------------------------
+svc_category_catering_staff.webp          28683085          https://www.pexels.com/search/catering%20staff%20team%20event/
+svc_category_rentals.webp                 37958130          https://www.pexels.com/search/event%20rental%20tables%20tent%20setup/
+svc_staff_catering_boy.webp               262978            https://www.pexels.com/search/waiter%20serving%20food/
+svc_staff_catering_girl.webp              16051560          https://www.pexels.com/search/waitress%20serving%20food%20event/
+svc_staff_chef.webp                       4253133           https://www.pexels.com/search/chef%20preparing%20food/
+svc_staff_kitchen_helper.webp             5990702           https://www.pexels.com/search/kitchen%20helper%20cleaning/
+svc_decoration_event_artist.webp          6913089           https://www.pexels.com/search/wedding%20decorator%20arranging%20flowers/
+svc_decoration_mandap.webp                33417236          https://www.pexels.com/search/traditional%20indian%20wedding%20mandap/
+svc_decoration_entrance.webp              13891755          https://www.pexels.com/search/wedding%20entrance%20arch/
+svc_rental_tent.webp                      28937190          https://www.pexels.com/search/event%20tent%20setup/
+svc_rental_table.webp                     4717526           https://www.pexels.com/search/banquet%20table%20event/
+svc_rental_chairs.webp                    30767131          https://www.pexels.com/search/wedding%20chairs%20rental/
+svc_rental_dining_equipment.webp          39388383          https://www.pexels.com/search/buffet%20service%20equipment/
+svc_entertainment_singer.webp             12752471          https://www.pexels.com/search/singer%20performing%20event/
+svc_entertainment_melam.webp              32866055          https://www.pexels.com/search/indian%20musicians%20procession/
+svc_entertainment_dancer.webp             26856873          https://www.pexels.com/search/indian%20classical%20dancer/
+svc_entertainment_anchor.webp             12962924          https://www.pexels.com/search/event%20host%20microphone/
+svc_entertainment_magician.webp           6255266           https://www.pexels.com/search/event%20magician%20performing%20trick/
+svc_photography_photographer.webp         37754302          https://www.pexels.com/search/event%20photographer%20wedding%20photography/
+svc_photography_livestream.webp           32538883          https://www.pexels.com/search/live%20event%20streaming%20camera%20operator/
+svc_beauty_makeup.webp                   8092582           https://www.pexels.com/search/makeup%20artist%20applying%20makeup%20client/
+svc_beauty_bridal.webp                   14484717          https://www.pexels.com/search/bridal%20makeup%20artist%20working/
+svc_beauty_groom.webp                    7999707           https://www.pexels.com/search/groom%20makeup%20artist%20grooming/
+svc_beauty_hair.webp                     7755518           https://www.pexels.com/search/hair%20stylist%20working%20client/
+svc_beauty_mehndi_artist.webp             11717790          https://www.pexels.com/search/mehndi%20artist%20applying%20henna%20bride/
+svc_beauty_saree.webp                    8750030           https://www.pexels.com/search/saree%20draping%20assistant/
+svc_beauty_specialist.webp               7581075           https://www.pexels.com/search/beautician%20facial%20client/
+svc_menu_breakfast.webp                  37867687          https://www.pexels.com/search/indian%20idli%20dosa%20breakfast/
+svc_menu_water.webp                      14365411          https://www.pexels.com/search/drinking%20water%20bottles%20catering%20event/

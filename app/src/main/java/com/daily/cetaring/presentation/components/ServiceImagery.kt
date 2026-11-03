@@ -1,4 +1,4 @@
-package com.daily.cetaring.presentation.components
+﻿package com.daily.cetaring.presentation.components
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Canvas
@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.LocalDining
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.LunchDining
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
@@ -49,6 +48,7 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -73,6 +73,7 @@ import com.daily.cetaring.R
 import com.daily.cetaring.domain.catalog.MenuCatalog
 import com.daily.cetaring.domain.catalog.ServiceCatalog
 import com.daily.cetaring.domain.catalog.ServiceListingCatalog
+import com.daily.cetaring.ui.theme.CaterHubColors
 import kotlin.math.absoluteValue
 
 /**
@@ -82,7 +83,9 @@ import kotlin.math.absoluteValue
  * drawable to show a photo. When no photo is mapped (or a photo fails to load) the original branded
  * artwork drawn by [ServiceArtwork] is shown instead, so every card always has a relevant visual.
  *
- * Bundled photo provenance (all CC0 / public domain via Wikimedia Commons; resized to 720x480 WebP):
+ * Existing Commons photos are CC0/public domain. New Pexels photo sources and license details are
+ * recorded in app/src/main/assets/service-image-sources.txt. All new photos are locally bundled
+ * WebP assets optimized for app display.
  * - svc_decoration_floral_table: https://commons.wikimedia.org/wiki/File:Pexels-edward-eyer-1045541.jpg (CC0)
  * - svc_entertainment_mixing_desk: https://commons.wikimedia.org/wiki/File:Midas_M32R_angled_(2018-01-05_by_Francesco_Paggiaro_@pexels_899224).jpg (CC0)
  * - svc_entertainment_dj_booth: https://commons.wikimedia.org/wiki/File:DJ_booth_with_NI_Traktor_Kontrol_S4_(2015-03-13_17.33.34_by_nikkolodeon_@pixabay_688549).jpg (CC0)
@@ -105,10 +108,12 @@ data class ServiceVisual(
 
 object ServiceImagery {
     private val categoryPhotos = mapOf(
-        "catering-food" to R.drawable.public_hero_food,
+        "catering-food" to R.drawable.svc_staff_chef,
+        "catering-staff" to R.drawable.svc_staff_catering_girl,
         "decoration" to R.drawable.svc_decoration_floral_table,
+        "tent-tables-equipment" to R.drawable.svc_category_rentals,
         "entertainment" to R.drawable.svc_entertainment_dj_booth,
-        "beauty" to R.drawable.svc_beauty_mehndi,
+        "beauty" to R.drawable.svc_beauty_makeup,
         "photography-video" to R.drawable.svc_photography_camera,
         "religious-ceremony" to R.drawable.svc_religious_purohit_homam
     )
@@ -116,17 +121,44 @@ object ServiceImagery {
     // A photo is only mapped to a service when it differs from its category hero, so the same
     // image never appears twice on one listing screen.
     private val servicePhotos = mapOf(
+        "catering-boy" to R.drawable.svc_staff_catering_boy,
+        "catering-girl" to R.drawable.svc_category_catering_staff,
+        "chef" to R.drawable.svc_staff_chef,
+        "kitchen-helper" to R.drawable.svc_staff_kitchen_helper,
+        "event-decorator" to R.drawable.svc_decoration_event_artist,
+        "mandap-decorator" to R.drawable.svc_decoration_mandap,
+        "entrance-decorator" to R.drawable.svc_decoration_entrance,
+        "tent-rental" to R.drawable.svc_rental_tent,
+        "table-rental" to R.drawable.svc_rental_table,
+        "chair-rental" to R.drawable.svc_rental_chairs,
+        "dining-equipment" to R.drawable.svc_rental_dining_equipment,
         "dj" to R.drawable.svc_entertainment_mixing_desk,
+        "singer" to R.drawable.svc_entertainment_singer,
+        "band-melam-artist" to R.drawable.svc_entertainment_melam,
+        "dancer" to R.drawable.svc_entertainment_dancer,
+        "anchor" to R.drawable.svc_entertainment_anchor,
+        "magician" to R.drawable.svc_entertainment_magician,
+        "photographer" to R.drawable.svc_photography_photographer,
         "videographer" to R.drawable.svc_photography_video_camera,
+        "live-streaming-operator" to R.drawable.svc_photography_livestream,
         "balloon-decorator" to R.drawable.svc_decoration_balloon_arch,
+        "makeup-artist" to R.drawable.svc_beauty_bridal,
+        "bridal-makeup-artist" to R.drawable.svc_beauty_mehndi,
+        "groom-makeup-artist" to R.drawable.svc_beauty_groom,
+        "hair-stylist" to R.drawable.svc_beauty_hair,
+        "mehendi-artist" to R.drawable.svc_beauty_mehndi_artist,
+        "saree-drapist" to R.drawable.svc_beauty_saree,
+        "beauty-specialist" to R.drawable.svc_beauty_specialist,
         "pujari" to R.drawable.svc_religious_purohit_homam,
-        ServiceListingCatalog.EVENT_CATERING_LISTING_ID to R.drawable.public_offer_family,
+        ServiceListingCatalog.EVENT_CATERING_LISTING_ID to R.drawable.svc_rental_dining_equipment,
+        MenuCatalog.CATEGORY_BREAKFAST to R.drawable.svc_menu_breakfast,
         MenuCatalog.CATEGORY_VEG_LUNCH to R.drawable.public_veg_specials,
         MenuCatalog.CATEGORY_NON_VEG to R.drawable.public_main_course,
         MenuCatalog.CATEGORY_BIRYANI to R.drawable.public_biryani,
         MenuCatalog.CATEGORY_SNACKS to R.drawable.public_starters,
         MenuCatalog.CATEGORY_SWEETS to R.drawable.public_desserts,
         MenuCatalog.CATEGORY_BEVERAGES to R.drawable.public_beverages,
+        MenuCatalog.CATEGORY_WATER to R.drawable.svc_menu_water,
         MenuCatalog.CATEGORY_PACKAGES to R.drawable.public_offer_wedding
     )
 
@@ -162,7 +194,7 @@ object ServiceImagery {
         "beauty-specialist" to Icons.Filled.Spa,
         "pujari" to Icons.Filled.TempleHindu,
         "priest" to Icons.Filled.SelfImprovement,
-        "pandit" to Icons.Filled.MenuBook,
+        "pandit" to Icons.AutoMirrored.Filled.MenuBook,
         "pooja-specialist" to Icons.Filled.LocalFlorist,
         "homam-specialist" to Icons.Filled.LocalFireDepartment,
         "wedding-ritual-specialist" to Icons.Filled.VolunteerActivism,
@@ -194,6 +226,61 @@ object ServiceImagery {
     fun bannerVisual(categoryId: String): ServiceVisual {
         val visual = categoryVisual(categoryId)
         return bannerPhotos[categoryId]?.let { visual.copy(photoRes = it) } ?: visual
+    }
+
+    // Up to three high-resolution, licensed local photos per category for the Home discovery
+    // sliders. All are packaged in drawable-nodpi, so no runtime network access is required.
+    private val discoveryPhotos = mapOf(
+        "catering-food" to listOf(
+            R.drawable.svc_rental_dining_equipment,
+            R.drawable.svc_staff_chef,
+            R.drawable.svc_menu_breakfast
+        ),
+        "catering-staff" to listOf(
+            R.drawable.svc_staff_catering_girl,
+            R.drawable.svc_staff_catering_boy,
+            R.drawable.svc_category_catering_staff
+        ),
+        "decoration" to listOf(
+            R.drawable.svc_decoration_mandap,
+            R.drawable.svc_decoration_entrance,
+            R.drawable.svc_decoration_floral_table
+        ),
+        "tent-tables-equipment" to listOf(
+            R.drawable.svc_category_rentals,
+            R.drawable.svc_rental_tent,
+            R.drawable.svc_rental_table
+        ),
+        "entertainment" to listOf(
+            R.drawable.svc_entertainment_dj_booth,
+            R.drawable.svc_entertainment_singer,
+            R.drawable.svc_entertainment_dancer
+        ),
+        "photography-video" to listOf(
+            R.drawable.svc_photography_photographer,
+            R.drawable.svc_photography_livestream,
+            R.drawable.svc_photography_video_camera
+        ),
+        "beauty" to listOf(
+            R.drawable.svc_beauty_bridal,
+            R.drawable.svc_beauty_makeup,
+            R.drawable.svc_beauty_mehndi_artist
+        ),
+        "religious-ceremony" to listOf(
+            R.drawable.svc_religious_purohit_homam,
+            R.drawable.svc_religious_pooja_thali
+        )
+    )
+
+    /** Discovery slider images for a category (1â€“3 items, falling back to the category visual). */
+    fun discoveryGallery(categoryId: String): List<ServiceVisual> {
+        val base = categoryVisual(categoryId)
+        val photos = discoveryPhotos[categoryId].orEmpty().take(3)
+        return if (photos.isEmpty()) {
+            listOf(base)
+        } else {
+            photos.mapIndexed { index, res -> base.copy(photoRes = res, seed = base.seed + index) }
+        }
     }
 
     fun serviceVisual(categoryId: String, serviceId: String): ServiceVisual {
@@ -244,7 +331,7 @@ fun ServiceImage(
 fun ServiceArtwork(visual: ServiceVisual, modifier: Modifier = Modifier, iconSize: Dp = 34.dp) {
     val dark = remember(visual.accent) { lerp(visual.accent, Color.Black, 0.35f) }
     val light = remember(visual.accent) { lerp(visual.accent, Color.White, 0.18f) }
-    val gold = Color(0xFFF2C66D)
+    val gold = CaterHubColors.Gold
     val seed = visual.seed.absoluteValue
     Box(
         modifier = modifier.background(Brush.linearGradient(listOf(light, visual.accent, dark))),

@@ -21,10 +21,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -78,18 +78,14 @@ fun CustomerProfileScreen(
     onBackClick: () -> Unit,
     onBookingsClick: () -> Unit,
     onHelpClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onLoggedOut: () -> Unit,
-    onAccountDeleted: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { viewModel.loadProfile() }
     LaunchedEffect(uiState) {
-        when (val state = uiState) {
-            CustomerProfileUiState.LoggedOut -> onLoggedOut()
-            is CustomerProfileUiState.AccountDeleted -> onAccountDeleted(state.message)
-            else -> Unit
-        }
+        if (uiState == CustomerProfileUiState.LoggedOut) onLoggedOut()
     }
     val loaded = uiState as? CustomerProfileUiState.Loaded
     LaunchedEffect(loaded?.saved) {
@@ -98,12 +94,6 @@ fun CustomerProfileScreen(
             snackbarHostState.showSnackbar("Profile updated successfully")
         }
     }
-    LaunchedEffect(loaded?.actionError) {
-        val message = loaded?.actionError ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
-        viewModel.clearErrors()
-    }
-
     Scaffold(
         containerColor = ProfilePalette.Background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -131,8 +121,8 @@ fun CustomerProfileScreen(
                 onClearSaveError = viewModel::clearErrors,
                 onBookingsClick = onBookingsClick,
                 onHelpClick = onHelpClick,
+                onSettingsClick = onSettingsClick,
                 onLogout = viewModel::logout,
-                onDeleteAccount = viewModel::deleteAccount,
                 modifier = Modifier.padding(padding)
             )
             CustomerProfileUiState.LoggedOut, is CustomerProfileUiState.AccountDeleted -> Unit
@@ -147,14 +137,13 @@ private fun CustomerProfileContent(
     onClearSaveError: () -> Unit,
     onBookingsClick: () -> Unit,
     onHelpClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onLogout: () -> Unit,
-    onDeleteAccount: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val user = state.user
     var editMode by rememberSaveable(user.id) { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     LaunchedEffect(state.saved) { if (state.saved) editMode = false }
@@ -217,15 +206,12 @@ private fun CustomerProfileContent(
 
         ProfileActionGroup(title = "Account") {
             ProfileActionRow(
-                "Logout", Icons.AutoMirrored.Filled.Logout, { showLogoutDialog = true },
-                subtitle = "Sign out of this device", showChevron = false, enabled = !state.isDeleting
+                "Settings", Icons.Filled.Settings, onSettingsClick,
+                subtitle = "Account preferences and privacy"
             )
             ProfileActionRow(
-                "Delete Account", Icons.Filled.DeleteOutline, { showDeleteDialog = true },
-                subtitle = "Permanently remove your account",
-                destructive = true, showChevron = false, showDivider = false,
-                enabled = !state.isSaving,
-                loading = state.isDeleting
+                "Logout", Icons.AutoMirrored.Filled.Logout, { showLogoutDialog = true },
+                subtitle = "Sign out of this device", showChevron = false, showDivider = false
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -239,17 +225,6 @@ private fun CustomerProfileContent(
             icon = Icons.AutoMirrored.Filled.Logout,
             onConfirm = { showLogoutDialog = false; onLogout() },
             onDismiss = { showLogoutDialog = false }
-        )
-    }
-    if (showDeleteDialog && !state.isSaving) {
-        ProfileConfirmDialog(
-            title = "Delete your CaterHub account?",
-            message = "Deleting your account will permanently remove your account and associated personal data. This action cannot be undone.",
-            confirmLabel = "Delete Account",
-            destructive = true,
-            icon = Icons.Filled.DeleteOutline,
-            onConfirm = { showDeleteDialog = false; onDeleteAccount() },
-            onDismiss = { showDeleteDialog = false }
         )
     }
 }
@@ -352,4 +327,3 @@ private fun accountType(roles: List<String>): String = when {
     roles.any { it.contains("WORKER") } -> "Worker"
     else -> "Customer"
 }
-

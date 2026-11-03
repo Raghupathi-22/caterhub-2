@@ -1,96 +1,56 @@
 package com.daily.cetaring.presentation.screens
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.RestaurantMenu
-import androidx.compose.material.icons.filled.RoomService
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.daily.cetaring.config.SupportContact
+import com.daily.cetaring.presentation.components.CaterHubMarketplaceHeader
+import com.daily.cetaring.presentation.components.MarketplaceQuickActions
+import com.daily.cetaring.presentation.components.MarketplaceSectionHeading
 import com.daily.cetaring.presentation.components.ServiceCategoryGrid
-import com.daily.cetaring.R
-
-private val Cream = Color(0xFFFFFCF6)
-private val Cream2 = Color(0xFFFFF8E8)
-private val Maroon = Color(0xFF8E171C)
-private val MaroonDark = Color(0xFF6F1015)
-private val Gold = Color(0xFFC88912)
-private val GoldDeep = Color(0xFF9A6A0B)
-private val GoldSoft = Color(0xFFFFF4D9)
-private val MaroonSoft = Color(0xFFF9ECEC)
-private val Green = Color(0xFF0D5B22)
-private val GreenDark = Color(0xFF0A421A)
-private val PaleGreen = Color(0xFFEAF4E7)
-private val Border = Color(0xFFE3D9C7)
-private val TextDark = Color(0xFF2B2622)
-private val Muted = Color(0xFF6C655D)
+import com.daily.cetaring.presentation.components.ServiceDiscoverySearchField
+import com.daily.cetaring.presentation.components.ServiceDiscoverySearchResults
+import com.daily.cetaring.ui.theme.CaterHubColors
 
 @Composable
 fun AuthLandingScreen(
@@ -101,29 +61,27 @@ fun AuthLandingScreen(
     onMenuClick: () -> Unit,
     onServiceCategoryClick: (String) -> Unit = {}
 ) {
-    // Saveable so returning from registration/login keeps the tab the visitor was on.
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     BackHandler(enabled = selectedTab != 0) { selectedTab = 0 }
 
     Scaffold(
-        containerColor = Cream,
-        bottomBar = {
-            PublicBottomBar(selectedTab) { selectedTab = it }
-        }
+        containerColor = CaterHubColors.Background,
+        bottomBar = { PublicBottomBar(selectedTab) { selectedTab = it } }
     ) { padding ->
         when (selectedTab) {
             0 -> PublicHomeContent(
                 padding = padding,
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
                 onBook = onCreateAccountClick,
                 onCustomerLogin = onCustomerLoginClick,
                 onWorkerLogin = onWorkerLoginClick,
                 onMenuClick = onMenuClick,
-                onServiceCategoryClick = onServiceCategoryClick
+                onServiceCategoryClick = onServiceCategoryClick,
+                onOffersClick = { selectedTab = 1 }
             )
-            1 -> OffersScreenContent(
-                padding = padding,
-                onBook = onCreateAccountClick
-            )
+            1 -> OffersScreenContent(padding = padding, onBook = onCreateAccountClick)
             2 -> QualityScreenContent(padding = padding, onBook = onCreateAccountClick)
             else -> PartnerScreenContent(
                 padding = padding,
@@ -137,436 +95,184 @@ fun AuthLandingScreen(
 @Composable
 private fun PublicHomeContent(
     padding: androidx.compose.foundation.layout.PaddingValues,
+    query: String,
+    onQueryChange: (String) -> Unit,
     onBook: () -> Unit,
     onCustomerLogin: () -> Unit,
     onWorkerLogin: () -> Unit,
     onMenuClick: () -> Unit,
-    onServiceCategoryClick: (String) -> Unit
+    onServiceCategoryClick: (String) -> Unit,
+    onOffersClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Cream)
-            .verticalScroll(rememberScrollState())
+            .background(CaterHubColors.Background)
             .padding(padding)
-            .padding(horizontal = 24.dp, vertical = 10.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         PublicTopBar(onCustomerLogin, onWorkerLogin)
-        LogoBlock()
-
-        Text("Delicious Food.", fontSize = 29.sp, fontWeight = FontWeight.ExtraBold, color = Maroon)
-        Text("Memorable Moments.", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Gold)
-        Text(
-            "From weddings to small get-togethers,\nwe make every occasion special.",
-            fontSize = 16.sp,
-            lineHeight = 23.sp,
-            color = TextDark
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            MarketplaceSectionHeading("What are you planning?")
             Text(
-                "What would you like to do?",
-                color = TextDark,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.ExtraBold
+                "Browse event services before you book.",
+                color = CaterHubColors.Muted,
+                style = MaterialTheme.typography.bodyMedium
             )
         }
+        ServiceDiscoverySearchField(query = query, onQueryChange = onQueryChange)
 
-        PremiumBookCateringCard(onClick = onBook)
-        PremiumMenuCard(onClick = onMenuClick)
-        PublicServiceCategories(onCategoryClick = onServiceCategoryClick)
-
-        OffersPreview(onBook)
-        SpecialitiesPreview()
-        PackagesPreview(onBook)
-        WhyChooseUs()
-        ContactCard()
-        Spacer(Modifier.height(6.dp))
+        if (query.isBlank()) {
+            MarketplaceQuickActions(onBookCatering = onBook, onExploreMenu = onMenuClick)
+            MarketplaceSectionHeading(
+                title = "Explore services",
+                subtitle = "Browse every category. Sign in only when you are ready to book."
+            )
+            ServiceCategoryGrid(onCategoryClick = onServiceCategoryClick)
+            Card(
+                onClick = onOffersClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = CaterHubColors.Surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, CaterHubColors.Border),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp, pressedElevation = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.Celebration, contentDescription = null, tint = CaterHubColors.Gold)
+                    Column(
+                        Modifier.weight(1f).padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text("Offers", color = CaterHubColors.Ink, fontWeight = FontWeight.Bold)
+                        Text("View available offers", color = CaterHubColors.Muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "View offers", tint = CaterHubColors.Green)
+                }
+            }
+        } else {
+            MarketplaceSectionHeading("Search results")
+            ServiceDiscoverySearchResults(query = query, onCategoryClick = onServiceCategoryClick)
+        }
     }
-}
-
-@Composable
-private fun PublicServiceCategories(onCategoryClick: (String) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Our Services", color = Maroon, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-        Text(
-            "Browse every service freely. You only need to log in when you confirm a booking.",
-            color = Muted,
-            fontSize = 14.sp,
-            lineHeight = 20.sp
-        )
-    }
-    ServiceCategoryGrid(onCategoryClick = onCategoryClick)
 }
 
 @Composable
 private fun PublicTopBar(onCustomerLogin: () -> Unit, onWorkerLogin: () -> Unit) {
-    var showLoginOptions by remember { mutableStateOf(false) }
+    var showLoginOptions by rememberSaveable { mutableStateOf(false) }
 
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.LocationOn, null, tint = Maroon, modifier = Modifier.size(22.dp))
-            Text("Hyderabad", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
-            Text("⌄", color = Maroon, fontSize = 20.sp, modifier = Modifier.padding(start = 3.dp))
-        }
-        Icon(Icons.Filled.NotificationsNone, "Notifications", tint = TextDark, modifier = Modifier.size(27.dp))
-        Spacer(Modifier.width(12.dp))
-        IconButton(onClick = { showLoginOptions = true }, modifier = Modifier.size(42.dp).clip(CircleShape).background(Maroon)) {
-            Icon(Icons.Filled.Person, "Login", tint = Color.White)
+    CaterHubMarketplaceHeader {
+        IconButton(
+            onClick = { showLoginOptions = true },
+            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(50)).background(CaterHubColors.Green)
+        ) {
+            Icon(Icons.Filled.Person, contentDescription = "Sign in", tint = CaterHubColors.Surface)
         }
     }
 
     if (showLoginOptions) {
         AlertDialog(
             onDismissRequest = { showLoginOptions = false },
-            title = { Text("Login to CaterHub", fontWeight = FontWeight.ExtraBold) },
+            title = { Text("Sign in to CaterHub", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { showLoginOptions = false; onCustomerLogin() },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F1))
-                    ) {
-                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.RestaurantMenu, null, tint = Maroon)
-                            Spacer(Modifier.width(10.dp))
-                            Column {
-                                Text("Customer Login", fontWeight = FontWeight.Bold, color = TextDark)
-                                Text("Book catering and manage bookings", fontSize = 11.sp, color = Muted)
-                            }
-                        }
-                    }
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { showLoginOptions = false; onWorkerLogin() },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F7EF))
-                    ) {
-                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Groups, null, tint = Green)
-                            Spacer(Modifier.width(10.dp))
-                            Column {
-                                Text("Partner Login", fontWeight = FontWeight.Bold, color = TextDark)
-                                Text("Find flexible catering opportunities", fontSize = 11.sp, color = Muted)
-                            }
-                        }
-                    }
+                    LoginChoiceCard(
+                        title = "Customer login",
+                        description = "Book services and manage your events",
+                        icon = { Icon(Icons.Filled.Person, contentDescription = null, tint = CaterHubColors.Green) },
+                        onClick = { showLoginOptions = false; onCustomerLogin() }
+                    )
+                    LoginChoiceCard(
+                        title = "Partner login",
+                        description = "View and manage your work",
+                        icon = { Icon(Icons.Filled.Groups, contentDescription = null, tint = CaterHubColors.Green) },
+                        onClick = { showLoginOptions = false; onWorkerLogin() }
+                    )
                 }
             },
-            confirmButton = { }
+            confirmButton = {
+                TextButton(onClick = { showLoginOptions = false }) { Text("Cancel") }
+            }
         )
     }
 }
 
 @Composable
-private fun LogoBlock() {
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Image(
-            painterResource(R.drawable.public_logo),
-            contentDescription = "CaterHub logo",
-            modifier = Modifier.height(178.dp).fillMaxWidth(0.72f),
-            contentScale = ContentScale.Fit
-        )
-    }
-}
-
-@Composable
-private fun PremiumBookCateringCard(onClick: () -> Unit) {
-    HomeActionCard(
-        icon = Icons.Filled.RoomService,
-        iconTint = Maroon,
-        iconContainer = MaroonSoft,
-        title = "Book Catering",
-        titleColor = Maroon,
-        description = "Delicious food for every special occasion.",
-        ctaLabel = "Book Your Catering",
-        ctaColor = Maroon,
-        borderColor = Maroon.copy(alpha = 0.16f),
-        onClick = onClick
-    )
-}
-
-@Composable
-private fun PremiumMenuCard(onClick: () -> Unit) {
-    HomeActionCard(
-        icon = Icons.AutoMirrored.Filled.MenuBook,
-        iconTint = GoldDeep,
-        iconContainer = GoldSoft,
-        title = "Explore Our Menu",
-        titleColor = TextDark,
-        description = "Tiffins, meals, snacks, beverages and more.",
-        ctaLabel = "Explore Menu",
-        ctaColor = GoldDeep,
-        borderColor = Gold.copy(alpha = 0.32f),
-        onClick = onClick
-    )
-}
-
-@Composable
-private fun HomeActionCard(
-    icon: ImageVector,
-    iconTint: Color,
-    iconContainer: Color,
+private fun LoginChoiceCard(
     title: String,
-    titleColor: Color,
     description: String,
-    ctaLabel: String,
-    ctaColor: Color,
-    borderColor: Color,
+    icon: @Composable () -> Unit,
     onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = CaterHubColors.Surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, CaterHubColors.Border)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(iconContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(32.dp))
-                }
-                Spacer(Modifier.width(14.dp))
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        title,
-                        color = titleColor,
-                        fontSize = 22.sp,
-                        lineHeight = 27.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    Text(
-                        description,
-                        color = Muted,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp
-                    )
-                }
-            }
-            Button(
-                onClick = onClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ctaColor, contentColor = Color.White),
-                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 2.dp)
+            icon()
+            Column(
+                Modifier.weight(1f).padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(
-                    ctaLabel,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                Spacer(Modifier.width(10.dp))
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
+                Text(title, fontWeight = FontWeight.Bold, color = CaterHubColors.Ink)
+                Text(description, color = CaterHubColors.Muted, style = MaterialTheme.typography.bodySmall)
             }
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = CaterHubColors.Green)
         }
-    }
-}
-
-@Composable
-private fun OffersPreview(onBook: () -> Unit) {
-    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Cream2), border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
-        Column(Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Campaign, null, tint = Gold, modifier = Modifier.size(28.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("TODAY'S OFFERS", color = TextDark, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
-                Spacer(Modifier.weight(1f))
-                Text("View All →", color = Maroon, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OfferMiniCard("Wedding Special", "Catering packages\nfrom ₹499 / person", R.drawable.public_offer_wedding, onBook)
-                OfferMiniCard("Family Function", "Special pricing for\n100+ guests", R.drawable.public_offer_family, onBook)
-            }
-        }
-    }
-}
-
-@Composable
-private fun OfferMiniCard(title: String, subtitle: String, image: Int, onClick: () -> Unit) {
-    Card(Modifier.width(270.dp).clickable(onClick = onClick), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
-        Row(Modifier.height(105.dp)) {
-            Column(Modifier.weight(1f).padding(10.dp), verticalArrangement = Arrangement.Center) {
-                Text(title, color = Maroon, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(subtitle, color = TextDark, fontSize = 11.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 4.dp))
-                Text("View Offer →", color = Maroon, fontWeight = FontWeight.Bold, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
-            }
-            Image(painterResource(image), null, Modifier.width(92.dp).fillMaxSize(), contentScale = ContentScale.Crop)
-        }
-    }
-}
-
-@Composable
-private fun SpecialitiesPreview() {
-    Column {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("🍲 Our Specialities", color = Maroon, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
-            Spacer(Modifier.weight(1f))
-            Text("View Full Menu  ›", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-        }
-        Spacer(Modifier.height(9.dp))
-        val items = listOf(
-            "Biryani" to R.drawable.public_biryani,
-            "Starters" to R.drawable.public_starters,
-            "Main Course" to R.drawable.public_main_course,
-            "Veg Specials" to R.drawable.public_veg_specials,
-            "Desserts" to R.drawable.public_desserts,
-            "Beverages" to R.drawable.public_beverages
-        )
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items.forEach { (name, image) ->
-                Card(Modifier.width(100.dp), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Image(painterResource(image), null, Modifier.fillMaxWidth().height(82.dp), contentScale = ContentScale.Crop)
-                        Text(name, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextDark, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 7.dp))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PackagesPreview(onBook: () -> Unit) {
-    Column {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("⭐ Popular Catering Packages", color = Maroon, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp)
-            Spacer(Modifier.weight(1f))
-            Text("View All ›", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-        }
-        Spacer(Modifier.height(9.dp))
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PackageCard("BASIC PACKAGE", "₹499", Green, listOf("Biryani", "2 Curries", "Rice", "Raita", "Sweet"), onBook)
-            PackageCard("CLASSIC PACKAGE", "₹699", Maroon, listOf("2 Starters", "Biryani", "3 Curries", "Dal", "Raita", "Sweet"), onBook)
-            PackageCard("PREMIUM PACKAGE", "₹999", Gold, listOf("2 Starters", "Biryani", "4 Curries", "Dal", "Raita", "2 Desserts", "Beverages"), onBook)
-        }
-    }
-}
-
-@Composable
-private fun PackageCard(title: String, price: String, color: Color, items: List<String>, onBook: () -> Unit) {
-    Card(Modifier.width(190.dp), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
-        Column {
-            Box(Modifier.fillMaxWidth().background(color).padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-            }
-            Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("100+", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = TextDark)
-                Text("People", fontSize = 10.sp, color = Muted)
-                items.forEach { Text("✓  $it", fontSize = 11.sp, color = TextDark) }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(price, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = color)
-                        Text("/ Person", fontSize = 9.sp, color = Muted)
-                    }
-                    Card(Modifier.clickable(onClick = onBook), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = color)) {
-                        Text("View Details", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun WhyChooseUs() {
-    Column {
-        Text("Why Choose CaterHub?", color = Maroon, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            WhyItem("Quality\nIngredients", "♧")
-            WhyItem("Experienced\nTeam", "♙")
-            WhyItem("Hygienic\nPreparation", "✓")
-            WhyItem("On-time\nService", "◷")
-            WhyItem("Customer\nSatisfaction", "♡")
-        }
-    }
-}
-
-@Composable
-private fun WhyItem(text: String, symbol: String) {
-    Column(Modifier.width(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(symbol, fontSize = 26.sp, color = Maroon)
-        Text(text, fontSize = 9.sp, lineHeight = 12.sp, color = TextDark, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-    }
-}
-
-@Composable
-private fun ContactCard() {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val phone = SupportContact.SUPPORT_PHONE_NATIONAL
-    val internationalPhone = SupportContact.SUPPORT_PHONE_WHATSAPP
-
-    fun openWhatsApp() {
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("whatsapp://send?phone=$internationalPhone")))
-        } catch (_: ActivityNotFoundException) {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$internationalPhone")))
-        }
-    }
-
-    fun openDialer() {
-        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")))
-    }
-
-    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Need Help?", color = GreenDark, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                Text("We're here for you!", color = TextDark, fontSize = 11.sp)
-            }
-            ContactButton("WhatsApp", "Chat with us", Icons.Filled.Campaign, Green, ::openWhatsApp)
-            Spacer(Modifier.width(10.dp))
-            ContactButton("Call Us", "Click to call", Icons.Filled.Phone, Green, ::openDialer)
-        }
-    }
-}
-
-@Composable
-private fun ContactButton(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit) {
-    Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(color), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = Color.White, modifier = Modifier.size(22.dp))
-        }
-        Text(title, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TextDark)
-        Text(subtitle, fontSize = 8.sp, color = Muted)
     }
 }
 
 @Composable
 fun PublicBottomBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
-    NavigationBar(containerColor = Color.White, tonalElevation = 8.dp) {
-        NavigationBarItem(selected = selectedTab == 0, onClick = { onTabSelected(0) }, icon = { Icon(Icons.Filled.Home, null) }, label = { Text("Home") }, colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Maroon, selectedTextColor = Maroon, indicatorColor = Color(0xFFFFE8E8)))
-        NavigationBarItem(selected = selectedTab == 1, onClick = { onTabSelected(1) }, icon = { Icon(Icons.Filled.Celebration, null) }, label = { Text("Offers") }, colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Maroon, selectedTextColor = Maroon, indicatorColor = Color(0xFFFFE8E8)))
-        NavigationBarItem(selected = selectedTab == 2, onClick = { onTabSelected(2) }, icon = { Icon(Icons.Filled.CheckCircle, null) }, label = { Text("Quality") }, colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Maroon, selectedTextColor = Maroon, indicatorColor = Color(0xFFFFE8E8)))
-        NavigationBarItem(selected = selectedTab == 3, onClick = { onTabSelected(3) }, icon = { Icon(Icons.Filled.Work, null) }, label = { Text("Partner") }, colors = androidx.compose.material3.NavigationBarItemDefaults.colors(selectedIconColor = Maroon, selectedTextColor = Maroon, indicatorColor = Color(0xFFFFE8E8)))
+    NavigationBar(
+        windowInsets = NavigationBarDefaults.windowInsets,
+        containerColor = CaterHubColors.Surface,
+        tonalElevation = 6.dp
+    ) {
+        val colors = NavigationBarItemDefaults.colors(
+            selectedIconColor = CaterHubColors.Green,
+            selectedTextColor = CaterHubColors.Green,
+            indicatorColor = CaterHubColors.GreenSoft,
+            unselectedIconColor = CaterHubColors.Muted,
+            unselectedTextColor = CaterHubColors.Muted
+        )
+        NavigationBarItem(
+            selected = selectedTab == 0,
+            onClick = { onTabSelected(0) },
+            icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
+            label = { Text("Home") },
+            colors = colors
+        )
+        NavigationBarItem(
+            selected = selectedTab == 1,
+            onClick = { onTabSelected(1) },
+            icon = { Icon(Icons.Filled.Celebration, contentDescription = "Offers") },
+            label = { Text("Offers") },
+            colors = colors
+        )
+        NavigationBarItem(
+            selected = selectedTab == 2,
+            onClick = { onTabSelected(2) },
+            icon = { Icon(Icons.Filled.CheckCircle, contentDescription = "Quality") },
+            label = { Text("Quality") },
+            colors = colors
+        )
+        NavigationBarItem(
+            selected = selectedTab == 3,
+            onClick = { onTabSelected(3) },
+            icon = { Icon(Icons.Filled.Work, contentDescription = "Partner") },
+            label = { Text("Partner") },
+            colors = colors
+        )
     }
 }

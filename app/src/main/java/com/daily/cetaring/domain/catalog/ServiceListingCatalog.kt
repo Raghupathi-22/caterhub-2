@@ -26,6 +26,14 @@ data class ServiceListing(
     val action: ServiceListingAction
 )
 
+data class ServiceDiscoveryResult(
+    val categoryId: String,
+    val categoryTitle: String,
+    val title: String,
+    val description: String,
+    val listingId: String? = null
+)
+
 object ServiceListingCatalog {
     const val CATERING_CATEGORY_ID = "catering-food"
     const val EVENT_CATERING_LISTING_ID = "event-catering"
@@ -135,5 +143,38 @@ object ServiceListingCatalog {
             val haystack = "${listing.title} ${listing.description}".lowercase(Locale.ROOT)
             terms.all { haystack.contains(it) }
         }
+    }
+
+    fun searchCustomerCatalogue(query: String): List<ServiceDiscoveryResult> {
+        val terms = query.trim().lowercase(Locale.ROOT).split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (terms.isEmpty()) return emptyList()
+
+        val categoryResults = ServiceCatalog.customerCategories
+            .filter { category ->
+                val haystack = "${category.title} ${category.subtitle}".lowercase(Locale.ROOT)
+                terms.all(haystack::contains)
+            }
+            .map { category ->
+                ServiceDiscoveryResult(
+                    categoryId = category.id,
+                    categoryTitle = category.title,
+                    title = category.title,
+                    description = category.subtitle
+                )
+            }
+
+        val listingResults = ServiceCatalog.customerCategories.flatMap { category ->
+            search(listingsFor(category.id), query).map { listing ->
+                ServiceDiscoveryResult(
+                    categoryId = category.id,
+                    categoryTitle = category.title,
+                    title = listing.title,
+                    description = listing.description,
+                    listingId = listing.id
+                )
+            }
+        }
+
+        return (categoryResults + listingResults).distinctBy { "${it.categoryId}:${it.listingId.orEmpty()}" }
     }
 }
