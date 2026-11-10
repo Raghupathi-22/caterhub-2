@@ -13,6 +13,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @Slf4j
@@ -50,6 +51,9 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
+                // Unique jti: iat has 1s precision, so two tokens for the same user in the same
+                // second were identical and violated the refresh_tokens.token unique key.
+                .id(UUID.randomUUID().toString())
                 .issuedAt(now)
                 .expiration(expirationDate)
                 .signWith(key)
