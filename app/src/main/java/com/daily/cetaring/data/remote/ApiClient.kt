@@ -11,7 +11,8 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
     private const val CONNECT_TIMEOUT_SECONDS = 10L
-    private const val READ_TIMEOUT_SECONDS = 20L
+    // Backend OTP send may try SMS then voice fallback (~40s worst case).
+    private const val READ_TIMEOUT_SECONDS = 45L
     private const val WRITE_TIMEOUT_SECONDS = 20L
 
     @Volatile
@@ -38,6 +39,7 @@ object ApiClient {
             .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .addInterceptor(RetryInterceptor(maxRetries = 1))
+            .addInterceptor(SafeDiagnosticsInterceptor())
             .addInterceptor(loggingInterceptor)
             .authenticator(AuthTokenAuthenticator(localDataSource))
             .build()

@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.daily.cetaring.data.remote.dto.AuthResponse
 import com.daily.cetaring.data.remote.dto.SendOtpRequest
+import com.daily.cetaring.data.remote.dto.SendOtpResponse
 import com.daily.cetaring.data.remote.dto.VerifyOtpRequest
+import com.daily.cetaring.data.repository.OtpRateLimitedException
 import com.daily.cetaring.diagnostics.ReleaseDiagnostics
 import com.daily.cetaring.data.repository.AuthRepository
 import retrofit2.HttpException
@@ -37,13 +39,27 @@ sealed class OtpUiState {
     ) : OtpUiState()
 
     data class Error(
-        val message: String
+        val message: String,
+        val retryAfterSeconds: Int? = null
     ) : OtpUiState()
 }
 
 class AuthViewModel(
     private val authRepository: AuthRepository
 ) : ViewModel() {
+
+    companion object {
+        const val DEFAULT_RESEND_COOLDOWN_SECONDS = 60
+        private const val MAX_RESEND_COOLDOWN_SECONDS = 3600L
+
+        /** Countdown mirrors the backend resend cooldown, not the OTP expiry. */
+        fun resendCooldownFrom(response: SendOtpResponse): Int =
+            response.resendCooldownSeconds
+                ?.takeIf { it > 0 }
+                ?.coerceAtMost(MAX_RESEND_COOLDOWN_SECONDS)
+                ?.toInt()
+                ?: DEFAULT_RESEND_COOLDOWN_SECONDS
+    }
 
     private val _uiState =
         MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -140,10 +156,7 @@ class AuthViewModel(
                 } else {
                     "OTP sent by SMS"
                 }
-                val resendCooldown = sendResponse.expiresInSeconds
-                    ?.coerceIn(1L, 60L)
-                    ?.toInt()
-                    ?: 60
+                val resendCooldown = resendCooldownFrom(sendResponse)
 
                 _otpUiState.value =
                     OtpUiState.Sent(
@@ -161,10 +174,17 @@ class AuthViewModel(
                     "CATERHUB_OTP_SEND_FAILURE exception=${e::class.java.simpleName} httpStatus=$statusCode message=${e.message.orEmpty()}"
                 )
 
+                val rateLimited = e as? OtpRateLimitedException
                 _otpUiState.value =
-                    OtpUiState.Error(
-                        getReadableError(e)
-                    )
+                    if (rateLimited != null) {
+                        OtpUiState.Error(
+                            message = rateLimited.message ?: "Please wait before requesting another OTP",
+                            retryAfterSeconds = rateLimited.retryAfterSeconds
+                                ?: DEFAULT_RESEND_COOLDOWN_SECONDS
+                        )
+                    } else {
+                        OtpUiState.Error(getReadableError(e))
+                    }
             }
         }
     }

@@ -22,8 +22,8 @@ android {
         applicationId = "com.caterhub.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 10
-        versionName = "2.0.5"
+        versionCode = 12
+        versionName = "2.1.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["usesCleartextTraffic"] = "false"
     }

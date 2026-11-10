@@ -7,6 +7,7 @@ import com.daily.cetaring.data.remote.dto.CreateRiceSampleRequest
 import com.daily.cetaring.data.remote.dto.RiceOrderResponse
 import com.daily.cetaring.data.remote.dto.RiceProductResponse
 import com.daily.cetaring.data.remote.dto.RiceSampleResponse
+import com.daily.cetaring.diagnostics.ReleaseDiagnostics
 import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
 
@@ -19,7 +20,14 @@ class RiceRepository(
     private val riceApiService: RiceApiService,
     private val authLocalDataSource: AuthLocalDataSource
 ) {
-    suspend fun getProduct(): RiceProductResponse = call("rice product") { riceApiService.getProduct() }
+    suspend fun getProduct(): RiceProductResponse {
+        val product = call("rice product") { riceApiService.getProduct() }
+        if (product.basePackPrice == null || product.basePackKg == null || product.minOrderKg == null) {
+            ReleaseDiagnostics.error("CATERHUB_RICE_PRODUCT_INCOMPLETE")
+            throw IllegalStateException("Village Farm Rice pricing is not available right now. Please try again later.")
+        }
+        return product
+    }
 
     suspend fun createOrder(request: CreateRiceOrderRequest): RiceOrderResponse {
         val token = bearerToken()
@@ -61,6 +69,11 @@ class RiceRepository(
     private suspend fun <T> call(contextLabel: String, block: suspend () -> T): T = try {
         block()
     } catch (exception: Exception) {
+        if (exception is kotlinx.coroutines.CancellationException) throw exception
+        val statusCode = (exception as? HttpException)?.code()?.toString() ?: "NA"
+        ReleaseDiagnostics.error(
+            "CATERHUB_RICE_API_FAILURE context=${contextLabel.replace(' ', '_')} exception=${exception::class.java.simpleName} httpStatus=$statusCode"
+        )
         val mapped = ApiErrorMapper.map(
             exception = exception,
             contextLabel = contextLabel,
@@ -72,6 +85,9 @@ class RiceRepository(
                 RiceAuthenticationRequiredException("Your session has expired. Please sign in again.")
             exception is HttpException && exception.code() == 409 ->
                 RiceConflictException(mapped.message ?: "This request could not be completed. Please review and try again.")
+            // Parsing/reflection failures (e.g. JsonSyntaxException, ClassCastException) must not leak raw text.
+            mapped === exception && exception !is HttpException && exception !is java.io.IOException ->
+                IllegalStateException("We received an unexpected response from the server. Please try again.", exception)
             else -> mapped
         }
     }

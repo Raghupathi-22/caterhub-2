@@ -13,4 +13,6 @@ public interface OtpRepository extends JpaRepository<OtpEntity, Long> {
     Optional<OtpEntity> findTopByMobileNumberAndPurposeOrderByCreatedAtDesc(String mobileNumber, String purpose);
     long countByMobileNumberAndPurposeAndCreatedAtAfter(String mobileNumber, String purpose, LocalDateTime createdAtAfter);
     long countByRequesterIpAndCreatedAtAfter(String requesterIp, LocalDateTime createdAtAfter);
+    Optional<OtpEntity> findTopByMobileNumberAndPurposeAndCreatedAtAfterOrderByCreatedAtAsc(String mobileNumber, String purpose, LocalDateTime createdAtAfter);
+    Optional<OtpEntity> findTopByRequesterIpAndCreatedAtAfterOrderByCreatedAtAsc(String requesterIp, LocalDateTime createdAtAfter);
 }

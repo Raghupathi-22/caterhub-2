@@ -59,7 +59,9 @@ data class SendOtpResponse(
     @SerializedName(value = "expiresInSeconds", alternate = ["expires_in_seconds"])
     val expiresInSeconds: Long? = null,
     @SerializedName(value = "deliveryChannel", alternate = ["delivery_channel"])
-    val deliveryChannel: String? = null
+    val deliveryChannel: String? = null,
+    @SerializedName(value = "resendCooldownSeconds", alternate = ["resend_cooldown_seconds"])
+    val resendCooldownSeconds: Long? = null
 )
 
 data class VerifyOtpRequest(

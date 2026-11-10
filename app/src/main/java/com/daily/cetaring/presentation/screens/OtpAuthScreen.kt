@@ -218,6 +218,7 @@ fun OtpAuthScreen(
             }
             is OtpUiState.Error -> {
                 authSuccessHandled = false
+                state.retryAfterSeconds?.let { cooldown = it }
                 logOtpEvent("OTP flow received error state")
             }
             else -> Unit
@@ -605,6 +606,7 @@ fun OtpAuthScreen(
                 } else {
                     Text(
                         text = when {
+                            cooldown > 0 && otpState is OtpUiState.Error -> "Try again in ${cooldown}s"
                             cooldown > 0 -> "OTP Sent • ${cooldown}s"
                             otpState is OtpUiState.Sent -> "Send OTP Again"
                             else -> "Send OTP"

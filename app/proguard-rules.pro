@@ -21,7 +21,8 @@
 #-renamesourcefileattribute SourceFile
 
 # Keep runtime signatures/annotations needed by Retrofit and Gson reflection.
--keepattributes Signature, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+-keepattributes Signature, InnerClasses, EnclosingMethod, AnnotationDefault
+-keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
 
 # Keep endpoint method annotations on Retrofit interfaces in app code.
 -keep interface com.daily.cetaring.data.remote.**ApiService { *; }
@@ -30,6 +31,37 @@
 -keepclassmembers,allowobfuscation class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }
+
+# ---------------------------------------------------------------------------
+# R8 full mode (default since AGP 8) removes classes that are only created by
+# reflection. Gson creates every response DTO reflectively, so without these
+# rules R8 deleted SendOtpResponse, AuthResponse, RiceProductResponse, etc.
+# (see build-out/app/outputs/mapping/release/usage.txt) and release builds
+# could not read OTP or Village Farm Rice responses.
+# ---------------------------------------------------------------------------
+-keep class com.daily.cetaring.data.remote.** { <init>(...); <fields>; }
+-keep enum com.daily.cetaring.data.remote.** { *; }
+
+# Gson: keep any class with @SerializedName fields together with its constructors.
+-if class *
+-keepclasseswithmembers,allowobfuscation class <1> {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+-if class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+-keepclassmembers,allowobfuscation,allowoptimization class <1> {
+    <init>();
+}
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
+
+# Retrofit: keep generic return types of suspend/Call/Response service methods.
+-keep,allowobfuscation,allowshrinking interface retrofit2.Call
+-keep,allowobfuscation,allowshrinking class retrofit2.Response
+-keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
+-if interface * { @retrofit2.http.* public *** *(...); }
+-keep,allowoptimization,allowshrinking,allowobfuscation class <3>
 
 # Keep release diagnostic logger so OTP traces remain in release builds.
 -keep class com.daily.cetaring.diagnostics.ReleaseDiagnostics { *; }

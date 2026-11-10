@@ -1,7 +1,9 @@
 package com.daily.cetaring.config.exception;
 
+import com.daily.cetaring.features.auth.service.OtpRateLimitException;
 import com.daily.cetaring.shared.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,6 +21,21 @@ import java.util.Map;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    @ExceptionHandler(OtpRateLimitException.class)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handleOtpRateLimitException(
+            OtpRateLimitException ex, WebRequest request) {
+        log.warn("OTP rate limited: {} retryAfter={}s", ex.getMessage(), ex.getRetryAfterSeconds());
+        ApiResponse<Map<String, Object>> response = ApiResponse.<Map<String, Object>>builder()
+                .code(HttpStatus.TOO_MANY_REQUESTS.value())
+                .message(ex.getMessage())
+                .data(Map.of("error", ex.getMessage(), "retryAfterSeconds", ex.getRetryAfterSeconds()))
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+                .body(response);
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleIllegalArgumentException(

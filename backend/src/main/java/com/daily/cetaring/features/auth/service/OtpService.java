@@ -77,7 +77,10 @@ public class OtpService {
         if (lastOtpOpt.isPresent()) {
             OtpEntity lastOtp = lastOtpOpt.get();
             if (lastOtp.getCreatedAt().isAfter(cooldownCutoff) && !voiceOnly) {
-                throw new IllegalArgumentException("Please wait before requesting another OTP");
+                throw new OtpRateLimitException(
+                        "Please wait before requesting another OTP",
+                        secondsUntil(lastOtp.getCreatedAt().plusSeconds(resendCooldownSeconds), now)
+                );
             }
         }
 
@@ -87,13 +90,21 @@ public class OtpService {
                 mobileRateLimitCutoff
         );
         if (mobileAttempts >= mobileRateLimitMaxSends) {
-            throw new IllegalArgumentException("Too many OTP requests for this mobile number. Please try again later.");
+            long retryAfter = otpRepository
+                    .findTopByMobileNumberAndPurposeAndCreatedAtAfterOrderByCreatedAtAsc(normalizedMobile, purposeValue, mobileRateLimitCutoff)
+                    .map(oldest -> secondsUntil(oldest.getCreatedAt().plusSeconds(mobileRateLimitWindowSeconds), now))
+                    .orElse(mobileRateLimitWindowSeconds);
+            throw new OtpRateLimitException("Too many OTP requests for this mobile number. Please try again later.", retryAfter);
         }
 
         if (requesterIp != null && !requesterIp.isBlank()) {
             long ipAttempts = otpRepository.countByRequesterIpAndCreatedAtAfter(requesterIp, ipRateLimitCutoff);
             if (ipAttempts >= ipRateLimitMaxSends) {
-                throw new IllegalArgumentException("Too many OTP requests from this network. Please try again later.");
+                long retryAfter = otpRepository
+                        .findTopByRequesterIpAndCreatedAtAfterOrderByCreatedAtAsc(requesterIp, ipRateLimitCutoff)
+                        .map(oldest -> secondsUntil(oldest.getCreatedAt().plusSeconds(ipRateLimitWindowSeconds), now))
+                        .orElse(ipRateLimitWindowSeconds);
+                throw new OtpRateLimitException("Too many OTP requests from this network. Please try again later.", retryAfter);
             }
         }
 
@@ -126,7 +137,12 @@ public class OtpService {
                 .message(delivery.getMessage())
                 .expiresInSeconds(expirationSeconds)
                 .deliveryChannel(delivery.getChannel())
+                .resendCooldownSeconds(resendCooldownSeconds)
                 .build();
+    }
+
+    private static long secondsUntil(LocalDateTime target, LocalDateTime now) {
+        return Math.max(1L, java.time.Duration.between(now, target).getSeconds());
     }
 
     private void validateLoginTarget(String normalizedMobile, OtpPurpose purpose, String userType) {

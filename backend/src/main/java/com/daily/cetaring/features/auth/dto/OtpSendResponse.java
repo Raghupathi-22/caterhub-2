@@ -14,4 +14,5 @@ public class OtpSendResponse {
     private String message;
     private long expiresInSeconds;
     private String deliveryChannel;
+    private long resendCooldownSeconds;
 }

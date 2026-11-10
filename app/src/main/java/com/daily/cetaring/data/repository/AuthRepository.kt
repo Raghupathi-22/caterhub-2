@@ -120,24 +120,42 @@ class AuthRepository(
             is SocketTimeoutException -> ServerOfflineException("Connection timed out. Please try again.")
             is EOFException, is ProtocolException -> IllegalStateException("Received an invalid response from the server. Please try again.")
             is IOException -> ServerOfflineException()
-            is HttpException -> when (exception.code()) {
-                400 -> IllegalArgumentException(apiErrorMessage(exception) ?: "Please check your details and try again.")
-                401 -> IllegalArgumentException(
-                    apiErrorMessage(exception)
-                        ?: "The authentication service rejected this request. Please make sure the CaterHub server is updated and try again."
-                )
-                403 -> IllegalArgumentException("You do not have permission to perform this action.")
-                404 -> IllegalArgumentException("Requested service was not found. Please update the app or try again later.")
-                in 500..599 -> ServerOfflineException()
-                else -> IllegalArgumentException("Request failed. Please check your details and try again.")
-            }
+            is HttpException -> mapHttpException(exception)
             else -> exception
         }
     }
 
-    private fun apiErrorMessage(exception: HttpException): String? {
-        return exception.response()?.errorBody()?.string()
-            ?.let { body -> Regex("\"message\"\\s*:\\s*\"([^\"]+)\"").find(body)?.groupValues?.getOrNull(1) }
+    private fun mapHttpException(exception: HttpException): Exception {
+        val body = runCatching { exception.response()?.errorBody()?.string() }.getOrNull()
+        val apiMessage = apiErrorMessage(body)
+        return when (exception.code()) {
+            429 -> OtpRateLimitedException(
+                apiMessage ?: "Too many OTP requests. Please wait and try again.",
+                OtpRateLimitedException.parseRetryAfterSeconds(
+                    exception.response()?.headers()?.get("Retry-After"),
+                    body
+                )
+            )
+            400 -> if (apiMessage != null && OtpRateLimitedException.isCooldownMessage(apiMessage)) {
+                // Older backend builds report the resend cooldown as HTTP 400.
+                OtpRateLimitedException(apiMessage, OtpRateLimitedException.parseRetryAfterSeconds(null, body))
+            } else {
+                IllegalArgumentException(apiMessage ?: "Please check your details and try again.")
+            }
+            401 -> IllegalArgumentException(
+                apiMessage
+                    ?: "The authentication service rejected this request. Please make sure the CaterHub server is updated and try again."
+            )
+            403 -> IllegalArgumentException("You do not have permission to perform this action.")
+            404 -> IllegalArgumentException("Requested service was not found. Please update the app or try again later.")
+            in 500..599 -> ServerOfflineException()
+            else -> IllegalArgumentException(apiMessage ?: "Request failed. Please check your details and try again.")
+        }
+    }
+
+    private fun apiErrorMessage(body: String?): String? {
+        return body
+            ?.let { Regex("\"message\"\\s*:\\s*\"([^\"]+)\"").find(it)?.groupValues?.getOrNull(1) }
             ?.replace("\\n", "\n")
             ?.replace("\\\"", "\"")
     }
