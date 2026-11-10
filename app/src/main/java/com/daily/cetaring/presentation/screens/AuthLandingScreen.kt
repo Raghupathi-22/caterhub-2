@@ -51,6 +51,7 @@ import com.daily.cetaring.presentation.components.ServiceCategoryGrid
 import com.daily.cetaring.presentation.components.ServiceDiscoverySearchField
 import com.daily.cetaring.presentation.components.ServiceDiscoverySearchResults
 import com.daily.cetaring.ui.theme.CaterHubColors
+import com.daily.cetaring.presentation.viewmodel.RiceProductState
 
 @Composable
 fun AuthLandingScreen(
@@ -59,7 +60,11 @@ fun AuthLandingScreen(
     onWorkerRegisterClick: () -> Unit,
     onWorkerLoginClick: () -> Unit,
     onMenuClick: () -> Unit,
-    onServiceCategoryClick: (String) -> Unit = {}
+    onServiceCategoryClick: (String) -> Unit = {},
+    riceState: RiceProductState? = null,
+    onLoadRice: () -> Unit = {},
+    onOrderRice: () -> Unit = {},
+    onRequestRiceSample: () -> Unit = {}
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -82,7 +87,14 @@ fun AuthLandingScreen(
                 onOffersClick = { selectedTab = 1 }
             )
             1 -> OffersScreenContent(padding = padding, onBook = onCreateAccountClick)
-            2 -> QualityScreenContent(padding = padding, onBook = onCreateAccountClick)
+            2 -> QualityScreenContent(
+                padding = padding,
+                onBook = onCreateAccountClick,
+                riceState = riceState,
+                onLoadRice = onLoadRice,
+                onOrderRice = onOrderRice,
+                onRequestRiceSample = onRequestRiceSample
+            )
             else -> PartnerScreenContent(
                 padding = padding,
                 onBecomePartner = onWorkerRegisterClick,

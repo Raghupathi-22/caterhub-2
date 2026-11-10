@@ -23,6 +23,11 @@ import com.daily.cetaring.data.local.AuthLocalDataSource
 import com.daily.cetaring.data.remote.ApiClient
 import com.daily.cetaring.data.repository.AuthRepository
 import com.daily.cetaring.data.repository.BookingRepository
+import com.daily.cetaring.data.repository.RiceRepository
+import com.daily.cetaring.presentation.screens.RiceOrderScreen
+import com.daily.cetaring.presentation.screens.RiceOrderTabs
+import com.daily.cetaring.presentation.viewmodel.RiceProductState
+import com.daily.cetaring.presentation.viewmodel.RiceViewModel
 import com.daily.cetaring.data.repository.UserRepository
 import com.daily.cetaring.data.repository.WorkerRepository
 import com.daily.cetaring.presentation.screens.AuthLandingScreen
@@ -87,7 +92,11 @@ private object AppRoute {
     const val HELP_SUPPORT = "help_support"
     const val WORKER_ACCOUNT_REGISTER = "worker_account_register"
     const val WORKER_LOGIN = "worker_login"
+    const val RICE_ORDER = "rice_order?tab={tab}"
+    const val RICE_AUTH = "rice_auth"
 }
+
+private fun riceOrderRoute(tab: Int) = "rice_order?tab=$tab"
 
 private fun serviceRequestRoute(categoryId: String, serviceId: String? = null) =
     if (serviceId == null) "service_request/$categoryId" else "service_request/$categoryId?service=${android.net.Uri.encode(serviceId)}"
@@ -131,6 +140,9 @@ class MainActivity : ComponentActivity() {
         val homeViewModel = HomeViewModel(bookingRepository, authLocalDataSource)
         val workerViewModel = WorkerViewModel(workerRepository)
         val customerProfileViewModel = CustomerProfileViewModel(userRepository, authRepository)
+        val riceViewModel = RiceViewModel(
+            RiceRepository(riceApiService = ApiClient.riceApiService, authLocalDataSource = authLocalDataSource)
+        )
 
         setContent {
             CetaringTheme {
@@ -243,7 +255,20 @@ class MainActivity : ComponentActivity() {
                     startDestination = AppRoute.AUTH_LANDING
                 ) {
                     composable(AppRoute.AUTH_LANDING) { landingEntry ->
+                        val riceState by riceViewModel.uiState.collectAsState()
                         AuthLandingScreen(
+                            riceState = riceState.productState,
+                            onLoadRice = { riceViewModel.loadProduct(force = riceState.productState is RiceProductState.Error) },
+                            onOrderRice = {
+                                if (landingEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                    navController.navigate(riceOrderRoute(RiceOrderTabs.ORDER))
+                                }
+                            },
+                            onRequestRiceSample = {
+                                if (landingEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                    navController.navigate(riceOrderRoute(RiceOrderTabs.SAMPLE))
+                                }
+                            },
                             onServiceCategoryClick = { categoryId ->
                                 if (landingEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                                     navController.navigate(serviceCategoryRoute(categoryId))
@@ -326,6 +351,11 @@ class MainActivity : ComponentActivity() {
                                 authViewModel.logout()
                                 navController.navigate(AppRoute.AUTH_LANDING) {
                                     popUpTo(AppRoute.HOME) { inclusive = true }
+                                }
+                            },
+                            onVillageFarmRiceClick = {
+                                if (homeEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                    navController.navigate(riceOrderRoute(RiceOrderTabs.ORDER))
                                 }
                             }
                         )
@@ -552,6 +582,62 @@ class MainActivity : ComponentActivity() {
                             onSwitchMode = { },
                             titleOverride = "Login to submit your request",
                             subtitleOverride = "Enter your mobile number to securely submit your service request.",
+                            showModeSwitch = false
+                        )
+                    }
+
+                    composable(
+                        route = AppRoute.RICE_ORDER,
+                        arguments = listOf(navArgument("tab") {
+                            type = NavType.IntType
+                            defaultValue = RiceOrderTabs.ORDER
+                        })
+                    ) { entry ->
+                        RiceOrderScreen(
+                            viewModel = riceViewModel,
+                            initialTab = entry.arguments?.getInt("tab") ?: RiceOrderTabs.ORDER,
+                            onBackClick = {
+                                if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.popBackStack()
+                            },
+                            onAuthRequired = {
+                                authViewModel.resetOtpState()
+                                navController.navigate(AppRoute.RICE_AUTH)
+                            }
+                        )
+                    }
+
+                    composable(AppRoute.RICE_AUTH) {
+                        OtpAuthScreen(
+                            viewModel = authViewModel,
+                            isRegistration = false,
+                            userType = "CUSTOMER",
+                            onBackClick = {
+                                riceViewModel.clearPendingAfterAuth()
+                                authViewModel.resetOtpState()
+                                navController.popBackStack()
+                            },
+                            onAuthSuccess = { response ->
+                                val destination = AuthRoleRouter.destinationForRoles(
+                                    roles = runCatching { response.user.roles }.getOrNull(),
+                                    fallback = AuthDestination.CUSTOMER_HOME
+                                )
+                                authViewModel.resetOtpState()
+                                navController.popBackStack()
+                                if (destination == AuthDestination.WORKER_DASHBOARD) {
+                                    riceViewModel.clearPendingAfterAuth()
+                                    riceViewModel.showError("Please sign in with a customer account to order rice.")
+                                } else {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Verified successfully. Submitting your request...",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    riceViewModel.resumePendingAfterAuth()
+                                }
+                            },
+                            onSwitchMode = { },
+                            titleOverride = "Login to confirm your rice order",
+                            subtitleOverride = "Enter your mobile number to securely submit your rice order or sample request.",
                             showModeSwitch = false
                         )
                     }

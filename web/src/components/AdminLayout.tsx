@@ -22,6 +22,7 @@ const drawerWidth = 260
 const navItems = [
   { label: 'Dashboard', to: '/admin/dashboard' },
   { label: 'Bookings', to: '/admin/bookings' },
+  { label: 'Rice Orders', to: '/admin/rice-orders' },
   { label: 'Customers', to: '/admin/customers' },
   { label: 'Workers', to: '/admin/workers' },
   { label: 'Verification', to: '/admin/verification' },

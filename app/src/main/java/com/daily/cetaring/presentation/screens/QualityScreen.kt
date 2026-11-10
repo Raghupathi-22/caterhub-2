@@ -27,6 +27,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,6 +38,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.daily.cetaring.R
+import com.daily.cetaring.presentation.components.VillageFarmRiceSection
+import com.daily.cetaring.presentation.viewmodel.RiceProductState
 
 private val Cream = Color(0xFFFFFCF6)
 private val Maroon = Color(0xFF8E171C)
@@ -48,7 +51,17 @@ private val Muted = Color(0xFF6C655D)
 private val Border = Color(0xFFE3D9C7)
 
 @Composable
-fun QualityScreenContent(padding: PaddingValues, onBook: () -> Unit) {
+fun QualityScreenContent(
+    padding: PaddingValues,
+    onBook: () -> Unit,
+    riceState: RiceProductState? = null,
+    onLoadRice: () -> Unit = {},
+    onOrderRice: () -> Unit = {},
+    onRequestRiceSample: () -> Unit = {}
+) {
+    if (riceState != null) {
+        LaunchedEffect(Unit) { onLoadRice() }
+    }
     Column(
         Modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(padding).padding(horizontal = 24.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(17.dp)
@@ -56,6 +69,15 @@ fun QualityScreenContent(padding: PaddingValues, onBook: () -> Unit) {
         Text("Our Quality", color = Maroon, fontWeight = FontWeight.ExtraBold, fontSize = 30.sp)
         Text("From our farm to your plate", color = Gold, fontWeight = FontWeight.ExtraBold, fontSize = 25.sp)
         Text("We care about what goes into every meal served by CaterHub.", color = Muted, fontSize = 15.sp, lineHeight = 21.sp)
+
+        if (riceState != null) {
+            VillageFarmRiceSection(
+                state = riceState,
+                onRetry = onLoadRice,
+                onOrderRice = onOrderRice,
+                onRequestSample = onRequestRiceSample
+            )
+        }
 
         Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC9DDC6))) {
             Column {

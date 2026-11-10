@@ -117,6 +117,9 @@ public class SecurityConfiguration {
                         .requestMatchers("/auth/**", "/api/v1/auth/**").permitAll()
                         .requestMatchers("/catalog/**", "/api/v1/catalog/**").permitAll()
                         .requestMatchers("/offers/active", "/api/v1/offers/active").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/rice/product", "/api/v1/rice/product",
+                                "/rice/quote", "/api/v1/rice/quote").permitAll()
 
                         // Swagger
                         .requestMatchers(

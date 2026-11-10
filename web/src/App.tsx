@@ -31,6 +31,7 @@ import { AdminVerificationPage } from './pages/AdminVerificationPage'
 import { AdminCategoriesPage, AdminReportsPage, AdminSettingsPage, ProfilePage } from './pages/AdminSimplePages'
 import { AdminCustomersPage } from './pages/AdminCustomersPage'
 import { AdminServicesPage } from './pages/AdminServicesPage'
+import { AdminRiceOrdersPage } from './pages/AdminRiceOrdersPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,6 +74,7 @@ export default function App() {
             <Route path="bookings" element={<AdminBookingsPage />} />
             <Route path="orders" element={<Navigate to="/admin/bookings" replace />} />
             <Route path="bookings/:id" element={<AdminBookingsPage />} />
+            <Route path="rice-orders" element={<AdminRiceOrdersPage />} />
             <Route path="customers" element={<AdminCustomersPage />} />
             <Route path="workers" element={<AdminWorkersPage />} />
             <Route path="workers/:id" element={<AdminWorkerDetailPage />} />

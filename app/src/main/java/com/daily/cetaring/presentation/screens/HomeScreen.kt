@@ -48,6 +48,7 @@ import com.daily.cetaring.presentation.components.MarketplaceSectionHeading
 import com.daily.cetaring.presentation.components.ServiceCategoryGrid
 import com.daily.cetaring.presentation.components.ServiceDiscoverySearchField
 import com.daily.cetaring.presentation.components.ServiceDiscoverySearchResults
+import com.daily.cetaring.presentation.components.VillageFarmRiceHomeCard
 import com.daily.cetaring.presentation.viewmodel.HomeViewModel
 import com.daily.cetaring.ui.theme.CaterHubColors
 
@@ -63,7 +64,8 @@ fun HomeScreen(
     onProfileClick: () -> Unit,
     onGuestSizeClick: (Int) -> Unit,
     onEventTypeClick: (String) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onVillageFarmRiceClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -151,6 +153,7 @@ fun HomeScreen(
                     onBookCatering = onBookCateringClick,
                     onExploreMenu = onMenuClick
                 )
+                VillageFarmRiceHomeCard(onClick = onVillageFarmRiceClick)
                 MarketplaceSectionHeading(
                     title = "Explore services",
                     subtitle = "Choose a category to see available services."

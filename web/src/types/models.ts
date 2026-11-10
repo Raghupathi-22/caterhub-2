@@ -313,3 +313,79 @@ export interface AdminStaffingJobDetails {
   customer?: AdminCustomerSummary | null
   acceptedWorkers: AdminAcceptedWorker[]
 }
+
+export type RiceOrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED'
+export type RicePaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+export type RiceSampleStatus = 'REQUESTED' | 'PICKUP_SCHEDULED' | 'COLLECTED' | 'CANCELLED'
+
+export interface RiceProduct {
+  id: number
+  code: string
+  name: string
+  tagline?: string | null
+  description?: string | null
+  highlights: string[]
+  imageUrl?: string | null
+  active: boolean
+  basePackKg: number
+  basePackPrice: number
+  minOrderKg: number
+  orderStepKg: number
+  maxOrderKg: number
+  deliveryCharge?: number | null
+  paymentNote?: string | null
+  sampleEnabled: boolean
+  sampleWeightGrams: number
+  samplePrice: number
+  sampleFulfillmentType: string
+  samplePickupLocation?: string | null
+  samplePickupInstructions?: string | null
+  updatedAt?: string | null
+}
+
+export type RiceProductUpdate = Omit<RiceProduct, 'id' | 'code' | 'samplePrice' | 'sampleFulfillmentType' | 'updatedAt'>
+
+export interface RiceOrder {
+  id: number
+  orderNumber: string
+  customerUserId?: number | null
+  productName?: string | null
+  customerName: string
+  mobileNumber: string
+  quantityKg: number
+  basePackKg: number
+  basePackPrice: number
+  subtotal: number
+  deliveryCharge?: number | null
+  totalAmount: number
+  deliveryAddress: string
+  area: string
+  pincode: string
+  preferredDeliveryDate?: string | null
+  preferredDeliverySlot?: string | null
+  deliveryNotes?: string | null
+  status: RiceOrderStatus
+  paymentStatus: RicePaymentStatus
+  adminNotes?: string | null
+  createdAt: string
+  updatedAt?: string | null
+}
+
+export interface RiceSample {
+  id: number
+  requestNumber: string
+  customerUserId?: number | null
+  productName?: string | null
+  customerName: string
+  mobileNumber: string
+  sampleWeightGrams: number
+  price: number
+  fulfillmentType: string
+  status: RiceSampleStatus
+  pickupLocation?: string | null
+  pickupTime?: string | null
+  pickupInstructions?: string | null
+  adminNotes?: string | null
+  createdAt: string
+  updatedAt?: string | null
+}

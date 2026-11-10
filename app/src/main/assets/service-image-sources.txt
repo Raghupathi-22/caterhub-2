@@ -40,3 +40,7 @@ svc_beauty_saree.webp                    8750030           https://www.pexels.co
 svc_beauty_specialist.webp               7581075           https://www.pexels.com/search/beautician%20facial%20client/
 svc_menu_breakfast.webp                  37867687          https://www.pexels.com/search/indian%20idli%20dosa%20breakfast/
 svc_menu_water.webp                      14365411          https://www.pexels.com/search/drinking%20water%20bottles%20catering%20event/
+
+Village Farm Rice photography (Wikimedia Commons, CC0 1.0 public domain dedication)
+------------------------------------------------------------------------------------
+rice_village_paddy.webp   "Rice Paddy Near Bhumeshwar Hill"   https://commons.wikimedia.org/wiki/File:Rice_Paddy_Near_Bhumeshwar_Hill.jpg
