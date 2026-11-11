@@ -45,6 +45,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.daily.cetaring.presentation.components.CaterHubMarketplaceHeader
+import com.daily.cetaring.presentation.components.ComingSoonServiceSection
+import com.daily.cetaring.presentation.components.ComingSoonServices
 import com.daily.cetaring.presentation.components.MarketplaceQuickActions
 import com.daily.cetaring.presentation.components.MarketplaceSectionHeading
 import com.daily.cetaring.presentation.components.ServiceCategoryGrid
@@ -166,6 +168,7 @@ private fun PublicHomeContent(
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "View offers", tint = CaterHubColors.Green)
                 }
             }
+            ComingSoonServiceSection(ComingSoonServices.FunctionAndBanquetHalls)
         } else {
             MarketplaceSectionHeading("Search results")
             ServiceDiscoverySearchResults(query = query, onCategoryClick = onServiceCategoryClick)

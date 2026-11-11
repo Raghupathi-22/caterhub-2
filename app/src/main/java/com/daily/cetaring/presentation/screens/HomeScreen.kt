@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import com.daily.cetaring.config.SupportContact
 import com.daily.cetaring.presentation.components.CaterHubMarketplaceHeader
 import com.daily.cetaring.presentation.components.CaterHubSupportCard
+import com.daily.cetaring.presentation.components.ComingSoonServiceSection
+import com.daily.cetaring.presentation.components.ComingSoonServices
 import com.daily.cetaring.presentation.components.MarketplaceQuickActions
 import com.daily.cetaring.presentation.components.MarketplaceSectionHeading
 import com.daily.cetaring.presentation.components.ServiceCategoryGrid
@@ -171,6 +173,9 @@ fun HomeScreen(
                 onCallClick = ::openDialer,
                 onWhatsAppClick = ::openWhatsApp
             )
+            if (searchQuery.isBlank()) {
+                ComingSoonServiceSection(ComingSoonServices.FunctionAndBanquetHalls)
+            }
             Spacer(Modifier.height(8.dp))
         }
     }

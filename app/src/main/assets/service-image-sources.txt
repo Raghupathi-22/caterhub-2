@@ -44,3 +44,7 @@ svc_menu_water.webp                      14365411          https://www.pexels.co
 Village Farm Rice photography (Wikimedia Commons, CC0 1.0 public domain dedication)
 ------------------------------------------------------------------------------------
 rice_village_paddy.webp   "Rice Paddy Near Bhumeshwar Hill"   https://commons.wikimedia.org/wiki/File:Rice_Paddy_Near_Bhumeshwar_Hill.jpg
+
+Function & Banquet Halls photography (Pexels License, free to use)
+------------------------------------------------------------------
+svc_venue_banquet_hall.webp   "Lavish Indian Wedding Hall with Chandeliers" by Lalit Jakhar   https://www.pexels.com/photo/lavish-indian-wedding-hall-with-chandeliers-40143062/
