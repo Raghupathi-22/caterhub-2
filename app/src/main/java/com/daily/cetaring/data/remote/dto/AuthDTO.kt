@@ -85,3 +85,38 @@ data class UpdateUserProfileRequest(
     @SerializedName("phone_number")
     val phoneNumber: String?
 )
+
+/** Unified customer sign-in / auto-registration (OTP purpose CUSTOMER_ACCESS). */
+data class CustomerAccessVerifyRequest(
+    @SerializedName("mobileNumber")
+    val mobileNumber: String,
+    @SerializedName("otp")
+    val otp: String
+)
+
+data class CustomerAccessVerifyResponse(
+    @SerializedName("status")
+    val status: String?,
+    @SerializedName("auth")
+    val auth: AuthResponse?,
+    @SerializedName("registrationToken")
+    val registrationToken: String?,
+    @SerializedName("registrationExpiresInSeconds")
+    val registrationExpiresInSeconds: Long?,
+    @SerializedName("mobileNumber")
+    val mobileNumber: String?
+) {
+    companion object {
+        const val STATUS_AUTHENTICATED = "AUTHENTICATED"
+        const val STATUS_REGISTRATION_REQUIRED = "REGISTRATION_REQUIRED"
+    }
+}
+
+data class CustomerRegisterRequest(
+    @SerializedName("mobileNumber")
+    val mobileNumber: String,
+    @SerializedName("registrationToken")
+    val registrationToken: String,
+    @SerializedName("fullName")
+    val fullName: String
+)

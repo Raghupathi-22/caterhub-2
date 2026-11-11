@@ -38,6 +38,11 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     public AuthResponse authenticateWithVerifiedOtp(String mobileNumber, String name, OtpPurpose purpose) {
+        if (purpose == OtpPurpose.CUSTOMER_ACCESS) {
+            // CUSTOMER_ACCESS must go through CustomerAccessService so that accounts are only created
+            // with a server-issued registration ticket.
+            throw new IllegalArgumentException("Unsupported verification request. Please update the app and try again.");
+        }
         String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
         Optional<User> existingUserOpt = findByMobileNumber(normalizedMobile);
 
@@ -56,39 +61,61 @@ public class AuthService {
                 throw new IllegalArgumentException("Full name is required to register");
             }
             String roleName = purpose == OtpPurpose.REGISTER_WORKER ? "ROLE_WORKER" : "ROLE_CUSTOMER";
-
-            String firstName;
-            String lastName = "";
-            String[] parts = name.trim().split("\\s+", 2);
-            firstName = parts[0];
-            if (parts.length > 1) {
-                lastName = parts[1];
-            }
-
-            String username = "user_" + normalizedMobile.replaceAll("[^0-9]", "");
-
-            user = User.builder()
-                    .username(username)
-                    .phoneNumber(normalizedMobile)
-                    .firstName(firstName)
-                    .lastName(lastName)
-                    .email(null)
-                    .isActive(true)
-                    .isVerified(true)
-                    .phoneVerifiedAt(LocalDateTime.now())
-                    .lastLoginAt(LocalDateTime.now())
-                    .build();
-
-            if (user.getRoles() == null) {
-                user.setRoles(new HashSet<>());
-            }
-            ensureRolePresent(user, roleName);
-
-            user = userRepository.save(user);
-            log.info("New user registered via OTP: {} (Role: {})", com.daily.cetaring.shared.util.LogMasking.maskPhone(user.getPhoneNumber()), roleName);
+            user = createVerifiedUser(normalizedMobile, name, roleName);
         }
 
         return generateAuthResponse(user);
+    }
+
+    /**
+     * Creates an account for a mobile number whose ownership the server has already verified.
+     * Callers must have checked that no account exists for the number; the unique phone/username
+     * constraints reject concurrent duplicates.
+     */
+    public User createVerifiedUser(String normalizedMobile, String fullName, String roleName) {
+        String[] parts = fullName.trim().split("\\s+", 2);
+        String firstName = parts[0];
+        String lastName = parts.length > 1 ? parts[1] : "";
+        String username = "user_" + normalizedMobile.replaceAll("[^0-9]", "");
+        LocalDateTime now = LocalDateTime.now();
+
+        User user = User.builder()
+                .username(username)
+                .phoneNumber(normalizedMobile)
+                .firstName(firstName)
+                .lastName(lastName)
+                .email(null)
+                .isActive(true)
+                .isVerified(true)
+                .phoneVerifiedAt(now)
+                .lastLoginAt(now)
+                .build();
+
+        if (user.getRoles() == null) {
+            user.setRoles(new HashSet<>());
+        }
+        ensureRolePresent(user, roleName);
+
+        user = userRepository.save(user);
+        log.info("New user registered via OTP: {} (Role: {})", com.daily.cetaring.shared.util.LogMasking.maskPhone(user.getPhoneNumber()), roleName);
+        return user;
+    }
+
+    /** Issues access and refresh tokens for an existing user whose mobile number was just verified. */
+    public AuthResponse signInVerifiedUser(User user) {
+        user.setLastLoginAt(LocalDateTime.now());
+        User saved = userRepository.save(user);
+        log.info("Existing user authenticated via OTP: {} (ID: {})", com.daily.cetaring.shared.util.LogMasking.maskPhone(saved.getPhoneNumber()), saved.getId());
+        return generateAuthResponse(saved);
+    }
+
+    /** Issues tokens for a user created in the current transaction. */
+    public AuthResponse issueTokens(User user) {
+        return generateAuthResponse(user);
+    }
+
+    public Optional<User> findUserByMobile(String normalizedMobile) {
+        return findByMobileNumber(normalizedMobile);
     }
 
     public AuthResponse authenticateAdminWithPassword(String username, String password) {

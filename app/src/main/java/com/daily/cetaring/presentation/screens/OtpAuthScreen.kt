@@ -101,7 +101,8 @@ fun OtpAuthScreen(
     onSwitchMode: () -> Unit,
     titleOverride: String? = null,
     subtitleOverride: String? = null,
-    showModeSwitch: Boolean = true
+    showModeSwitch: Boolean = true,
+    customerAccess: Boolean = false
 ) {
     val context = LocalContext.current
     val smsRetrieverClient = remember(context) { SmsRetriever.getClient(context) }
@@ -127,13 +128,28 @@ fun OtpAuthScreen(
         "Use your mobile number to sign in securely."
     }
     val purpose = when {
+        customerAccess -> AuthViewModel.CUSTOMER_ACCESS_PURPOSE
         !isRegistration -> "LOGIN"
         userType.equals("WORKER", ignoreCase = true) -> "REGISTER_WORKER"
         else -> "REGISTER_CUSTOMER"
     }
+    val showNameField = isRegistration && !customerAccess
     val normalizedMobile = remember(mobile) { mobile.filter(Char::isDigit).take(10) }
-    val registrationName = remember(name, isRegistration) { if (isRegistration) name.trim() else null }
+    val registrationName = remember(name, showNameField) { if (showNameField) name.trim() else null }
     val hasSmsSession = otpState is OtpUiState.Sent || otpState is OtpUiState.Verifying || otp.isNotEmpty()
+
+    fun submitOtp() {
+        if (customerAccess) {
+            viewModel.verifyCustomerAccessOtp(mobileNumber = "+91$normalizedMobile", otp = otp)
+        } else {
+            viewModel.verifyOtp(
+                mobileNumber = "+91$normalizedMobile",
+                otp = otp,
+                purpose = purpose,
+                name = registrationName
+            )
+        }
+    }
 
     val onSmsMessageReceived by rememberUpdatedState(newValue = { smsMessage: String ->
         logOtpEvent("OTP message received from retriever")
@@ -250,12 +266,7 @@ fun OtpAuthScreen(
         lastSubmittedOtpKey = requestKey
         autoOtpStatus = "Verifying OTP..."
         logOtpEvent("Starting automatic OTP verification")
-        viewModel.verifyOtp(
-            mobileNumber = "+91$normalizedMobile",
-            otp = otp,
-            purpose = purpose,
-            name = registrationName
-        )
+        submitOtp()
     }
 
     DisposableEffect(otpSessionId, waitingForAutoOtp, context) {
@@ -334,6 +345,24 @@ fun OtpAuthScreen(
         }
     }
 
+    val registrationState = otpState as? OtpUiState.RegistrationRequired
+    if (registrationState != null) {
+        CustomerAccountCreationScreen(
+            state = registrationState,
+            onContinue = viewModel::completeCustomerRegistration,
+            onBackClick = {
+                otp = ""
+                isAutoFilledOtp = false
+                waitingForAutoOtp = false
+                allowManualFallback = false
+                autoOtpStatus = null
+                lastSubmittedOtpKey = ""
+                viewModel.resetOtpState()
+            }
+        )
+        return
+    }
+
     Surface(modifier = Modifier.fillMaxSize(), color = Cream) {
         Column(
             modifier = Modifier
@@ -373,7 +402,7 @@ fun OtpAuthScreen(
             Text(text = subtitle, modifier = Modifier.fillMaxWidth(), color = Muted, fontSize = 17.sp, lineHeight = 25.sp)
             Spacer(modifier = Modifier.height(28.dp))
 
-            if (isRegistration) {
+            if (showNameField) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it.take(80) },
@@ -490,18 +519,13 @@ fun OtpAuthScreen(
                     Button(
                         onClick = {
                             lastSubmittedOtpKey = ""
-                            viewModel.verifyOtp(
-                                mobileNumber = "+91$normalizedMobile",
-                                otp = otp,
-                                purpose = purpose,
-                                name = registrationName
-                            )
+                            submitOtp()
                         },
                         enabled =
                             otp.length == 6 &&
                                 otpState !is OtpUiState.Verifying &&
                                 (
-                                    !isRegistration ||
+                                    !showNameField ||
                                         name.trim().isNotEmpty()
                                     ),
                         modifier = Modifier

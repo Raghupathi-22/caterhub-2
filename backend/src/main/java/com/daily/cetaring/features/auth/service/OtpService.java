@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.Optional;
 
 @Service
@@ -22,6 +23,17 @@ import java.util.Optional;
 @Slf4j
 @Transactional
 public class OtpService {
+
+    /** Stored in otp_verifications.purpose; deliberately not an OtpPurpose so clients cannot request it. */
+    public static final String REGISTRATION_TICKET_PURPOSE = "CUSTOMER_REGISTRATION_TICKET";
+    public static final String NON_CUSTOMER_ACCOUNT_MESSAGE =
+            "This mobile number is linked to a CaterHub partner account. Please use a different mobile number for customer bookings and orders.";
+    public static final String REGISTRATION_EXPIRED_MESSAGE =
+            "Your verification has expired. Please verify your mobile number again.";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    @Value("${otp.registration-ticket.seconds:600}")
+    private long registrationTicketSeconds = 600;
 
     private final OtpRepository otpRepository;
     private final OtpSender otpSender;
@@ -146,15 +158,29 @@ public class OtpService {
     }
 
     private void validateLoginTarget(String normalizedMobile, OtpPurpose purpose, String userType) {
+        if (purpose == OtpPurpose.CUSTOMER_ACCESS) {
+            // Unknown numbers are allowed: they register after verification. Only block numbers that
+            // belong to a non-customer account so partner/admin accounts are never converted.
+            findByMobileNumber(normalizedMobile)
+                    .filter(user -> !hasRole(user, "ROLE_CUSTOMER"))
+                    .ifPresent(user -> {
+                        throw new IllegalArgumentException(NON_CUSTOMER_ACCOUNT_MESSAGE);
+                    });
+            return;
+        }
         if (purpose != OtpPurpose.LOGIN) {
             return;
         }
         User user = findByMobileNumber(normalizedMobile)
                 .orElseThrow(() -> new IllegalArgumentException(notRegisteredMessage(userType)));
         String requiredRole = requiredRoleForUserType(userType);
-        if (requiredRole != null && user.getRoles().stream().noneMatch(role -> requiredRole.equals(role.getName()))) {
+        if (requiredRole != null && !hasRole(user, requiredRole)) {
             throw new IllegalArgumentException(notRegisteredMessage(userType));
         }
+    }
+
+    static boolean hasRole(User user, String roleName) {
+        return user.getRoles() != null && user.getRoles().stream().anyMatch(role -> roleName.equals(role.getName()));
     }
 
     private String requiredRoleForUserType(String userType) {
@@ -185,6 +211,11 @@ public class OtpService {
         return Optional.empty();
     }
 
+    /*
+     * noRollbackFor: a wrong OTP must still persist the incremented attempt counter (and an expired OTP
+     * its used flag); otherwise the transaction rollback silently disables the max-attempts limit.
+     */
+    @Transactional(noRollbackFor = IllegalArgumentException.class)
     public boolean verifyOtp(String mobileNumber, String otp, OtpPurpose purpose) {
         String normalizedMobile = MobileNumberNormalizer.normalize(mobileNumber);
         String purposeValue = purpose.name();
@@ -214,5 +245,61 @@ public class OtpService {
         otpEntity.setVerifiedAt(now);
         otpRepository.save(otpEntity);
         return true;
+    }
+
+    public enum RegistrationTicketState { REDEEMED, ALREADY_REDEEMED }
+
+    /**
+     * Issues a single-use, short-lived registration ticket after a CUSTOMER_ACCESS OTP was verified for a
+     * number with no account. Only a hash is stored (in the existing OTP table), so the client cannot
+     * forge a "verified" number.
+     */
+    public String issueRegistrationTicket(String normalizedMobile) {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        String ticket = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        LocalDateTime now = LocalDateTime.now();
+        otpRepository.save(OtpEntity.builder()
+                .mobileNumber(normalizedMobile)
+                .otpHash(passwordEncoder.encode(ticket))
+                .purpose(REGISTRATION_TICKET_PURPOSE)
+                .attempts(0)
+                .maxAttempts(5)
+                .isUsed(false)
+                .verifiedAt(now)
+                .expiresAt(now.plusSeconds(registrationTicketSeconds))
+                .build());
+        return ticket;
+    }
+
+    public long getRegistrationTicketSeconds() {
+        return registrationTicketSeconds;
+    }
+
+    /**
+     * Validates the newest registration ticket for the number and marks it used. A ticket that was already
+     * redeemed (e.g. a retried submission) is reported as ALREADY_REDEEMED while it is unexpired.
+     */
+    @Transactional(noRollbackFor = IllegalArgumentException.class)
+    public RegistrationTicketState redeemRegistrationTicket(String normalizedMobile, String ticket) {
+        LocalDateTime now = LocalDateTime.now();
+        OtpEntity entity = otpRepository
+                .findTopByMobileNumberAndPurposeOrderByCreatedAtDesc(normalizedMobile, REGISTRATION_TICKET_PURPOSE)
+                .orElseThrow(() -> new IllegalArgumentException(REGISTRATION_EXPIRED_MESSAGE));
+        if (entity.getExpiresAt().isBefore(now) || entity.getAttempts() >= entity.getMaxAttempts()) {
+            throw new IllegalArgumentException(REGISTRATION_EXPIRED_MESSAGE);
+        }
+        entity.setLastAttemptAt(now);
+        if (ticket == null || !passwordEncoder.matches(ticket, entity.getOtpHash())) {
+            entity.setAttempts(entity.getAttempts() + 1);
+            otpRepository.save(entity);
+            throw new IllegalArgumentException(REGISTRATION_EXPIRED_MESSAGE);
+        }
+        if (entity.isUsed()) {
+            return RegistrationTicketState.ALREADY_REDEEMED;
+        }
+        entity.setUsed(true);
+        otpRepository.save(entity);
+        return RegistrationTicketState.REDEEMED;
     }
 }

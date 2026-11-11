@@ -47,6 +47,9 @@ public class OtpController {
     @Operation(summary = "Verify OTP", description = "Verify OTP and authenticate or register user")
     public ResponseEntity<AuthResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
         log.info("Verify OTP request for mobile: {} purpose: {}", com.daily.cetaring.shared.util.LogMasking.maskPhone(request.getMobileNumber()), request.getPurpose());
+        if (request.getPurpose() == com.daily.cetaring.features.auth.dto.OtpPurpose.CUSTOMER_ACCESS) {
+            throw new IllegalArgumentException("Unsupported verification request. Please update the app and try again.");
+        }
         boolean isValid = otpService.verifyOtp(request.getMobileNumber(), request.getOtp(), request.getPurpose());
         if (!isValid) {
             throw new IllegalArgumentException("Invalid OTP");

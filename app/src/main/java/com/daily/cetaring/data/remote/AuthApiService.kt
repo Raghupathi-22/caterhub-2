@@ -1,6 +1,9 @@
 package com.daily.cetaring.data.remote
 
 import com.daily.cetaring.data.remote.dto.AuthResponse
+import com.daily.cetaring.data.remote.dto.CustomerAccessVerifyRequest
+import com.daily.cetaring.data.remote.dto.CustomerAccessVerifyResponse
+import com.daily.cetaring.data.remote.dto.CustomerRegisterRequest
 import com.daily.cetaring.data.remote.dto.SendOtpRequest
 import com.daily.cetaring.data.remote.dto.SendOtpResponse
 import com.daily.cetaring.data.remote.dto.VerifyOtpRequest
@@ -16,6 +19,12 @@ interface AuthApiService {
 
     @POST("auth/otp/verify")
     suspend fun verifyOtp(@Body request: VerifyOtpRequest): AuthResponse
+
+    @POST("auth/otp/customer/verify")
+    suspend fun verifyCustomerAccess(@Body request: CustomerAccessVerifyRequest): CustomerAccessVerifyResponse
+
+    @POST("auth/otp/customer/register")
+    suspend fun registerCustomer(@Body request: CustomerRegisterRequest): AuthResponse
 
     @POST("auth/refresh")
     suspend fun refreshToken(@Body request: RefreshTokenRequest): AuthResponse

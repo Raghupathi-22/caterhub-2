@@ -3,6 +3,9 @@ package com.daily.cetaring.data.repository
 import com.daily.cetaring.data.local.AuthLocalDataSource
 import com.daily.cetaring.data.remote.AuthApiService
 import com.daily.cetaring.data.remote.dto.AuthResponse
+import com.daily.cetaring.data.remote.dto.CustomerAccessVerifyRequest
+import com.daily.cetaring.data.remote.dto.CustomerAccessVerifyResponse
+import com.daily.cetaring.data.remote.dto.CustomerRegisterRequest
 import com.daily.cetaring.data.remote.dto.SendOtpRequest
 import com.daily.cetaring.data.remote.dto.SendOtpResponse
 import com.daily.cetaring.data.remote.dto.VerifyOtpRequest
@@ -66,6 +69,35 @@ class AuthRepository(
         // OTP verification is also public. Authentication starts only after the
         // OTP has been verified successfully.
         val response = executeNetworkCall { apiService.verifyOtp(request) }
+        saveAuthResponse(response)
+        return response
+    }
+
+    /**
+     * Unified customer OTP verification. Tokens are stored only when the backend
+     * signs in an existing customer; new numbers receive a single-use
+     * registration ticket and no session until [registerCustomer] succeeds.
+     */
+    suspend fun verifyCustomerAccess(request: CustomerAccessVerifyRequest): CustomerAccessVerifyResponse {
+        val response = executeNetworkCall { apiService.verifyCustomerAccess(request) }
+        when (response.status) {
+            CustomerAccessVerifyResponse.STATUS_AUTHENTICATED -> {
+                val auth = response.auth
+                    ?: throw IllegalStateException("Received an invalid response from the server. Please try again.")
+                saveAuthResponse(auth)
+            }
+            CustomerAccessVerifyResponse.STATUS_REGISTRATION_REQUIRED -> {
+                if (response.registrationToken.isNullOrBlank()) {
+                    throw IllegalStateException("Received an invalid response from the server. Please try again.")
+                }
+            }
+            else -> throw IllegalStateException("Received an invalid response from the server. Please try again.")
+        }
+        return response
+    }
+
+    suspend fun registerCustomer(request: CustomerRegisterRequest): AuthResponse {
+        val response = executeNetworkCall { apiService.registerCustomer(request) }
         saveAuthResponse(response)
         return response
     }

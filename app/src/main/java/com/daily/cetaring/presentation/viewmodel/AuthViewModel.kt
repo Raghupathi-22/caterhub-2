@@ -3,6 +3,9 @@ package com.daily.cetaring.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.daily.cetaring.data.remote.dto.AuthResponse
+import com.daily.cetaring.data.remote.dto.CustomerAccessVerifyRequest
+import com.daily.cetaring.data.remote.dto.CustomerAccessVerifyResponse
+import com.daily.cetaring.data.remote.dto.CustomerRegisterRequest
 import com.daily.cetaring.data.remote.dto.SendOtpRequest
 import com.daily.cetaring.data.remote.dto.SendOtpResponse
 import com.daily.cetaring.data.remote.dto.VerifyOtpRequest
@@ -38,6 +41,17 @@ sealed class OtpUiState {
         val response: AuthResponse
     ) : OtpUiState()
 
+    /**
+     * Unified customer flow: the OTP was verified server-side for a number with no
+     * account yet. The customer must enter a name before an account is created.
+     */
+    data class RegistrationRequired(
+        val verifiedMobileNumber: String,
+        val registrationToken: String,
+        val isSubmitting: Boolean = false,
+        val errorMessage: String? = null
+    ) : OtpUiState()
+
     data class Error(
         val message: String,
         val retryAfterSeconds: Int? = null
@@ -50,7 +64,21 @@ class AuthViewModel(
 
     companion object {
         const val DEFAULT_RESEND_COOLDOWN_SECONDS = 60
+        const val CUSTOMER_ACCESS_PURPOSE = "CUSTOMER_ACCESS"
         private const val MAX_RESEND_COOLDOWN_SECONDS = 3600L
+        private val FULL_NAME_PATTERN = Regex("^[\\p{L}\\p{M}][\\p{L}\\p{M} .'-]{1,79}$")
+
+        /** Mirrors the backend name rules so most mistakes are caught before a request. */
+        fun validateFullName(fullName: String): String? {
+            val clean = fullName.trim().replace(Regex("\\s+"), " ")
+            return when {
+                clean.isEmpty() -> "Please enter your full name."
+                clean.length < 2 -> "Full name must have at least 2 characters."
+                clean.length > 80 -> "Full name must be 80 characters or fewer."
+                !FULL_NAME_PATTERN.matches(clean) -> "Please use letters, spaces, dots, apostrophes or hyphens only."
+                else -> null
+            }
+        }
 
         /** Countdown mirrors the backend resend cooldown, not the OTP expiry. */
         fun resendCooldownFrom(response: SendOtpResponse): Int =
@@ -106,7 +134,8 @@ class AuthViewModel(
                 val validPurposes = setOf(
                     "LOGIN",
                     "REGISTER_CUSTOMER",
-                    "REGISTER_WORKER"
+                    "REGISTER_WORKER",
+                    CUSTOMER_ACCESS_PURPOSE
                 )
 
                 if (cleanPurpose !in validPurposes) {
@@ -259,6 +288,74 @@ class AuthViewModel(
                     OtpUiState.Error(
                         getReadableError(e)
                     )
+            }
+        }
+    }
+
+    /**
+     * Unified customer verification. Existing customers are signed in; a new
+     * number moves to [OtpUiState.RegistrationRequired] without creating an account.
+     */
+    fun verifyCustomerAccessOtp(mobileNumber: String, otp: String) {
+        if (_otpUiState.value is OtpUiState.Verifying) return
+        viewModelScope.launch {
+            _otpUiState.value = OtpUiState.Verifying
+            try {
+                val cleanMobile = normalizeMobileNumber(mobileNumber)
+                if (cleanMobile.length != 10) {
+                    throw IllegalArgumentException("Please enter a valid 10-digit mobile number.")
+                }
+                val cleanOtp = otp.filter { it.isDigit() }
+                if (cleanOtp.length != 6) {
+                    throw IllegalArgumentException("Please enter the 6-digit OTP.")
+                }
+
+                val response = authRepository.verifyCustomerAccess(
+                    CustomerAccessVerifyRequest(cleanMobile, cleanOtp)
+                )
+                _otpUiState.value = when (response.status) {
+                    CustomerAccessVerifyResponse.STATUS_AUTHENTICATED ->
+                        OtpUiState.Success(requireNotNull(response.auth))
+                    else -> OtpUiState.RegistrationRequired(
+                        verifiedMobileNumber = response.mobileNumber
+                            ?.takeIf(String::isNotBlank)
+                            ?: "+91$cleanMobile",
+                        registrationToken = requireNotNull(response.registrationToken)
+                    )
+                }
+            } catch (e: Exception) {
+                _otpUiState.value = OtpUiState.Error(getReadableError(e))
+            }
+        }
+    }
+
+    /**
+     * Creates the customer account for the number verified in
+     * [verifyCustomerAccessOtp]. Repeated taps are ignored while a request is
+     * in flight; a retried request is idempotent on the backend.
+     */
+    fun completeCustomerRegistration(fullName: String) {
+        val pending = _otpUiState.value as? OtpUiState.RegistrationRequired ?: return
+        if (pending.isSubmitting) return
+        val nameError = validateFullName(fullName)
+        if (nameError != null) {
+            _otpUiState.value = pending.copy(errorMessage = nameError)
+            return
+        }
+        val cleanName = fullName.trim().replace(Regex("\\s+"), " ")
+        _otpUiState.value = pending.copy(isSubmitting = true, errorMessage = null)
+        viewModelScope.launch {
+            try {
+                val response = authRepository.registerCustomer(
+                    CustomerRegisterRequest(
+                        mobileNumber = pending.verifiedMobileNumber,
+                        registrationToken = pending.registrationToken,
+                        fullName = cleanName
+                    )
+                )
+                _otpUiState.value = OtpUiState.Success(response)
+            } catch (e: Exception) {
+                _otpUiState.value = pending.copy(isSubmitting = false, errorMessage = getReadableError(e))
             }
         }
     }

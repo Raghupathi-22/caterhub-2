@@ -19,6 +19,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.daily.cetaring.auth.AuthDestination
 import com.daily.cetaring.auth.AuthRoleRouter
+import com.daily.cetaring.auth.CustomerAuthCoordinator
+import com.daily.cetaring.auth.CustomerAuthOutcome
+import com.daily.cetaring.auth.PendingCustomerAction
+import androidx.activity.compose.BackHandler
 import com.daily.cetaring.data.local.AuthLocalDataSource
 import com.daily.cetaring.data.remote.ApiClient
 import com.daily.cetaring.data.repository.AuthRepository
@@ -66,12 +70,8 @@ import com.daily.cetaring.domain.catalog.ServiceCatalog
 
 private object AppRoute {
     const val AUTH_LANDING = "auth_landing"
-    const val CUSTOMER_REGISTER = "customer_register"
-    const val CUSTOMER_LOGIN = "customer_login"
     const val HOME = "home"
     const val BOOKING_FLOW = "booking_flow"
-    const val BOOKING_AUTH = "booking_auth"
-    const val SERVICE_AUTH = "service_auth"
     const val MENU = "menu"
     const val MENU_PATTERN = "menu?category={category}"
     const val SERVICE_CATEGORY = "service_category/{categoryId}"
@@ -93,7 +93,6 @@ private object AppRoute {
     const val WORKER_ACCOUNT_REGISTER = "worker_account_register"
     const val WORKER_LOGIN = "worker_login"
     const val RICE_ORDER = "rice_order?tab={tab}"
-    const val RICE_AUTH = "rice_auth"
 }
 
 private fun riceOrderRoute(tab: Int) = "rice_order?tab=$tab"
@@ -190,10 +189,7 @@ class MainActivity : ComponentActivity() {
 
                 // Guests and workers must sign in as a customer before a customer booking is submitted.
                 val canSubmitCustomerBooking = session?.let { (token, roles) ->
-                    !token.isNullOrBlank() && AuthRoleRouter.destinationForRoles(
-                        roles = AuthRoleRouter.parseStoredRoles(roles),
-                        fallback = AuthDestination.CUSTOMER_HOME
-                    ) != AuthDestination.WORKER_DASHBOARD
+                    CustomerAuthCoordinator.canSubmitCustomerAction(token, roles)
                 } ?: false
 
                 // A guest who signed in mid-booking has no HOME entry on the back stack yet.
@@ -276,11 +272,11 @@ class MainActivity : ComponentActivity() {
                             },
                             onCreateAccountClick = {
                                 authViewModel.resetOtpState()
-                                navController.navigate(AppRoute.CUSTOMER_REGISTER)
+                                navController.navigate(CustomerAuthCoordinator.route(PendingCustomerAction.ACCOUNT_ENTRY))
                             },
                             onCustomerLoginClick = {
                                 authViewModel.resetOtpState()
-                                navController.navigate(AppRoute.CUSTOMER_LOGIN)
+                                navController.navigate(CustomerAuthCoordinator.route(PendingCustomerAction.ACCOUNT_ENTRY))
                             },
                             onWorkerRegisterClick = {
                                 authViewModel.resetOtpState()
@@ -294,30 +290,78 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    composable(AppRoute.CUSTOMER_REGISTER) {
-                        OtpAuthScreen(
-                            viewModel = authViewModel,
-                            isRegistration = true,
-                            userType = "CUSTOMER",
-                            onBackClick = { navController.popBackStack() },
-                            onAuthSuccess = { routeAfterAuth(it, AuthDestination.CUSTOMER_HOME) },
-                            onSwitchMode = {
-                                authViewModel.resetOtpState()
-                                navController.navigate(AppRoute.CUSTOMER_LOGIN) {
-                                    popUpTo(AppRoute.AUTH_LANDING)
-                                }
-                            }
+                    composable(
+                        route = CustomerAuthCoordinator.ROUTE,
+                        arguments = listOf(navArgument(CustomerAuthCoordinator.ACTION_ARG) {
+                            type = NavType.StringType
+                            defaultValue = PendingCustomerAction.ACCOUNT_ENTRY.routeValue
+                        })
+                    ) { authEntry ->
+                        // One sign-in / sign-up screen for every customer action; the pending
+                        // action decides where to return after authentication.
+                        val action = PendingCustomerAction.fromRouteValue(
+                            authEntry.arguments?.getString(CustomerAuthCoordinator.ACTION_ARG)
                         )
-                    }
-
-                    composable(AppRoute.CUSTOMER_LOGIN) {
+                        fun cancelPendingAction() {
+                            when (action) {
+                                PendingCustomerAction.CATERING_BOOKING -> bookingViewModel.clearPendingSubmissionAfterAuth()
+                                PendingCustomerAction.RICE_ORDER -> riceViewModel.clearPendingAfterAuth()
+                                PendingCustomerAction.SERVICE_REQUEST,
+                                PendingCustomerAction.ACCOUNT_ENTRY -> Unit
+                            }
+                        }
+                        fun leaveAuth() {
+                            if (authEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                cancelPendingAction()
+                                authViewModel.resetOtpState()
+                                navController.popBackStack()
+                            }
+                        }
+                        BackHandler(onBack = ::leaveAuth)
                         OtpAuthScreen(
                             viewModel = authViewModel,
                             isRegistration = false,
                             userType = "CUSTOMER",
-                            onBackClick = { navController.popBackStack() },
-                            onAuthSuccess = { routeAfterAuth(it, AuthDestination.CUSTOMER_HOME) },
-                            onSwitchMode = { navController.navigate(AppRoute.CUSTOMER_REGISTER) }
+                            customerAccess = true,
+                            showModeSwitch = false,
+                            titleOverride = action.title,
+                            subtitleOverride = action.subtitle,
+                            onSwitchMode = { },
+                            onBackClick = ::leaveAuth,
+                            onAuthSuccess = { response ->
+                                val roles = runCatching { response.user.roles }.getOrNull()
+                                authViewModel.resetOtpState()
+                                when (val outcome = CustomerAuthCoordinator.resolve(action, roles)) {
+                                    is CustomerAuthOutcome.EnterApp ->
+                                        navigateAfterAuth(routeForDestination(outcome.destination))
+
+                                    is CustomerAuthOutcome.RejectPendingAction -> {
+                                        cancelPendingAction()
+                                        navController.popBackStack()
+                                        when (action) {
+                                            PendingCustomerAction.CATERING_BOOKING -> bookingViewModel.showError(outcome.message)
+                                            PendingCustomerAction.RICE_ORDER -> riceViewModel.showError(outcome.message)
+                                            else -> Toast.makeText(this@MainActivity, outcome.message, Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+
+                                    is CustomerAuthOutcome.ResumePendingAction -> {
+                                        outcome.message?.let {
+                                            Toast.makeText(this@MainActivity, it, Toast.LENGTH_SHORT).show()
+                                        }
+                                        if (action == PendingCustomerAction.SERVICE_REQUEST) {
+                                            navController.previousBackStackEntry?.savedStateHandle?.set(RESUME_SERVICE_SUBMISSION_KEY, true)
+                                        }
+                                        navController.popBackStack()
+                                        when (action) {
+                                            PendingCustomerAction.CATERING_BOOKING -> bookingViewModel.resumePendingSubmissionAfterAuth()
+                                            PendingCustomerAction.RICE_ORDER -> riceViewModel.resumePendingAfterAuth()
+                                            PendingCustomerAction.SERVICE_REQUEST,
+                                            PendingCustomerAction.ACCOUNT_ENTRY -> Unit
+                                        }
+                                    }
+                                }
+                            }
                         )
                     }
 
@@ -440,46 +484,8 @@ class MainActivity : ComponentActivity() {
                             },
                             onAuthRequired = {
                                 authViewModel.resetOtpState()
-                                navController.navigate(AppRoute.BOOKING_AUTH)
+                                navController.navigate(CustomerAuthCoordinator.route(PendingCustomerAction.CATERING_BOOKING))
                             }
-                        )
-                    }
-
-                    composable(AppRoute.BOOKING_AUTH) {
-                        OtpAuthScreen(
-                            viewModel = authViewModel,
-                            isRegistration = false,
-                            userType = "CUSTOMER",
-                            onBackClick = {
-                                bookingViewModel.clearPendingSubmissionAfterAuth()
-                                authViewModel.resetOtpState()
-                                navController.popBackStack()
-                            },
-                            onAuthSuccess = { response ->
-                                val destination = AuthRoleRouter.destinationForRoles(
-                                    roles = runCatching { response.user.roles }.getOrNull(),
-                                    fallback = AuthDestination.CUSTOMER_HOME
-                                )
-                                if (destination != AuthDestination.CUSTOMER_HOME) {
-                                    bookingViewModel.clearPendingSubmissionAfterAuth()
-                                    bookingViewModel.showError("Please sign in with a customer account to submit this booking.")
-                                    authViewModel.resetOtpState()
-                                    navController.popBackStack()
-                                } else {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Verified successfully. Confirming your booking...",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    authViewModel.resetOtpState()
-                                    navController.popBackStack()
-                                    bookingViewModel.resumePendingSubmissionAfterAuth()
-                                }
-                            },
-                            onSwitchMode = { },
-                            titleOverride = "Login to confirm your booking",
-                            subtitleOverride = "Enter your mobile number to securely confirm your booking.",
-                            showModeSwitch = false
                         )
                     }
 
@@ -537,7 +543,7 @@ class MainActivity : ComponentActivity() {
                             onAuthRequired = {
                                 whenResumed {
                                     authViewModel.resetOtpState()
-                                    navController.navigate(AppRoute.SERVICE_AUTH)
+                                    navController.navigate(CustomerAuthCoordinator.route(PendingCustomerAction.SERVICE_REQUEST))
                                 }
                             },
                             resumeSubmissionAfterAuth = resumeSubmission,
@@ -545,44 +551,6 @@ class MainActivity : ComponentActivity() {
                             onSubmitted = { },
                             onViewMyBookings = { whenResumed { navController.navigate(AppRoute.BOOKINGS) } },
                             onBackToHome = { whenResumed { navigateHome() } }
-                        )
-                    }
-
-                    composable(AppRoute.SERVICE_AUTH) {
-                        OtpAuthScreen(
-                            viewModel = authViewModel,
-                            isRegistration = false,
-                            userType = "CUSTOMER",
-                            onBackClick = {
-                                authViewModel.resetOtpState()
-                                navController.popBackStack()
-                            },
-                            onAuthSuccess = { response ->
-                                val destination = AuthRoleRouter.destinationForRoles(
-                                    roles = runCatching { response.user.roles }.getOrNull(),
-                                    fallback = AuthDestination.CUSTOMER_HOME
-                                )
-                                authViewModel.resetOtpState()
-                                if (destination == AuthDestination.WORKER_DASHBOARD) {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Please sign in with a customer account to submit this request.",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                } else {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Verified successfully. Submitting your request...",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    navController.previousBackStackEntry?.savedStateHandle?.set(RESUME_SERVICE_SUBMISSION_KEY, true)
-                                }
-                                navController.popBackStack()
-                            },
-                            onSwitchMode = { },
-                            titleOverride = "Login to submit your request",
-                            subtitleOverride = "Enter your mobile number to securely submit your service request.",
-                            showModeSwitch = false
                         )
                     }
 
@@ -601,44 +569,8 @@ class MainActivity : ComponentActivity() {
                             },
                             onAuthRequired = {
                                 authViewModel.resetOtpState()
-                                navController.navigate(AppRoute.RICE_AUTH)
+                                navController.navigate(CustomerAuthCoordinator.route(PendingCustomerAction.RICE_ORDER))
                             }
-                        )
-                    }
-
-                    composable(AppRoute.RICE_AUTH) {
-                        OtpAuthScreen(
-                            viewModel = authViewModel,
-                            isRegistration = false,
-                            userType = "CUSTOMER",
-                            onBackClick = {
-                                riceViewModel.clearPendingAfterAuth()
-                                authViewModel.resetOtpState()
-                                navController.popBackStack()
-                            },
-                            onAuthSuccess = { response ->
-                                val destination = AuthRoleRouter.destinationForRoles(
-                                    roles = runCatching { response.user.roles }.getOrNull(),
-                                    fallback = AuthDestination.CUSTOMER_HOME
-                                )
-                                authViewModel.resetOtpState()
-                                navController.popBackStack()
-                                if (destination == AuthDestination.WORKER_DASHBOARD) {
-                                    riceViewModel.clearPendingAfterAuth()
-                                    riceViewModel.showError("Please sign in with a customer account to order rice.")
-                                } else {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Verified successfully. Submitting your request...",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    riceViewModel.resumePendingAfterAuth()
-                                }
-                            },
-                            onSwitchMode = { },
-                            titleOverride = "Login to confirm your rice order",
-                            subtitleOverride = "Enter your mobile number to securely submit your rice order or sample request.",
-                            showModeSwitch = false
                         )
                     }
 
