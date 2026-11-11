@@ -47,7 +47,7 @@ public class AuthService {
                     new IllegalArgumentException("No account exists for this mobile number. Please register first."));
             user.setLastLoginAt(LocalDateTime.now());
             user = userRepository.save(user);
-            log.info("Existing user authenticated via OTP: {} (ID: {})", user.getPhoneNumber(), user.getId());
+            log.info("Existing user authenticated via OTP: {} (ID: {})", com.daily.cetaring.shared.util.LogMasking.maskPhone(user.getPhoneNumber()), user.getId());
         } else {
             if (existingUserOpt.isPresent()) {
                 throw new IllegalArgumentException("An account already exists for this mobile number. Please login.");
@@ -85,7 +85,7 @@ public class AuthService {
             ensureRolePresent(user, roleName);
 
             user = userRepository.save(user);
-            log.info("New user registered via OTP: {} (Role: {})", user.getPhoneNumber(), roleName);
+            log.info("New user registered via OTP: {} (Role: {})", com.daily.cetaring.shared.util.LogMasking.maskPhone(user.getPhoneNumber()), roleName);
         }
 
         return generateAuthResponse(user);

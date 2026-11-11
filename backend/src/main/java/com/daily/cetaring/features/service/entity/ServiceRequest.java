@@ -26,6 +26,9 @@ public class ServiceRequest {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
+    @Column(name = "client_request_id", length = 64)
+    private String clientRequestId;
+
     @Column(name = "service_type", nullable = false, length = 30)
     private String serviceType;
     @Column(name = "event_type", nullable = false, length = 100)

@@ -32,7 +32,7 @@ public class OtpController {
     @PostMapping("/send")
     @Operation(summary = "Send OTP", description = "Send 6-digit OTP to mobile number")
     public ResponseEntity<OtpSendResponse> sendOtp(@Valid @RequestBody SendOtpRequest request, HttpServletRequest servletRequest) {
-        log.info("Send OTP request for mobile: {} purpose: {}", request.getMobileNumber(), request.getPurpose());
+        log.info("Send OTP request for mobile: {} purpose: {}", com.daily.cetaring.shared.util.LogMasking.maskPhone(request.getMobileNumber()), request.getPurpose());
         OtpSendResponse response = otpService.generateAndSendOtp(
                 request.getMobileNumber(),
                 request.getPurpose(),
@@ -46,7 +46,7 @@ public class OtpController {
     @PostMapping("/verify")
     @Operation(summary = "Verify OTP", description = "Verify OTP and authenticate or register user")
     public ResponseEntity<AuthResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
-        log.info("Verify OTP request for mobile: {} purpose: {}", request.getMobileNumber(), request.getPurpose());
+        log.info("Verify OTP request for mobile: {} purpose: {}", com.daily.cetaring.shared.util.LogMasking.maskPhone(request.getMobileNumber()), request.getPurpose());
         boolean isValid = otpService.verifyOtp(request.getMobileNumber(), request.getOtp(), request.getPurpose());
         if (!isValid) {
             throw new IllegalArgumentException("Invalid OTP");

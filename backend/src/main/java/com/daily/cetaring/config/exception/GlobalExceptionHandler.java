@@ -3,9 +3,12 @@ package com.daily.cetaring.config.exception;
 import com.daily.cetaring.features.auth.service.OtpRateLimitException;
 import com.daily.cetaring.shared.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,8 +18,9 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @RestControllerAdvice
 @Slf4j
@@ -90,47 +94,111 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(ex.getStatusCode()).body(response);
     }
 
- /*   @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Map<String, Object>>> handleValidationException(
-            MethodArgumentNotValidException ex, WebRequest request) {
-        log.warn("Validation error: {}", ex.getMessage());
-        Map<String, Object> errors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error ->
-                errors.put(error.getField(), error.getDefaultMessage())
-        );
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex, WebRequest request) {
+        String errorId = newErrorId();
+        log.warn("Data integrity violation errorId={} path={} cause={}", errorId, path(request), safeCause(ex));
+        String message = "This request conflicts with existing data. Please refresh and try again.";
+        ApiResponse<Map<String, String>> response = ApiResponse.<Map<String, String>>builder()
+                .code(HttpStatus.CONFLICT.value())
+                .message(message)
+                .data(Map.of("error", message, "errorId", errorId))
+                .path(path(request))
+                .build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
 
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        Map<String, Object> errors = new LinkedHashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(error ->
+                errors.putIfAbsent(error.getField(), error.getDefaultMessage()));
+        ex.getBindingResult().getGlobalErrors().forEach(error ->
+                errors.putIfAbsent(error.getObjectName(), error.getDefaultMessage()));
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .findFirst()
+                .map(error -> {
+                    String text = error.getDefaultMessage() == null ? "is invalid" : error.getDefaultMessage();
+                    return !text.isEmpty() && Character.isUpperCase(text.charAt(0))
+                            ? text
+                            : readableField(error.getField()) + ": " + text;
+                })
+                .orElse("Some details are missing or invalid. Please review and try again.");
+        log.warn("Validation failed path={} fields={}", path(request), errors.keySet());
         ApiResponse<Map<String, Object>> response = ApiResponse.<Map<String, Object>>builder()
                 .code(HttpStatus.BAD_REQUEST.value())
-                .message("Validation failed")
+                .message(message)
                 .data(errors)
-                .path(request.getDescription(false).replace("uri=", ""))
+                .path(path(request))
                 .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-    }*/
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        log.warn("Unreadable request path={} cause={}", path(request), ex.getMostSpecificCause().getClass().getSimpleName());
+        String message = "Some details are in an unexpected format. Please update the app and try again.";
+        ApiResponse<Map<String, String>> response = ApiResponse.<Map<String, String>>builder()
+                .code(HttpStatus.BAD_REQUEST.value())
+                .message(message)
+                .data(Map.of("error", message))
+                .path(path(request))
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleRuntimeException(
             RuntimeException ex, WebRequest request) {
-        log.error("Unexpected error: {}", ex.getMessage(), ex);
-        ApiResponse<Map<String, String>> response = ApiResponse.<Map<String, String>>builder()
-                .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message("An unexpected error occurred")
-                .data(Map.of("error", ex.getMessage()))
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        return serverError(ex, request);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleGenericException(
             Exception ex, WebRequest request) {
-        log.error("Unhandled exception: {}", ex.getMessage(), ex);
+        return serverError(ex, request);
+    }
+
+    /** Never echoes exception text (may contain SQL or PII); the errorId correlates the client report with logs. */
+    private ResponseEntity<ApiResponse<Map<String, String>>> serverError(Exception ex, WebRequest request) {
+        String errorId = newErrorId();
+        log.error("Unexpected error errorId={} path={} cause={}", errorId, path(request), safeCause(ex), ex);
+        String message = "Something went wrong on our server. Please try again. (Ref: " + errorId + ")";
         ApiResponse<Map<String, String>> response = ApiResponse.<Map<String, String>>builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message("Server error")
-                .data(Map.of("error", "An error occurred"))
-                .path(request.getDescription(false).replace("uri=", ""))
+                .message(message)
+                .data(Map.of("error", "An unexpected error occurred", "errorId", errorId))
+                .path(path(request))
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    private static String newErrorId() {
+        return UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    private static String path(WebRequest request) {
+        return request.getDescription(false).replace("uri=", "");
+    }
+
+    static String safeCause(Throwable ex) {
+        Throwable root = ex;
+        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+        String message = root.getMessage() == null ? "" : root.getMessage();
+        // Mask long digit runs (mobile numbers, OTPs) before logging.
+        message = message.replaceAll("\\d{6,}", "******");
+        if (message.length() > 300) message = message.substring(0, 300) + "...";
+        return root.getClass().getName() + ": " + message;
+    }
+
+    private static String readableField(String field) {
+        String leaf = field.replaceAll("\\[\\d+]", "");
+        int dot = leaf.lastIndexOf('.');
+        leaf = dot >= 0 ? leaf.substring(dot + 1) : leaf;
+        String spaced = leaf.replaceAll("([a-z])([A-Z])", "$1 $2").toLowerCase();
+        return spaced.isEmpty() ? "Request" : Character.toUpperCase(spaced.charAt(0)) + spaced.substring(1);
     }
 }

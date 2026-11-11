@@ -39,7 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("JWT validated and authentication set for user: {}", username);
+                log.debug("JWT validated and authentication set for user: {}", com.daily.cetaring.shared.util.LogMasking.maskPhone(username));
             }
         } catch (JwtException ex) {
             log.warn("JWT authentication failed: {}", ex.getMessage());

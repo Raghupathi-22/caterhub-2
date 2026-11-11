@@ -38,7 +38,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.daily.cetaring.data.remote.dto.CreateStaffingRequest
 import com.daily.cetaring.data.remote.dto.CreateCateringStaffBookingRequest
 import com.daily.cetaring.data.remote.dto.CateringStaffLineItem
 import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
@@ -119,8 +118,20 @@ internal data class SubmittedServiceRequestSummary(
     val eventDate: String,
     val startTime: String,
     val endTime: String,
-    val location: String
+    val location: String,
+    val reference: String = "",
+    val totalLabel: String = ""
 )
+
+internal fun bookingReferenceFor(id: Long): String = "CH-SR-%06d".format(id)
+
+// Mirror the backend column/DTO limits so customers never hit a server-side length error.
+internal const val EVENT_ADDRESS_MAX_LENGTH = 255
+internal const val EVENT_AREA_MAX_LENGTH = 100
+internal const val EVENT_NOTES_MAX_LENGTH = 2000
+
+/** Idempotency keys must match the backend pattern [A-Za-z0-9_-]{1,64}. */
+internal fun newBookingIdempotencyKey(): String = java.util.UUID.randomUUID().toString()
 
 // The summary is held in rememberSaveable, so it must be Bundle-compatible. Without this
 // Saver, leaving the success screen (Back to Home, View My Bookings, system Back) disposes the
@@ -138,19 +149,23 @@ internal val SubmittedServiceRequestSummarySaver: Saver<SubmittedServiceRequestS
                     summary.eventDate,
                     summary.startTime,
                     summary.endTime,
-                    summary.location
+                    summary.location,
+                    summary.reference,
+                    summary.totalLabel
                 )
             }
         },
         restore = { values ->
-            if (values.size == 6) {
+            if (values.size == 6 || values.size == 8) {
                 SubmittedServiceRequestSummary(
                     categoryTitle = values[0],
                     eventType = values[1],
                     eventDate = values[2],
                     startTime = values[3],
                     endTime = values[4],
-                    location = values[5]
+                    location = values[5],
+                    reference = values.getOrElse(6) { "" },
+                    totalLabel = values.getOrElse(7) { "" }
                 )
             } else {
                 null
@@ -271,6 +286,7 @@ fun ServiceRequestScreen(
     var notes by rememberSaveable(serviceType) { mutableStateOf("") }
     var submitting by rememberSaveable(serviceType) { mutableStateOf(false) }
     var error by rememberSaveable(serviceType) { mutableStateOf<String?>(null) }
+    var idempotencyKey by rememberSaveable(serviceType) { mutableStateOf<String?>(null) }
     var submittedSummary by rememberSaveable(serviceType, stateSaver = SubmittedServiceRequestSummarySaver) {
         mutableStateOf<SubmittedServiceRequestSummary?>(null)
     }
@@ -290,12 +306,30 @@ fun ServiceRequestScreen(
     val eventDetailsValid = isEventDetailsValid(eventDetails)
 
     fun submitRequest() {
+        if (submitting) return
+        // One key per confirmed review: retries after timeouts/5xx reuse it so the server returns the
+        // original booking instead of creating a duplicate.
+        val key = idempotencyKey ?: newBookingIdempotencyKey().also { idempotencyKey = it }
+        // Set before launching so a rapid double tap cannot start a second request.
+        submitting = true
+        error = null
         scope.launch {
-            submitting = true
-            error = null
             try {
+                val confirmedEventType = eventType ?: run {
+                    error = "Please choose the event type."
+                    step = 1
+                    return@launch
+                }
                 val selectedItems = items.filter { (selected[it.id] ?: 0) > 0 }
-                val staffingItems = selectedItems.filter { it.workerType != null }
+                val staffingLines = selectedItems.mapNotNull { item ->
+                    item.workerType?.let { workerType ->
+                        CateringStaffLineItem(
+                            workerType = workerType,
+                            requiredWorkers = selected[item.id] ?: 0,
+                            payment = BigDecimal(item.price.coerceAtLeast(1))
+                        )
+                    }
+                }
                 val selectedNames = selectedItems.map { it.name }
 
                 val details = selectedItems.joinToString("; ") { item ->
@@ -303,68 +337,64 @@ fun ServiceRequestScreen(
                     if (item.quoteOnly) "${item.name}: selected x$qty (quote)" else "${item.name}: $qty x ₹${item.price}"
                 }
 
-                if (category.id == "catering-staff") {
-                    // Atomic backend flow: create the customer request and all
-                    // matching staffing jobs in one transaction. This guarantees
-                    // workers never see a job for a request that failed to book.
+                // Both flows are atomic on the backend: the customer request and its worker jobs are
+                // created in one transaction, so workers never see a job for a failed booking.
+                val response = if (category.id == "catering-staff") {
                     workerRepository.createCateringStaffBooking(
                         CreateCateringStaffBookingRequest(
-                            eventType = requireNotNull(eventType),
+                            eventType = confirmedEventType,
                             eventDate = eventDate,
                             startTime = startTime,
                             endTime = endTime,
-                            location = location,
-                            area = area,
+                            location = location.trim(),
+                            area = area.trim(),
                             selectedServices = selectedNames,
-                            instructions = notes.ifBlank { null },
+                            instructions = notes.trim().ifBlank { null },
                             details = "Catering staff: $details",
                             totalAmount = BigDecimal(fixedTotal),
-                            staffing = staffingItems.map { item ->
-                                CateringStaffLineItem(
-                                    workerType = item.workerType!!,
-                                    requiredWorkers = selected[item.id] ?: 0,
-                                    payment = BigDecimal(item.price.coerceAtLeast(1))
-                                )
-                            }
-                        )
+                            staffing = staffingLines
+                        ),
+                        idempotencyKey = key
                     )
                 } else {
-                    staffingItems.forEach { item ->
-                        val qty = selected[item.id] ?: 0
-                        workerRepository.createStaffingRequest(
-                            CreateStaffingRequest(
-                                requireNotNull(eventType), item.workerType!!, eventDate, startTime, endTime,
-                                location, area, qty, BigDecimal(item.price.coerceAtLeast(1)), notes.ifBlank { null }
-                            )
-                        )
-                    }
                     workerRepository.createServiceRequest(
                         ServiceRequestRequest(
                             serviceType = category.serviceType,
-                            eventType = requireNotNull(eventType),
+                            eventType = confirmedEventType,
                             eventDate = eventDate,
                             startTime = startTime,
                             endTime = endTime,
-                            location = location,
-                            area = area,
+                            location = location.trim(),
+                            area = area.trim(),
                             selectedServices = selectedNames,
-                            instructions = notes.ifBlank { null },
+                            instructions = notes.trim().ifBlank { null },
                             details = "Services: $details",
                             quoteBased = hasQuoteServices,
-                            totalAmount = BigDecimal(fixedTotal)
-                        )
+                            totalAmount = BigDecimal(fixedTotal),
+                            staffing = staffingLines.ifEmpty { null }
+                        ),
+                        idempotencyKey = key
                     )
                 }
+                val serverTotal = response.totalAmount.stripTrailingZeros().toPlainString()
                 submittedSummary = SubmittedServiceRequestSummary(
                     categoryTitle = category.title.removePrefix("Book "),
-                    eventType = requireNotNull(eventType),
+                    eventType = confirmedEventType,
                     eventDate = eventDate,
                     startTime = startTime,
                     endTime = endTime,
-                    location = "$area, $location"
+                    location = "${area.trim()}, ${location.trim()}",
+                    reference = bookingReferenceFor(response.id),
+                    totalLabel = when {
+                        hasQuoteServices && response.totalAmount.signum() > 0 -> "₹$serverTotal + To be quoted"
+                        hasQuoteServices -> "To be quoted"
+                        else -> "₹$serverTotal"
+                    }
                 )
+                idempotencyKey = null
                 onSubmitted()
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 error = e.message ?: "Unable to submit request. Please try again."
             } finally {
                 submitting = false
@@ -434,7 +464,14 @@ fun ServiceRequestScreen(
                         Text(summary.categoryTitle, color = category.color, fontWeight = FontWeight.Bold)
                         Text("${displayDateForReview(summary.eventDate)}\n${displayTime(summary.startTime)} – ${displayTime(summary.endTime)}", color = TextDark)
                         Text(summary.location, color = Muted)
+                        if (summary.totalLabel.isNotBlank()) {
+                            Text("Total: ${summary.totalLabel}", fontWeight = FontWeight.Bold, color = TextDark)
+                        }
                         DividerLine()
+                        if (summary.reference.isNotBlank()) {
+                            Text("Booking reference", color = Muted, style = MaterialTheme.typography.labelMedium)
+                            Text(summary.reference, fontWeight = FontWeight.ExtraBold, color = category.color)
+                        }
                         Text("Status", color = Muted, style = MaterialTheme.typography.labelMedium)
                         Text("Pending confirmation", fontWeight = FontWeight.Bold, color = TextDark)
                     }
@@ -459,14 +496,14 @@ fun ServiceRequestScreen(
             BookingBottomActionBar {
                 BookingSecondaryButton(
                     text = if (step == 0) "Cancel" else "Back",
-                    onClick = { if (step == 0) onBackClick() else { step--; error = null } },
+                    onClick = { if (step == 0) onBackClick() else { step--; error = null; idempotencyKey = null } },
                     enabled = !submitting,
                     modifier = Modifier.weight(1f)
                 )
                 BookingPrimaryButton(
                     text = if (step == 2) "Submit Request" else "Continue",
                     loading = submitting,
-                    loadingText = "Submitting?",
+                    loadingText = "Submitting…",
                     onClick = {
                         if (step < 2) {
                             error = when {
@@ -577,23 +614,26 @@ fun ServiceRequestScreen(
                                 SectionLabel()
                                 OutlinedTextField(
                                     location,
-                                    { location = it; error = null },
+                                    { location = it.take(EVENT_ADDRESS_MAX_LENGTH); error = null },
                                     label = { Text("Event address") },
+                                    supportingText = { Text("${location.length}/$EVENT_ADDRESS_MAX_LENGTH") },
                                     minLines = 2,
                                     modifier = Modifier.fillMaxWidth(),
                                     textStyle = LocalTextStyle.current.copy(color = TextDark)
                                 )
                                 OutlinedTextField(
                                     area,
-                                    { area = it; error = null },
+                                    { area = it.take(EVENT_AREA_MAX_LENGTH); error = null },
                                     label = { Text("Area / locality") },
+                                    singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
                                     textStyle = LocalTextStyle.current.copy(color = TextDark)
                                 )
                                 OutlinedTextField(
                                     notes,
-                                    { notes = it },
+                                    { notes = it.take(EVENT_NOTES_MAX_LENGTH) },
                                     label = { Text("Additional instructions (optional)") },
+                                    supportingText = { Text("${notes.length}/$EVENT_NOTES_MAX_LENGTH") },
                                     minLines = 3,
                                     modifier = Modifier.fillMaxWidth(),
                                     textStyle = LocalTextStyle.current.copy(color = TextDark)
@@ -648,6 +688,7 @@ private fun eventDetailsValidationMessage(details: EventDetailsState): String? =
     details.startTime.isBlank() -> "Please select a start time."
     details.endTime.isBlank() -> "Please select an end time."
     !isValidTimeRange(details.startTime, details.endTime) -> "End time must be after start time"
+    !EventTimeRules.startsInFuture(details.eventDate, details.startTime) -> "Please choose a start time later than now."
     details.eventAddress.trim().isEmpty() -> "Please enter the event address."
     details.area.trim().isEmpty() -> "Please enter the area/locality."
     else -> null

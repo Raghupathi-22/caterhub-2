@@ -99,4 +99,18 @@ object EventTimeRules {
         val e = parse(end) ?: return false
         return e.isAfter(s)
     }
+
+    /**
+     * Mirrors the backend rule: the event must start after "now" in India (events are local to IST),
+     * so a booking for earlier today is rejected before it reaches the server.
+     */
+    fun startsInFuture(
+        isoDate: String?,
+        start: String?,
+        now: java.time.LocalDateTime = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata"))
+    ): Boolean {
+        val date = EventCalendarRules.parseIsoDate(isoDate) ?: return false
+        val time = parse(start) ?: return false
+        return date.atTime(time).isAfter(now)
+    }
 }

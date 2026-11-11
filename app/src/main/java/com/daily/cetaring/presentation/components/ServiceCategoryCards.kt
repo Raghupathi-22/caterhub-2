@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -175,9 +176,12 @@ fun ServiceCategoryGrid(
                 MomentsCarousel(moments, horizontalBleed, onCategoryClick)
             }
 
-            val compactTiles = listOfNotNull(byId["religious-ceremony"]) +
-                uniqueCategories.filterNot { it.id in EditorialCategoryIds }
-            compactTiles.forEach { category ->
+            byId["religious-ceremony"]?.let { category ->
+                EditorialHeading(eyebrow = "Sacred traditions", title = "Ceremonies & rituals")
+                CeremonyFeaturePanel(category, compact) { onCategoryClick(category.id) }
+            }
+
+            uniqueCategories.filterNot { it.id in EditorialCategoryIds }.forEach { category ->
                 CompactEditorialTile(category) { onCategoryClick(category.id) }
             }
         }
@@ -615,7 +619,100 @@ private fun MomentCard(category: ServiceCategoryDefinition, onClick: () -> Unit)
     }
 }
 
-/** Religious & Ceremony (and any extra categories): compact editorial tile on a warm surface. */
+/**
+ * Religious & Ceremony: ivory editorial feature. A large homam photograph leads, a framed pooja
+ * detail overlaps the image edge, and the copy sits on ivory beneath a champagne rule so the
+ * ritual imagery is never covered by text.
+ */
+@Composable
+private fun CeremonyFeaturePanel(category: ServiceCategoryDefinition, compact: Boolean, onClick: () -> Unit) {
+    val gallery = remember(category.id) { ServiceImagery.discoveryGallery(category.id) }
+    val hero = gallery.first()
+    val detail = gallery.getOrNull(1)
+    val imageHeight = if (compact) 220.dp else 268.dp
+    val insetSize = if (compact) 76.dp else 92.dp
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(DiscoveryPalette.Ivory)
+            .border(1.dp, DiscoveryPalette.Champagne.copy(alpha = 0.55f), RoundedCornerShape(24.dp))
+            .discoveryClickable(category.title, onClick)
+            .semantics { contentDescription = "${category.title}. ${category.subtitle}" }
+    ) {
+        Box(Modifier.fillMaxWidth()) {
+            ServiceImage(
+                hero,
+                contentDescription = "Purohit performing a traditional homam",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(imageHeight)
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                iconSize = 40.dp
+            )
+            Text(
+                "PUROHIT SERVICES",
+                color = DiscoveryPalette.Champagne,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.4.sp,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(14.dp)
+                    .clip(CircleShape)
+                    .background(DiscoveryPalette.Emerald.copy(alpha = 0.88f))
+                    .padding(horizontal = 11.dp, vertical = 5.dp)
+            )
+            detail?.let {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(3.dp, DiscoveryPalette.Ivory),
+                    shadowElevation = 6.dp,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 18.dp)
+                        .offset(y = insetSize / 2)
+                        .size(insetSize)
+                ) {
+                    ServiceImage(it, "Pooja thali", Modifier.matchParentSize(), iconSize = 22.dp)
+                }
+            }
+        }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                Modifier
+                    .width(36.dp)
+                    .height(2.dp)
+                    .background(DiscoveryPalette.Champagne)
+            )
+            Text(
+                category.title,
+                color = DiscoveryPalette.Emerald,
+                style = MaterialTheme.typography.headlineSmall,
+                fontFamily = SerifTitle,
+                fontWeight = FontWeight.SemiBold,
+                // Leave room for the overlapping inset photograph.
+                modifier = Modifier.padding(end = if (detail != null) insetSize else 0.dp)
+            )
+            Text(
+                category.subtitle,
+                color = DiscoveryPalette.Muted,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(4.dp))
+            ExplorePill(onDark = false)
+        }
+    }
+}
+
+/** Any extra categories without a bespoke treatment: compact editorial tile on a warm surface. */
 @Composable
 private fun CompactEditorialTile(category: ServiceCategoryDefinition, onClick: () -> Unit) {
     val visual = remember(category.id) { ServiceImagery.discoveryGallery(category.id).first() }

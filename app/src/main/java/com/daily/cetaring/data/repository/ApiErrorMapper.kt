@@ -31,22 +31,36 @@ object ApiErrorMapper {
         badRequestFallback: String,
         defaultFallback: String
     ): Exception {
-        val apiMessage = apiErrorMessage(exception)
+        val body = runCatching { exception.response()?.errorBody()?.string() }.getOrNull()
+        val apiMessage = apiErrorMessage(body)
         return when (exception.code()) {
             400, 422 -> IllegalArgumentException(apiMessage ?: badRequestFallback)
             401 -> IllegalStateException("Your session has expired. Please sign in again.")
             403 -> IllegalArgumentException("You don't have permission to perform this action.")
             404 -> IllegalArgumentException("We couldn't find this $contextLabel.")
             409 -> IllegalArgumentException(apiMessage ?: "This $contextLabel has already been updated.")
-            in 500..599 -> ServerOfflineException("Something went wrong on our server. Please try again.")
+            in 500..599 -> ServerOfflineException(serverErrorMessage(body))
             else -> IllegalArgumentException(apiMessage ?: defaultFallback)
         }
     }
 
-    private fun apiErrorMessage(exception: HttpException): String? {
-        val body = exception.response()?.errorBody()?.string() ?: return null
+    /** Never shows raw server text for 5xx; only the opaque reference id used to find the server log. */
+    internal fun serverErrorMessage(body: String?): String {
+        val errorId = body?.let {
+            Regex("\"errorId\"\\s*:\\s*\"([A-Za-z0-9-]{1,40})\"").find(it)?.groupValues?.getOrNull(1)
+        }
+        return if (errorId != null) {
+            "Something went wrong on our server. Please try again. (Ref: $errorId)"
+        } else {
+            "Something went wrong on our server. Please try again."
+        }
+    }
+
+    internal fun apiErrorMessage(body: String?): String? {
+        if (body == null) return null
         return Regex("\"message\"\\s*:\\s*\"([^\"]+)\"").find(body)?.groupValues?.getOrNull(1)
             ?: Regex("\"error\"\\s*:\\s*\"([^\"]+)\"").find(body)?.groupValues?.getOrNull(1)
+            ?: Regex("\"detail\"\\s*:\\s*\"([^\"]+)\"").find(body)?.groupValues?.getOrNull(1)
     }
 }
 

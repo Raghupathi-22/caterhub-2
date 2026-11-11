@@ -83,12 +83,14 @@ interface WorkerApiService {
     @POST("service-requests/catering-staff")
     suspend fun createCateringStaffBooking(
         @Header("Authorization") authorization: String,
+        @Header("Idempotency-Key") idempotencyKey: String?,
         @Body request: CreateCateringStaffBookingRequest
     ): ServiceRequestResponse
 
     @POST("service-requests")
     suspend fun createServiceRequest(
         @Header("Authorization") authorization: String,
+        @Header("Idempotency-Key") idempotencyKey: String?,
         @Body request: ServiceRequestRequest
     ): ServiceRequestResponse
 

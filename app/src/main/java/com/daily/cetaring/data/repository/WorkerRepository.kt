@@ -65,11 +65,14 @@ class WorkerRepository(
     suspend fun getMyJobs(): List<WorkerJobResponse> =
         executeNetworkCall { workerApiService.getMyJobs(bearerToken()) }
 
-    suspend fun createServiceRequest(request: ServiceRequestRequest): ServiceRequestResponse =
-        executeNetworkCall { workerApiService.createServiceRequest(bearerToken(), request) }
+    suspend fun createServiceRequest(request: ServiceRequestRequest, idempotencyKey: String? = null): ServiceRequestResponse =
+        executeNetworkCall { workerApiService.createServiceRequest(bearerToken(), idempotencyKey, request) }
 
-    suspend fun createCateringStaffBooking(request: CreateCateringStaffBookingRequest): ServiceRequestResponse =
-        executeNetworkCall { workerApiService.createCateringStaffBooking(bearerToken(), request) }
+    suspend fun createCateringStaffBooking(
+        request: CreateCateringStaffBookingRequest,
+        idempotencyKey: String? = null
+    ): ServiceRequestResponse =
+        executeNetworkCall { workerApiService.createCateringStaffBooking(bearerToken(), idempotencyKey, request) }
 
     suspend fun createStaffingRequest(request: CreateStaffingRequest): StaffingJobResponse =
         executeNetworkCall { workerApiService.createStaffingRequest(bearerToken(), request) }

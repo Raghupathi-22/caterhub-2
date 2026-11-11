@@ -346,12 +346,23 @@ public class SmsOtpSender implements SmsOtpGateway {
                         text(root, "Details", "details")
                 );
                 boolean success = isSuccessfulStatus(status) && !looksBlocked(responseBody);
-                return new ProviderResponseDetails(success, status, code, message, requestId, sanitized);
+                return new ProviderResponseDetails(
+                        success,
+                        sanitizeField(status, apiKey, otp, phoneWithoutCountryCode),
+                        sanitizeField(code, apiKey, otp, phoneWithoutCountryCode),
+                        sanitizeField(message, apiKey, otp, phoneWithoutCountryCode),
+                        sanitizeField(requestId, apiKey, otp, phoneWithoutCountryCode),
+                        sanitized
+                );
             } catch (IOException ignored) {
                 String inferredStatus = inferStatusFromText(responseBody);
                 boolean success = isSuccessfulStatus(inferredStatus) && !looksBlocked(responseBody);
                 return new ProviderResponseDetails(success, inferredStatus, null, sanitized, null, sanitized);
             }
+        }
+
+        private static String sanitizeField(String value, String apiKey, String otp, String phoneWithoutCountryCode) {
+            return value == null ? null : sanitizeProviderResponse(value, apiKey, otp, phoneWithoutCountryCode);
         }
 
         private static String text(JsonNode node, String... keys) {

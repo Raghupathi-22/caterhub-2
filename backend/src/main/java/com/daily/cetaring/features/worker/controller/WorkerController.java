@@ -165,7 +165,7 @@ public class WorkerController {
     }
 
     @GetMapping("/jobs")
-    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public List<WorkerDtos.StaffingJobResponse> getAvailableJobs(
         Authentication authentication,
         @RequestParam(required = false) WorkerProfile.WorkerType role,
@@ -176,7 +176,7 @@ public class WorkerController {
     }
 
     @GetMapping("/jobs/{jobId}")
-    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_WORKER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
     public WorkerDtos.StaffingJobResponse getJob(@PathVariable Long jobId, Authentication authentication) {
         return workerService.getStaffingJob(jobId, authentication.getName());
     }

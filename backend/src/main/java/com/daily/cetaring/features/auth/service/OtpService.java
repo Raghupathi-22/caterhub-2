@@ -111,7 +111,7 @@ public class OtpService {
         String rawOtp;
         if (devMode) {
             rawOtp = devCode;
-            log.debug("Development OTP mode active for mobile {}", normalizedMobile);
+            log.debug("Development OTP mode active for mobile {}", com.daily.cetaring.shared.util.LogMasking.maskPhone(normalizedMobile));
         } else {
             SecureRandom random = new SecureRandom();
             int otpNum = 100000 + random.nextInt(900000);

@@ -498,7 +498,14 @@ public class WorkerService {
             && !WorkerRoleFamilies.canWorkJob(profile.getWorkerType(), job.getWorkerType())) {
             throw new AccessDeniedException("You can only access jobs matching your role.");
         }
-        return mapStaffingJob(job, profileId != null && staffingJobAcceptanceRepository.existsByStaffingRequestIdAndWorkerProfileId(jobId, profileId));
+        boolean accepted = profileId != null && staffingJobAcceptanceRepository.existsByStaffingRequestIdAndWorkerProfileId(jobId, profileId);
+        // Workers who have not accepted a job must not see it once it has started or been closed.
+        if (profile != null && !accepted
+            && (job.getStatus() != StaffingRequest.StaffingStatus.OPEN
+                || EventTimes.hasStarted(job.getEventDate(), job.getStartTime(), EventTimes.now(clock)))) {
+            throw new IllegalArgumentException("This job is no longer available.");
+        }
+        return mapStaffingJob(job, accepted);
     }
 
     public WorkerDtos.AcceptStaffingJobResponse acceptStaffingJob(Long jobId, String username) {

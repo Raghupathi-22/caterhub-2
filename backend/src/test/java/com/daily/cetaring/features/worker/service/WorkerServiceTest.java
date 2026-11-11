@@ -568,6 +568,25 @@ class WorkerServiceTest {
     }
 
     @Test
+    void getStaffingJobHidesPastJobFromWorkerWhoDidNotAcceptIt() {
+        User user = user(11L);
+        WorkerProfile profile = workerProfile(20L, WorkerProfile.WorkerStatus.ACTIVE);
+        profile.setUser(user);
+        StaffingRequest job = jobAt(50L, WorkerProfile.WorkerType.CHEF, LocalDate.of(2026, 9, 27), LocalTime.of(18, 0));
+
+        when(userRepository.findByUsername("user11")).thenReturn(Optional.of(user));
+        when(workerProfileRepository.findByUserIdAndDeletedAtIsNull(11L)).thenReturn(Optional.of(profile));
+        when(staffingRequestRepository.findById(50L)).thenReturn(Optional.of(job));
+        when(staffingJobAcceptanceRepository.existsByStaffingRequestIdAndWorkerProfileId(50L, 20L)).thenReturn(false);
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> workerService.getStaffingJob(50L, "user11"));
+        assertEquals("This job is no longer available.", error.getMessage());
+
+        when(staffingJobAcceptanceRepository.existsByStaffingRequestIdAndWorkerProfileId(50L, 20L)).thenReturn(true);
+        assertEquals(50L, workerService.getStaffingJob(50L, "user11").getId());
+    }
+
+    @Test
     void acceptStaffingJobRejectsPastDatedJobViaDirectApiCall() {
         User user = user(11L);
         WorkerProfile profile = workerProfile(20L, WorkerProfile.WorkerStatus.ACTIVE);

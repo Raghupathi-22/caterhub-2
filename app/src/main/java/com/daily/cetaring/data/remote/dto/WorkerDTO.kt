@@ -172,7 +172,9 @@ data class ServiceRequestRequest(
     val instructions: String? = null,
     val details: String? = null,
     val quoteBased: Boolean = false,
-    val totalAmount: BigDecimal
+    val totalAmount: BigDecimal,
+    /** Worker jobs created atomically by the backend in the same transaction as the request. */
+    @SerializedName("staffing") val staffing: List<CateringStaffLineItem>? = null
 )
 
 data class ServiceRequestResponse(
