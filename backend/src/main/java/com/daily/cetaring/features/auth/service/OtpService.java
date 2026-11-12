@@ -162,7 +162,7 @@ public class OtpService {
             // Unknown numbers are allowed: they register after verification. Only block numbers that
             // belong to a non-customer account so partner/admin accounts are never converted.
             findByMobileNumber(normalizedMobile)
-                    .filter(user -> !hasRole(user, "ROLE_CUSTOMER"))
+                    .filter(user -> !isCustomerEligible(user))
                     .ifPresent(user -> {
                         throw new IllegalArgumentException(NON_CUSTOMER_ACCOUNT_MESSAGE);
                     });
@@ -177,6 +177,14 @@ public class OtpService {
         if (requiredRole != null && !hasRole(user, requiredRole)) {
             throw new IllegalArgumentException(notRegisteredMessage(userType));
         }
+    }
+
+    /**
+     * A number may use customer access if it is a customer, or if the account has no roles at all
+     * (e.g. role rows lost in a data reset). Only accounts holding another role are partner/admin accounts.
+     */
+    static boolean isCustomerEligible(User user) {
+        return hasRole(user, "ROLE_CUSTOMER") || user.getRoles() == null || user.getRoles().isEmpty();
     }
 
     static boolean hasRole(User user, String roleName) {

@@ -2,6 +2,7 @@ package com.daily.cetaring.presentation.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,13 +41,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.daily.cetaring.domain.catalog.ServiceCatalog
+import com.daily.cetaring.domain.catalog.WorkerProfileCatalog
+import com.daily.cetaring.domain.worker.WorkerRegistrationRules
+import com.daily.cetaring.presentation.components.WorkerBioField
+import com.daily.cetaring.presentation.components.WorkerMultiSelectSection
+import com.daily.cetaring.presentation.components.WorkerPalette
 import com.daily.cetaring.presentation.components.CaterHubErrorState
 import com.daily.cetaring.presentation.components.CaterHubLoadingState
 import com.daily.cetaring.presentation.components.CaterHubPrimaryButton
@@ -52,12 +64,12 @@ import com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRules
 import com.daily.cetaring.presentation.viewmodel.WorkerProfileEditRules.Field
 import com.daily.cetaring.presentation.viewmodel.WorkerViewModel
 
-private val EditCream = Color(0xFFFFFBF3)
-private val EditRed = Color(0xFFA61920)
-private val EditInk = Color(0xFF292623)
-private val EditMuted = Color(0xFF746E68)
-private val EditBorder = Color(0xFFE1D8CA)
-private val EditPaleGreen = Color(0xFFE9F4EA)
+private val EditCream = WorkerPalette.Ivory
+private val EditRed = WorkerPalette.Maroon
+private val EditInk = WorkerPalette.Ink
+private val EditMuted = WorkerPalette.Muted
+private val EditBorder = WorkerPalette.Border
+private val EditPaleGreen = WorkerPalette.EmeraldTint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,6 +131,18 @@ fun WorkerEditProfileScreen(
 
     val errors = WorkerProfileEditRules.validate(name, age, skills, areas, languages, bio)
     val visibleErrors = if (showErrors) errors else emptyMap()
+
+    // Same catalogue and rules as registration; values already on the profile are kept as chips.
+    val workerType = state.profile?.workerType
+    val role = remember(workerType) { WorkerProfileCatalog.registrationRoleFor(workerType) }
+    val category = remember(workerType, role) {
+        role?.let { ServiceCatalog.category(it.categoryId) } ?: ServiceCatalog.categoryForWorkerType(workerType)
+    }
+    val categoryId = category?.id.orEmpty()
+    val skillOptions = remember(categoryId, role) { WorkerProfileCatalog.skillsForRole(categoryId, role?.id) }
+    val skillList = remember(skills) { WorkerProfileCatalog.parseList(skills) }
+    val areaList = remember(areas) { WorkerProfileCatalog.parseList(areas) }
+    val languageList = remember(languages) { WorkerProfileCatalog.parseList(languages) }
 
     Scaffold(
         containerColor = EditCream,
@@ -211,52 +235,112 @@ fun WorkerEditProfileScreen(
                             color = EditRed,
                             modifier = Modifier.padding(top = 4.dp)
                         )
-                        EditField(
-                            value = skills,
-                            onValueChange = { skills = it.take(WorkerProfileEditRules.MAX_TEXT_LENGTH) },
-                            label = "Skills",
-                            placeholder = "Bulk cooking, Biryani, Live counters",
-                            error = visibleErrors[Field.SKILLS],
-                            enabled = !state.isSaving,
-                            singleLine = false,
-                            minLines = 2,
-                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+                        if (role != null || category != null) {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(WorkerPalette.EmeraldTint)
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    workerRoleIcon(categoryId, role?.id.orEmpty()),
+                                    contentDescription = null,
+                                    tint = WorkerPalette.Emerald
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        role?.title ?: workerType?.label ?: "Service role",
+                                        color = EditInk,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        category?.title.orEmpty() + " · role changes need CaterHub support",
+                                        color = EditMuted,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                WorkerMultiSelectSection(
+                    title = "Skills",
+                    subtitle = "Skills for your role",
+                    icon = Icons.Filled.WorkspacePremium,
+                    options = skillOptions,
+                    selected = skillList,
+                    onToggle = { skills = WorkerProfileCatalog.joinList(WorkerRegistrationRules.toggle(skillList, it, WorkerProfileCatalog.MAX_SKILLS)) },
+                    searchPlaceholder = "Search or add a skill",
+                    maxSelected = WorkerProfileCatalog.MAX_SKILLS.coerceAtLeast(skillList.size),
+                    error = visibleErrors[Field.SKILLS],
+                    enabled = !state.isSaving,
+                    onAddCustom = { value ->
+                        WorkerProfileCatalog.validateCustomItem(value, skillList).fold(
+                            onSuccess = {
+                                skills = WorkerProfileCatalog.joinList(WorkerRegistrationRules.add(skillList, it, WorkerProfileCatalog.MAX_SKILLS))
+                                null
+                            },
+                            onFailure = { it.message }
                         )
-                        EditField(
-                            value = areas,
-                            onValueChange = { areas = it.take(WorkerProfileEditRules.MAX_TEXT_LENGTH) },
-                            label = "Preferred service areas",
-                            placeholder = "Kondapur, Gachibowli, Madhapur",
-                            error = visibleErrors[Field.AREAS],
-                            enabled = !state.isSaving,
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Words,
-                                imeAction = ImeAction.Next
-                            )
+                    }
+                )
+                WorkerMultiSelectSection(
+                    title = "Preferred service areas",
+                    subtitle = "Where in Hyderabad can you work?",
+                    icon = Icons.Filled.LocationOn,
+                    options = WorkerProfileCatalog.serviceAreas,
+                    selected = areaList,
+                    onToggle = { areas = WorkerProfileCatalog.joinList(WorkerRegistrationRules.toggle(areaList, it, WorkerProfileCatalog.MAX_AREAS)) },
+                    searchPlaceholder = "Search areas",
+                    maxSelected = WorkerProfileCatalog.MAX_AREAS.coerceAtLeast(areaList.size),
+                    error = visibleErrors[Field.AREAS],
+                    enabled = !state.isSaving,
+                    onAddCustom = { value ->
+                        WorkerProfileCatalog.validateCustomItem(value, areaList).fold(
+                            onSuccess = {
+                                areas = WorkerProfileCatalog.joinList(WorkerRegistrationRules.add(areaList, it, WorkerProfileCatalog.MAX_AREAS))
+                                null
+                            },
+                            onFailure = { it.message }
                         )
-                        EditField(
-                            value = languages,
-                            onValueChange = { languages = it.take(WorkerProfileEditRules.MAX_TEXT_LENGTH) },
-                            label = "Languages",
-                            placeholder = "Telugu, Hindi, English",
-                            error = visibleErrors[Field.LANGUAGES],
-                            enabled = !state.isSaving,
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Words,
-                                imeAction = ImeAction.Next
-                            )
+                    }
+                )
+                WorkerMultiSelectSection(
+                    title = "Languages",
+                    subtitle = "Languages you can speak with customers",
+                    icon = Icons.Filled.Language,
+                    options = WorkerProfileCatalog.languages,
+                    selected = languageList,
+                    onToggle = {
+                        languages = WorkerProfileCatalog.joinList(
+                            WorkerRegistrationRules.toggle(languageList, it, WorkerProfileCatalog.MAX_LANGUAGES)
                         )
-                        EditField(
+                    },
+                    searchPlaceholder = "Search languages",
+                    maxSelected = WorkerProfileCatalog.MAX_LANGUAGES.coerceAtLeast(languageList.size),
+                    error = visibleErrors[Field.LANGUAGES],
+                    enabled = !state.isSaving
+                )
+
+                Card(
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, EditBorder)
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("About me", color = EditInk, fontWeight = FontWeight.Bold)
+                        WorkerBioField(
                             value = bio,
-                            onValueChange = { bio = it.take(WorkerProfileEditRules.MAX_TEXT_LENGTH) },
-                            label = "About me (optional)",
-                            placeholder = "Tell customers about your experience",
-                            error = visibleErrors[Field.BIO],
-                            supporting = "${bio.length}/${WorkerProfileEditRules.MAX_TEXT_LENGTH}",
+                            onValueChange = { bio = it },
+                            maxLength = WorkerProfileEditRules.MAX_TEXT_LENGTH,
                             enabled = !state.isSaving,
-                            singleLine = false,
-                            minLines = 3,
-                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+                            label = "About me (optional)",
+                            error = visibleErrors[Field.BIO]
                         )
                     }
                 }

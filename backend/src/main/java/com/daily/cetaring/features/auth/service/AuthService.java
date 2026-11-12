@@ -109,6 +109,15 @@ public class AuthService {
         return generateAuthResponse(saved);
     }
 
+    /** Signs in a verified customer, restoring ROLE_CUSTOMER if the account has lost all its roles. */
+    public AuthResponse signInVerifiedCustomer(User user) {
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            ensureRolePresent(user, "ROLE_CUSTOMER");
+            log.warn("Restored ROLE_CUSTOMER for role-less user ID {}", user.getId());
+        }
+        return signInVerifiedUser(user);
+    }
+
     /** Issues tokens for a user created in the current transaction. */
     public AuthResponse issueTokens(User user) {
         return generateAuthResponse(user);

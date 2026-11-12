@@ -89,6 +89,17 @@ class OtpServiceCustomerAccessTest {
     }
 
     @Test
+    void customerAccessSendsOtpToRolelessAccount() {
+        User roleless = userWithRole("ROLE_CUSTOMER");
+        roleless.getRoles().clear();
+        when(userRepository.findByPhoneNumber(MOBILE)).thenReturn(Optional.of(roleless));
+        when(otpRepository.findTopByMobileNumberAndPurposeOrderByCreatedAtDesc(MOBILE, PURPOSE)).thenReturn(Optional.empty());
+        when(otpSender.sendOtp(eq(MOBILE), anyString(), eq(PURPOSE), any())).thenReturn(OtpDeliveryResult.sms());
+
+        assertTrue(otpService.generateAndSendOtp(MOBILE, OtpPurpose.CUSTOMER_ACCESS, "CUSTOMER", null).isSuccess());
+    }
+
+    @Test
     void customerAccessRejectsWorkerOnlyNumberWithoutSendingOtp() {
         when(userRepository.findByPhoneNumber(MOBILE)).thenReturn(Optional.of(userWithRole("ROLE_WORKER")));
 

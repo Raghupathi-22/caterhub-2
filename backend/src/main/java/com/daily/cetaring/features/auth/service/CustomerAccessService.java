@@ -45,7 +45,7 @@ public class CustomerAccessService {
             requireActiveCustomer(user);
             return VerifyResponse.builder()
                     .status(CustomerAccessStatus.AUTHENTICATED)
-                    .auth(authService.signInVerifiedUser(user))
+                    .auth(authService.signInVerifiedCustomer(user))
                     .mobileNumber(normalizedMobile)
                     .build();
         }
@@ -76,7 +76,7 @@ public class CustomerAccessService {
         OtpService.RegistrationTicketState state = otpService.redeemRegistrationTicket(normalizedMobile, registrationToken);
 
         if (existing.isPresent()) {
-            return authService.signInVerifiedUser(existing.get());
+            return authService.signInVerifiedCustomer(existing.get());
         }
         if (state == OtpService.RegistrationTicketState.ALREADY_REDEEMED) {
             throw new IllegalArgumentException(OtpService.REGISTRATION_EXPIRED_MESSAGE);
@@ -97,7 +97,7 @@ public class CustomerAccessService {
     }
 
     private void requireActiveCustomer(User user) {
-        if (!OtpService.hasRole(user, CUSTOMER_ROLE)) {
+        if (!OtpService.isCustomerEligible(user)) {
             throw new IllegalArgumentException(OtpService.NON_CUSTOMER_ACCOUNT_MESSAGE);
         }
         if (!Boolean.TRUE.equals(user.getIsActive()) || user.getDeletedAt() != null) {

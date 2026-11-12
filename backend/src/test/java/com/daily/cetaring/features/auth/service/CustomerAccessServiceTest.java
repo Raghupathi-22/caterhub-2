@@ -49,7 +49,7 @@ class CustomerAccessServiceTest {
     void existingCustomerIsAuthenticatedAfterOtp() {
         User customer = user("ROLE_CUSTOMER");
         when(authService.findUserByMobile(MOBILE)).thenReturn(Optional.of(customer));
-        when(authService.signInVerifiedUser(customer)).thenReturn(tokens);
+        when(authService.signInVerifiedCustomer(customer)).thenReturn(tokens);
 
         VerifyResponse response = service.verify("9876543210", "123456");
 
@@ -84,7 +84,7 @@ class CustomerAccessServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.verify(MOBILE, "000000"));
 
         verify(otpService, never()).issueRegistrationTicket(anyString());
-        verify(authService, never()).signInVerifiedUser(any());
+        verify(authService, never()).signInVerifiedCustomer(any());
     }
 
     @Test
@@ -92,7 +92,19 @@ class CustomerAccessServiceTest {
         when(authService.findUserByMobile(MOBILE)).thenReturn(Optional.of(user("ROLE_WORKER")));
 
         assertThrows(IllegalArgumentException.class, () -> service.verify(MOBILE, "123456"));
-        verify(authService, never()).signInVerifiedUser(any());
+        verify(authService, never()).signInVerifiedCustomer(any());
+    }
+
+    @Test
+    void rolelessAccountIsSignedInAsCustomer() {
+        User roleless = User.builder().id(5L).phoneNumber(MOBILE).isActive(true).roles(new HashSet<>()).build();
+        when(authService.findUserByMobile(MOBILE)).thenReturn(Optional.of(roleless));
+        when(authService.signInVerifiedCustomer(roleless)).thenReturn(tokens);
+
+        VerifyResponse response = service.verify(MOBILE, "123456");
+
+        assertEquals(CustomerAccessStatus.AUTHENTICATED, response.getStatus());
+        assertSame(tokens, response.getAuth());
     }
 
     @Test
@@ -124,7 +136,7 @@ class CustomerAccessServiceTest {
         User existing = user("ROLE_CUSTOMER");
         when(authService.findUserByMobile(MOBILE)).thenReturn(Optional.of(existing));
         when(otpService.redeemRegistrationTicket(MOBILE, "ticket")).thenReturn(OtpService.RegistrationTicketState.ALREADY_REDEEMED);
-        when(authService.signInVerifiedUser(existing)).thenReturn(tokens);
+        when(authService.signInVerifiedCustomer(existing)).thenReturn(tokens);
 
         assertSame(tokens, service.register(MOBILE, "ticket", "Ravi Kumar"));
         verify(authService, never()).createVerifiedUser(anyString(), anyString(), anyString());

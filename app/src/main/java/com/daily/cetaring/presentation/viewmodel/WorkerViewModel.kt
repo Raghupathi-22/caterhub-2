@@ -45,13 +45,20 @@ class WorkerViewModel(private val workerRepository: WorkerRepository) : ViewMode
         }
     }
 
+    private var profileSubmissionInFlight = false
+
     fun submitProfile(request: CreateWorkerProfileRequest) {
+        // Ignore repeated taps while a registration request is already running.
+        if (profileSubmissionInFlight) return
+        profileSubmissionInFlight = true
         viewModelScope.launch {
             _uiState.value = WorkerUiState.Loading
             try {
                 _uiState.value = WorkerUiState.Submitted(workerRepository.createMyProfile(request))
             } catch (exception: Exception) {
                 _uiState.value = WorkerUiState.Error(exception.message ?: "Unable to submit worker profile")
+            } finally {
+                profileSubmissionInFlight = false
             }
         }
     }
