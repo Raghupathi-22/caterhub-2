@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -28,6 +30,7 @@ public class AdminBootstrapInitializer {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void bootstrapAdminUser() {
+        ensureDefaultRoles();
         if (!properties.isEnabled()) {
             return;
         }
@@ -61,6 +64,28 @@ public class AdminBootstrapInitializer {
         addRole(admin, "ROLE_SUPER_ADMIN");
         userRepository.save(admin);
         log.info("Admin bootstrap ensured for username '{}'", admin.getUsername());
+    }
+
+    /** Recreates seed roles (V1/V8 migrations) if they were removed from the database, e.g. by a manual data reset. */
+    private void ensureDefaultRoles() {
+        DEFAULT_ROLES.forEach((name, description) -> {
+            if (roleRepository.findByName(name).isEmpty()) {
+                roleRepository.save(Role.builder().name(name).description(description).build());
+                log.warn("Recreated missing role '{}'", name);
+            }
+        });
+    }
+
+    private static final Map<String, String> DEFAULT_ROLES = new LinkedHashMap<>();
+
+    static {
+        DEFAULT_ROLES.put("ROLE_CUSTOMER", "Customer role for booking catering services");
+        DEFAULT_ROLES.put("ROLE_ADMIN", "Admin role for platform management");
+        DEFAULT_ROLES.put("ROLE_KITCHEN_MANAGER", "Kitchen Manager role for preparing food");
+        DEFAULT_ROLES.put("ROLE_DELIVERY_MANAGER", "Delivery Manager role for managing deliveries");
+        DEFAULT_ROLES.put("ROLE_STAFF", "Staff role for serving and support");
+        DEFAULT_ROLES.put("ROLE_SUPER_ADMIN", "Super Admin role for system administration");
+        DEFAULT_ROLES.put("ROLE_WORKER", "Worker role for marketplace job registration, assignment, and job execution");
     }
 
     private void addRole(User user, String roleName) {
