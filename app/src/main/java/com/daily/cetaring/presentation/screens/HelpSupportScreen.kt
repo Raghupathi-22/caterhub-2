@@ -34,7 +34,7 @@ import com.daily.cetaring.config.SupportContact
 import com.daily.cetaring.presentation.components.CaterHubPrimaryButton
 import com.daily.cetaring.presentation.components.CaterHubSecondaryButton
 
-private const val SUPPORT_EMAIL = "caterhub.support@gmail.com"
+private const val SUPPORT_EMAIL = SupportContact.SUPPORT_EMAIL
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -629,7 +629,6 @@ private fun CeremonyFeaturePanel(category: ServiceCategoryDefinition, compact: B
     val gallery = remember(category.id) { ServiceImagery.discoveryGallery(category.id) }
     val hero = gallery.first()
     val detail = gallery.getOrNull(1)
-    val imageHeight = if (compact) 220.dp else 268.dp
     val insetSize = if (compact) 76.dp else 92.dp
     Column(
         Modifier
@@ -640,10 +639,12 @@ private fun CeremonyFeaturePanel(category: ServiceCategoryDefinition, compact: B
             .discoveryClickable(category.title, onClick)
             .semantics { contentDescription = "${category.title}. ${category.subtitle}" }
     ) {
-        Box(Modifier.fillMaxWidth()) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            // Photograph is 3:2; follow it on phones and cap on tablets so the purohit is never cropped out.
+            val imageHeight = (maxWidth / 1.5f).coerceIn(200.dp, if (compact) 300.dp else 340.dp)
             ServiceImage(
                 hero,
-                contentDescription = "Purohit performing a traditional homam",
+                contentDescription = "Purohit chanting mantras beside a sacred homam fire",
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(imageHeight)

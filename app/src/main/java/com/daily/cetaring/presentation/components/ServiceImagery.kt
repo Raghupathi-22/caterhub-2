@@ -91,7 +91,7 @@ import kotlin.math.absoluteValue
  * - svc_entertainment_dj_booth: https://commons.wikimedia.org/wiki/File:DJ_booth_with_NI_Traktor_Kontrol_S4_(2015-03-13_17.33.34_by_nikkolodeon_@pixabay_688549).jpg (CC0)
  * - svc_beauty_mehndi: https://commons.wikimedia.org/wiki/File:Mehndi_tatoo_for_wedding_in_India.jpg (CC0)
  * - svc_religious_pooja_thali: https://commons.wikimedia.org/wiki/File:Hindu_pooja_thali.jpg (CC0)
- * - svc_religious_purohit_homam: https://commons.wikimedia.org/wiki/File:Yajna1.jpg (public domain, cropped)
+ * - svc_religious_purohit_homam: Pexels 37117232 (Pexels License, cropped; see service-image-sources.txt)
  * - svc_photography_camera: https://commons.wikimedia.org/wiki/File:Photographer-camera.jpg (CC0)
  * - svc_photography_video_camera: https://commons.wikimedia.org/wiki/File:Photo_camera_and_video_camera_(Unsplash).jpg (CC0, cropped)
  * - svc_decoration_balloon_arch: https://commons.wikimedia.org/wiki/File:The_entrance_to_the_first_birthday_party.jpg (CC0, cropped to the arch only)

@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -44,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.daily.cetaring.presentation.components.CaterHubContactSupportSection
 import com.daily.cetaring.presentation.components.CaterHubMarketplaceHeader
 import com.daily.cetaring.presentation.components.ComingSoonServiceSection
 import com.daily.cetaring.presentation.components.ComingSoonServices
@@ -85,8 +88,7 @@ fun AuthLandingScreen(
                 onCustomerLogin = onCustomerLoginClick,
                 onWorkerLogin = onWorkerLoginClick,
                 onMenuClick = onMenuClick,
-                onServiceCategoryClick = onServiceCategoryClick,
-                onOffersClick = { selectedTab = 1 }
+                onServiceCategoryClick = onServiceCategoryClick
             )
             1 -> OffersScreenContent(padding = padding, onBook = onCreateAccountClick)
             2 -> QualityScreenContent(
@@ -115,8 +117,7 @@ private fun PublicHomeContent(
     onCustomerLogin: () -> Unit,
     onWorkerLogin: () -> Unit,
     onMenuClick: () -> Unit,
-    onServiceCategoryClick: (String) -> Unit,
-    onOffersClick: () -> Unit
+    onServiceCategoryClick: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -145,34 +146,13 @@ private fun PublicHomeContent(
                 subtitle = "Browse every category. Sign in only when you are ready to book."
             )
             ServiceCategoryGrid(onCategoryClick = onServiceCategoryClick)
-            Card(
-                onClick = onOffersClick,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = CaterHubColors.Surface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, CaterHubColors.Border),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp, pressedElevation = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Filled.Celebration, contentDescription = null, tint = CaterHubColors.Gold)
-                    Column(
-                        Modifier.weight(1f).padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text("Offers", color = CaterHubColors.Ink, fontWeight = FontWeight.Bold)
-                        Text("View available offers", color = CaterHubColors.Muted, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "View offers", tint = CaterHubColors.Green)
-                }
-            }
             ComingSoonServiceSection(ComingSoonServices.FunctionAndBanquetHalls)
         } else {
             MarketplaceSectionHeading("Search results")
             ServiceDiscoverySearchResults(query = query, onCategoryClick = onServiceCategoryClick)
         }
+        CaterHubContactSupportSection()
+        Spacer(Modifier.height(8.dp))
     }
 }
 

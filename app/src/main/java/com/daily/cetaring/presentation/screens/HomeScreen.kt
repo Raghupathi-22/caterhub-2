@@ -1,9 +1,5 @@
 package com.daily.cetaring.presentation.screens
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,11 +34,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.daily.cetaring.config.SupportContact
+import com.daily.cetaring.presentation.components.CaterHubContactSupportSection
 import com.daily.cetaring.presentation.components.CaterHubMarketplaceHeader
-import com.daily.cetaring.presentation.components.CaterHubSupportCard
 import com.daily.cetaring.presentation.components.ComingSoonServiceSection
 import com.daily.cetaring.presentation.components.ComingSoonServices
 import com.daily.cetaring.presentation.components.MarketplaceQuickActions
@@ -69,43 +63,7 @@ fun HomeScreen(
     onLogout: () -> Unit,
     onVillageFarmRiceClick: () -> Unit = {}
 ) {
-    val context = LocalContext.current
     var searchQuery by rememberSaveable { mutableStateOf("") }
-
-    fun launchIntent(intent: Intent): Boolean = try {
-        context.startActivity(intent)
-        true
-    } catch (_: ActivityNotFoundException) {
-        false
-    }
-
-    fun openDialer() {
-        val opened = launchIntent(
-            Intent(
-                Intent.ACTION_DIAL,
-                Uri.parse("tel:${SupportContact.SUPPORT_PHONE_NATIONAL}")
-            )
-        )
-        if (!opened) {
-            Toast.makeText(context, "Unable to open phone dialer.", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    fun openWhatsApp() {
-        val appIntent = Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse("whatsapp://send?phone=${SupportContact.SUPPORT_PHONE_WHATSAPP}")
-        )
-        if (launchIntent(appIntent)) return
-
-        val webIntent = Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse("https://wa.me/${SupportContact.SUPPORT_PHONE_WHATSAPP}")
-        )
-        if (!launchIntent(webIntent)) {
-            Toast.makeText(context, "WhatsApp is not available on this device.", Toast.LENGTH_LONG).show()
-        }
-    }
 
     Scaffold(
         containerColor = CaterHubColors.Background,
@@ -169,13 +127,10 @@ fun HomeScreen(
                 )
             }
 
-            CaterHubSupportCard(
-                onCallClick = ::openDialer,
-                onWhatsAppClick = ::openWhatsApp
-            )
             if (searchQuery.isBlank()) {
                 ComingSoonServiceSection(ComingSoonServices.FunctionAndBanquetHalls)
             }
+            CaterHubContactSupportSection()
             Spacer(Modifier.height(8.dp))
         }
     }

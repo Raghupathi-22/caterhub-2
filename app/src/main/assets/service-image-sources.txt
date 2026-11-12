@@ -48,3 +48,9 @@ rice_village_paddy.webp   "Rice Paddy Near Bhumeshwar Hill"   https://commons.wi
 Function & Banquet Halls photography (Pexels License, free to use)
 ------------------------------------------------------------------
 svc_venue_banquet_hall.webp   "Lavish Indian Wedding Hall with Chandeliers" by Lalit Jakhar   https://www.pexels.com/photo/lavish-indian-wedding-hall-with-chandeliers-40143062/
+svc_venue_convention_centre.webp   "Elegant Outdoor Wedding Setup in Indian Courtyard" by The Visionary Vows   https://www.pexels.com/photo/elegant-outdoor-wedding-setup-in-indian-courtyard-33485968/
+svc_venue_reception_stage.webp   "Elegant Indian Wedding Couple on Ornate Stage" by Mrj Cinematic   https://www.pexels.com/photo/29967503/
+
+Religious & Ceremony photography (Pexels License, free to use)
+--------------------------------------------------------------
+svc_religious_purohit_homam.webp   "Traditional Hindu Ceremony with Priests in India" by ATHUL P D (Thekkumkara, Kerala), cropped to 3:2   https://www.pexels.com/photo/traditional-hindu-ceremony-with-priests-in-india-37117232/
