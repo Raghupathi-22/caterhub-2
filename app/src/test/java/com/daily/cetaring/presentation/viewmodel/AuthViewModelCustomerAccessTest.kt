@@ -126,7 +126,7 @@ class AuthViewModelCustomerAccessTest {
         viewModel.verifyCustomerAccessOtp("9876543210", "000000")
         advanceUntilIdle()
 
-        assertEquals("OTP expired or invalid. Please request a new OTP.", (viewModel.otpUiState.value as OtpUiState.Error).message)
+        assertEquals(AuthViewModel.OTP_INCORRECT_MESSAGE, (viewModel.otpUiState.value as OtpUiState.Error).message)
     }
 
     @Test

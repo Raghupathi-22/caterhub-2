@@ -187,6 +187,46 @@ object WorkerRegistrationRules {
         return checks.count { it } * 100 / checks.size
     }
 
+    /** One profile item shown in the review checklist; [step] is where it is edited. */
+    data class ChecklistItem(val label: String, val done: Boolean, val required: Boolean, val step: Int)
+
+    fun checklist(draft: WorkerRegistrationDraft): List<ChecklistItem> = listOf(
+        ChecklistItem("Service", isValidCategory(draft.categoryId), required = true, step = 0),
+        ChecklistItem("Professional role", isValidRole(draft.categoryId, draft.roleId), required = true, step = 1),
+        ChecklistItem("Experience", stepError(draft, 2) == null, required = true, step = 2),
+        ChecklistItem("Skills", draft.skills.isNotEmpty(), required = true, step = 3),
+        ChecklistItem("Service areas", draft.areas.isNotEmpty(), required = true, step = 3),
+        ChecklistItem("Languages", draft.languages.isNotEmpty(), required = true, step = 3),
+        ChecklistItem("Professional bio", draft.bio.isNotBlank(), required = false, step = 4)
+    )
+
+    const val REQUIRED_ITEM_WEIGHT = 15
+    const val BIO_WEIGHT = 10
+
+    /**
+     * Profile strength from real fields: each of the six required items is worth 15% and the
+     * optional bio 10%. A submittable profile without a bio is 90%; 100% only when nothing is missing.
+     */
+    fun profileStrength(draft: WorkerRegistrationDraft): Int =
+        checklist(draft).sumOf { item ->
+            when {
+                !item.done -> 0
+                item.required -> REQUIRED_ITEM_WEIGHT
+                else -> BIO_WEIGHT
+            }
+        }
+
+    fun isReadyToSubmit(draft: WorkerRegistrationDraft): Boolean = stepError(draft, LAST_STEP) == null
+
+    /**
+     * Returns to the review after editing a section from it. If something is still incomplete the
+     * draft moves to the first step that needs attention instead.
+     */
+    fun returnToReview(draft: WorkerRegistrationDraft): WorkerRegistrationDraft {
+        val firstInvalid = (FIRST_STEP until LAST_STEP).firstOrNull { stepError(draft, it) != null }
+        return draft.copy(step = firstInvalid ?: LAST_STEP)
+    }
+
     /** Drops anything that is no longer valid, e.g. a draft restored after a catalogue update. */
     fun sanitize(draft: WorkerRegistrationDraft): WorkerRegistrationDraft {
         val categoryId = draft.categoryId.takeIf(::isValidCategory).orEmpty()

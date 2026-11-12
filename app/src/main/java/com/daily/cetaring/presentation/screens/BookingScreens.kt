@@ -1,5 +1,38 @@
 package com.daily.cetaring.presentation.screens
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import com.daily.cetaring.domain.booking.BookingPriceDisplay
+import com.daily.cetaring.domain.booking.CateringJourney
+import com.daily.cetaring.presentation.components.BookingReviewHeader
+import com.daily.cetaring.presentation.components.BookingChip
+import com.daily.cetaring.presentation.components.BookingHeroBanner
+import com.daily.cetaring.presentation.components.BookingImagery
+import com.daily.cetaring.presentation.components.BookingLocationSection
+import com.daily.cetaring.presentation.components.BookingReviewRow
+import com.daily.cetaring.presentation.components.BookingReviewSection
+import com.daily.cetaring.presentation.components.BookingSubheading
+import com.daily.cetaring.presentation.components.BookingSuccessMark
+import com.daily.cetaring.presentation.components.EventImageGrid
+import com.daily.cetaring.presentation.components.GuestCountSelector
+import com.daily.cetaring.presentation.components.ImageTileCard
+import com.daily.cetaring.presentation.components.PackageCard
+import com.daily.cetaring.presentation.components.PriceBreakdownCard
+import com.daily.cetaring.presentation.components.PriceLine
+import com.daily.cetaring.presentation.components.SelectionSummaryText
+import com.daily.cetaring.presentation.components.StartTimeSlotPicker
+import com.daily.cetaring.presentation.components.rememberReducedMotion
+import java.text.NumberFormat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -93,6 +126,7 @@ import com.daily.cetaring.data.remote.dto.BookingResponse
 import com.daily.cetaring.data.remote.dto.CustomerBookingSource
 import com.daily.cetaring.data.remote.dto.CustomerBookingUiModel
 import com.daily.cetaring.data.remote.dto.BookingValidationResult
+import com.daily.cetaring.data.remote.dto.BookingValidator
 import com.daily.cetaring.data.remote.dto.CateringMealServiceType
 import com.daily.cetaring.domain.catalog.EventTypeCatalog
 import com.daily.cetaring.presentation.components.CaterHubEmptyState
@@ -178,18 +212,17 @@ private val BookingDateStorageFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val BookingDateDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 private val BookingTimeStorageFormatter = DateTimeFormatter.ofPattern("HH:mm")
 private val BookingTimeDisplayFormatter = DateTimeFormatter.ofPattern("h:mm a")
-private const val CustomGuestValidationMessage = "Enter a guest count between 1 and 2,000."
-private const val BookingFlowStepCount = 5
-private const val BookingFlowReviewStepIndex = BookingFlowStepCount - 1
 
-private val BookingFlowStepTitles = listOf(
-    "Event & guests",
-    "Food services",
-    "Plan & location",
-    "Date & time",
-    "Review"
+private val CateringDraftSaver: Saver<BookingDraft, Any> = listSaver(
+    save = { CateringJourney.toSaveable(it) },
+    restore = { CateringJourney.fromSaveable(it) ?: BookingDraft() }
 )
 
+private val IndianNumberFormat: NumberFormat = NumberFormat.getIntegerInstance(Locale.forLanguageTag("en-IN"))
+
+internal fun formatRupees(amount: Long): String = "₹" + IndianNumberFormat.format(amount)
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BookingFlowScreen(
     viewModel: BookingViewModel,
@@ -201,12 +234,27 @@ fun BookingFlowScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    var step by rememberSaveable { mutableIntStateOf(0) }
+    var step by rememberSaveable { mutableIntStateOf(CateringJourney.STEP_EVENT) }
+    // Set when the customer taps Edit on the review: Continue then returns straight to the review.
+    var returnToReview by rememberSaveable { mutableStateOf(false) }
+    var showErrors by rememberSaveable { mutableStateOf(false) }
     val isSubmitting = uiState is BookingUiState.Loading
-    val currentStepValidation = remember(step, draft) {
-        if (step == BookingFlowReviewStepIndex) BookingValidationResult.Valid else viewModel.validateStep(step)
+    val reducedMotion = rememberReducedMotion()
+
+    // The ViewModel keeps the draft across the login round trip; this Bundle copy also restores it
+    // after the process is killed in the background.
+    var savedDraft by rememberSaveable(stateSaver = CateringDraftSaver) { mutableStateOf(draft) }
+    var restoreChecked by remember { mutableStateOf(false) }
+    LaunchedEffect(draft) {
+        if (!restoreChecked) {
+            restoreChecked = true
+            if (draft == BookingDraft() && savedDraft != BookingDraft()) {
+                viewModel.updateDraft { savedDraft }
+                return@LaunchedEffect
+            }
+        }
+        savedDraft = draft
     }
-    val canContinue = currentStepValidation is BookingValidationResult.Valid && !isSubmitting
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
@@ -221,6 +269,16 @@ fun BookingFlowScreen(
         }
     }
 
+    fun goTo(target: Int) {
+        showErrors = false
+        step = target
+    }
+
+    BackHandler(enabled = step > CateringJourney.STEP_EVENT && !isSubmitting) {
+        returnToReview = false
+        goTo(step - 1)
+    }
+
     BookingFlowTheme {
         CaterHubLightSystemBars()
         Scaffold(
@@ -228,31 +286,54 @@ fun BookingFlowScreen(
             topBar = { BookingFlowTopBar("Book catering", onBackClick) },
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
-                BookingBottomActionBar {
+                val estimate = CateringJourney.estimate(draft)
+                BookingBottomActionBar(
+                    summary = {
+                        BottomBarSummary(
+                            primary = when {
+                                step == CateringJourney.STEP_REVIEW -> "Ready to submit"
+                                returnToReview -> "Editing · returns to review"
+                                else -> "Next: ${CateringJourney.stepTitles[step + 1]}"
+                            },
+                            secondary = when {
+                                estimate != null -> "Est. ${formatRupees(estimate.total)}"
+                                draft.cateringPlan == BookingOptions.planCustomMenu -> BookingPriceDisplay.PRICE_ON_QUOTE
+                                else -> null
+                            }
+                        )
+                    }
+                ) {
                     BookingSecondaryButton(
-                        text = if (step == 0) "Cancel" else "Back",
-                        onClick = { if (step == 0) onBackClick() else step-- },
+                        text = if (step == CateringJourney.STEP_EVENT) "Cancel" else "Back",
+                        onClick = {
+                            returnToReview = false
+                            if (step == CateringJourney.STEP_EVENT) onBackClick() else goTo(step - 1)
+                        },
                         modifier = Modifier.weight(1f),
                         enabled = !isSubmitting
                     )
                     BookingPrimaryButton(
-                        text = if (step == BookingFlowReviewStepIndex) "Submit Booking" else "Continue",
+                        text = when {
+                            step == CateringJourney.STEP_REVIEW -> "Submit booking"
+                            returnToReview -> "Save & review"
+                            else -> "Continue"
+                        },
                         loadingText = "Submitting…",
-                        enabled = canContinue,
+                        enabled = !isSubmitting,
                         loading = isSubmitting,
                         onClick = {
-                            val validation = if (step == BookingFlowReviewStepIndex) {
-                                BookingValidationResult.Valid
-                            } else {
-                                viewModel.validateStep(step)
-                            }
-
-                            if (validation is BookingValidationResult.Invalid) {
-                                coroutineScope.launch { snackbar.showSnackbar(validation.message) }
-                            } else if (step < BookingFlowReviewStepIndex) {
-                                step++
-                            } else {
-                                viewModel.submitBooking()
+                            val validation = CateringJourney.validateUiStep(step, draft)
+                            when {
+                                validation is BookingValidationResult.Invalid -> {
+                                    showErrors = true
+                                    coroutineScope.launch { snackbar.showSnackbar(validation.message) }
+                                }
+                                step == CateringJourney.STEP_REVIEW -> viewModel.submitBooking()
+                                returnToReview -> {
+                                    returnToReview = false
+                                    goTo(CateringJourney.STEP_REVIEW)
+                                }
+                                else -> goTo(step + 1)
                             }
                         },
                         modifier = Modifier.weight(1.4f)
@@ -267,37 +348,67 @@ fun BookingFlowScreen(
             ) {
                 BookingStepProgress(
                     stepIndex = step,
-                    stepTitles = BookingFlowStepTitles,
+                    stepTitles = CateringJourney.stepTitles,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp)
                 )
                 AnimatedContent(
                     targetState = step,
                     transitionSpec = {
-                        val forward = targetState > initialState
-                        (fadeIn(tween(240, delayMillis = 60)) +
-                            slideInHorizontally(tween(280)) { width -> if (forward) width / 8 else -width / 8 })
-                            .togetherWith(fadeOut(tween(140)))
+                        if (reducedMotion) {
+                            fadeIn(tween(0)).togetherWith(fadeOut(tween(0)))
+                        } else {
+                            val forward = targetState > initialState
+                            (fadeIn(tween(240, delayMillis = 60)) +
+                                slideInHorizontally(tween(280)) { width -> if (forward) width / 8 else -width / 8 })
+                                .togetherWith(fadeOut(tween(140)))
+                        }
                     },
                     label = "bookingStep",
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 ) { shownStep ->
+                    val scrollState = rememberScrollState()
                     Column(
                         Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
+                            .verticalScroll(scrollState)
                             .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         when (shownStep) {
-                            0 -> EventStep(draft, viewModel)
-                            1 -> FoodServiceSelectionStep(draft, viewModel)
-                            2 -> CateringPlanAndLocationStep(draft, viewModel)
-                            3 -> DateTimeStep(draft, viewModel)
-                            else -> ReviewStep(draft, enabled = !isSubmitting) { step = it }
+                            CateringJourney.STEP_EVENT -> CateringEventStep(draft, viewModel, showErrors)
+                            CateringJourney.STEP_FOOD_SERVICES -> CateringFoodServicesStep(draft, viewModel, showErrors)
+                            CateringJourney.STEP_PACKAGE -> CateringPackageStep(draft, viewModel, showErrors)
+                            CateringJourney.STEP_WHEN_WHERE -> CateringWhenWhereStep(draft, viewModel, showErrors)
+                            else -> CateringReviewStep(draft, enabled = !isSubmitting) { target ->
+                                returnToReview = true
+                                goTo(target)
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BottomBarSummary(primary: String, secondary: String?) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            primary,
+            color = BookingPalette.Muted,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        if (secondary != null) {
+            Text(
+                secondary,
+                color = BookingPalette.Emerald,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -338,488 +449,257 @@ private fun <T> SelectionGrid(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun EventStep(draft: BookingDraft, viewModel: BookingViewModel) {
+private fun CateringEventStep(draft: BookingDraft, viewModel: BookingViewModel, showErrors: Boolean) {
+    val guestRequester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    val reducedMotion = rememberReducedMotion()
+
     BookingStepHeading(
-        title = "Tell us about your event",
-        subtitle = "Choose the occasion and how many guests you expect."
+        title = "What are you celebrating?",
+        subtitle = "Pick the occasion, then tell us how many guests to expect."
     )
-
-    BookingCard {
-        BookingSectionTitle(
-            "Event type",
-            Icons.Filled.Event,
-            trailing = draft.eventType?.let { selected ->
-                {
-                    Text(
-                        EventTypeCatalog.displayNameForBackendValue(selected),
-                        color = BookingPalette.Accent,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 8.dp).widthIn(max = 160.dp)
-                    )
-                }
-            }
-        )
-        EventTypeGrid(
-            selectedBackendValue = draft.eventType,
-            onSelect = { event -> viewModel.updateDraft { it.copy(eventType = event.backendValue) } }
-        )
+    EventImageGrid(
+        selectedBackendValue = draft.eventType,
+        onSelect = { event ->
+            val firstChoice = draft.eventType == null
+            viewModel.updateDraft { it.copy(eventType = event.backendValue) }
+            // Guide first-time customers to the next question.
+            if (firstChoice && !reducedMotion) scope.launch { guestRequester.bringIntoView() }
+        }
+    )
+    if (showErrors && draft.eventType.isNullOrBlank()) {
+        ScheduleMessage("Please select an event type.", isError = true)
     }
 
-    BookingCard {
-        BookingSectionTitle(
-            "Guest count",
-            Icons.Filled.Groups,
-            trailing = draft.guestCount?.let { count ->
-                {
-                    Text(
-                        "$count guests",
-                        color = BookingPalette.Accent,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
+    BookingCard(modifier = Modifier.bringIntoViewRequester(guestRequester)) {
+        GuestCountSelector(
+            guestCount = draft.guestCount,
+            onGuestCountChange = { guests -> viewModel.updateDraft { CateringJourney.withGuests(it, guests) } },
+            onIncrement = {
+                viewModel.updateDraft { CateringJourney.withGuests(it, CateringJourney.incrementGuests(it.guestCount)) }
+            },
+            onDecrement = {
+                viewModel.updateDraft { CateringJourney.withGuests(it, CateringJourney.decrementGuests(it.guestCount)) }
             }
         )
-        val customOption = -1
-        val guestOptions = BookingOptions.guestQuickOptions + customOption
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val columns = responsiveColumns(maxWidth, wide = 6, regular = 3, compact = 2)
-            SelectionGrid(guestOptions, columns, spacing = 8.dp) { guests, itemModifier ->
-                val isCustom = guests == customOption
-                val selected = if (isCustom) {
-                    draft.guestCountSelection == BookingOptions.guestSelectionCustom
-                } else {
-                    draft.guestCountSelection == BookingOptions.guestSelectionPreset && draft.guestCount == guests
-                }
-                BookingSelectableCard(
-                    selected = selected,
-                    onClick = {
-                        viewModel.updateDraft {
-                            if (isCustom) {
-                                it.copy(
-                                    guestCountSelection = BookingOptions.guestSelectionCustom,
-                                    guestCount = if (it.customGuestCountInput.isBlank()) null else it.guestCount
-                                )
-                            } else {
-                                it.copy(
-                                    guestCount = guests,
-                                    guestCountSelection = BookingOptions.guestSelectionPreset,
-                                    customGuestCountInput = ""
-                                )
-                            }
-                        }
-                    },
-                    modifier = itemModifier,
-                    contentPadding = 10.dp
-                ) {
-                    Column(
-                        Modifier.fillMaxWidth().heightIn(min = 40.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            if (isCustom) "Custom" else guests.toString(),
-                            color = if (selected) BookingPalette.Accent else BookingPalette.Ink,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            if (isCustom) "Enter count" else "guests",
-                            color = BookingPalette.Muted,
-                            style = MaterialTheme.typography.labelSmall,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
-
-        if (draft.guestCountSelection == BookingOptions.guestSelectionCustom) {
-            val invalidCustomGuestCount = draft.customGuestCountInput.isNotBlank() && draft.guestCount == null
-            BookingTextField(
-                value = draft.customGuestCountInput,
-                onValueChange = { value ->
-                    if (value.length > BookingOptions.maxGuestInputLength) return@BookingTextField
-                    if (value.isNotEmpty() && !value.all(Char::isDigit)) return@BookingTextField
-                    val parsed = value.toIntOrNull()?.takeIf { it in 1..BookingOptions.maxGuestCount }
-                    viewModel.updateDraft {
-                        it.copy(
-                            guestCountSelection = BookingOptions.guestSelectionCustom,
-                            customGuestCountInput = value,
-                            guestCount = parsed
-                        )
-                    }
-                },
-                label = "Number of guests",
-                placeholder = "Enter number of guests",
-                supportingText = if (invalidCustomGuestCount) CustomGuestValidationMessage else "Between 1 and 2,000 guests",
-                isError = invalidCustomGuestCount,
-                leadingIcon = Icons.Filled.Groups,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Done
-                )
-            )
+        if (showErrors) {
+            val guests = BookingValidator.validateGuests(draft.guestCount)
+            if (guests is BookingValidationResult.Invalid) ScheduleMessage(guests.message, isError = true)
         }
     }
-}
-
-private fun mealServiceIcon(type: CateringMealServiceType): ImageVector = when (type) {
-    CateringMealServiceType.BREAKFAST -> Icons.Filled.FreeBreakfast
-    CateringMealServiceType.LUNCH -> Icons.Filled.LunchDining
-    CateringMealServiceType.SNACKS -> Icons.Filled.Fastfood
-    CateringMealServiceType.BEVERAGES -> Icons.Filled.LocalCafe
-    CateringMealServiceType.DINNER -> Icons.Filled.DinnerDining
 }
 
 @Composable
-private fun FoodServiceSelectionStep(
-    draft: BookingDraft,
-    viewModel: BookingViewModel
-) {
+private fun CateringFoodServicesStep(draft: BookingDraft, viewModel: BookingViewModel, showErrors: Boolean) {
     BookingStepHeading(
         title = "What would you like to serve?",
-        subtitle = "Select one or more food services for your event."
+        subtitle = "Select every meal you need — you can choose more than one."
     )
-
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        BookingOptions.cateringMealServiceOptions.forEach { option ->
+    val options = BookingOptions.cateringMealServiceOptions
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val columns = responsiveColumns(maxWidth, wide = 3, regular = 2, compact = 1)
+        SelectionGrid(options, columns, spacing = 12.dp) { option, itemModifier ->
             val selected = option.type in draft.selectedFoodServices
-            BookingSelectableCard(
+            ImageTileCard(
+                title = option.displayName,
+                description = option.description,
+                visual = remember(option.type) {
+                    BookingImagery.visual(BookingImagery.mealPhoto(option.type), seed = option.type.ordinal)
+                },
                 selected = selected,
-                mode = BookingSelectionMode.Multiple,
                 onClick = {
                     viewModel.updateDraft { current ->
                         val updated = current.selectedFoodServices.toMutableSet()
-                        if (!updated.add(option.type)) {
-                            updated.remove(option.type)
-                        }
+                        if (!updated.add(option.type)) updated.remove(option.type)
                         current.copy(selectedFoodServices = updated)
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    BookingIconTile(mealServiceIcon(option.type), selected, size = 44.dp)
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            option.displayName,
-                            color = BookingPalette.Ink,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            option.description,
-                            color = BookingPalette.Muted,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    BookingSelectionIndicator(selected = selected)
-                }
-            }
-        }
-    }
-
-    val selectedServices = draft.selectedFoodServices
-        .sortedBy { it.sortOrder }
-        .map { it.backendLabel }
-    val count = selectedServices.size
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = BookingCardShape,
-        color = if (count > 0) BookingPalette.GreenSoft else BookingPalette.AmberSoft,
-        border = BorderStroke(1.dp, if (count > 0) BookingPalette.Green.copy(alpha = 0.25f) else BookingPalette.Border)
-    ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                if (count > 0) Icons.Filled.CheckCircle else Icons.Filled.Info,
-                contentDescription = null,
-                tint = if (count > 0) BookingPalette.Green else BookingPalette.Amber
+                modifier = itemModifier
             )
-            Spacer(Modifier.width(12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    when (count) {
-                        0 -> "No services selected"
-                        1 -> "1 service selected"
-                        else -> "$count services selected"
-                    },
-                    color = BookingPalette.Ink,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    if (count == 0) "Select at least one service to continue."
-                    else selectedServices.joinToString(" • "),
-                    color = BookingPalette.Muted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
         }
     }
-}
-
-@Composable
-private fun CateringPlanAndLocationStep(
-    draft: BookingDraft,
-    viewModel: BookingViewModel
-) {
-    BookingStepHeading(
-        title = "Choose your catering plan",
-        subtitle = "Pick a vegetarian or non-vegetarian package, or build a custom menu."
-    )
-
-    val selectedFoodType = draft.cateringFoodType.ifBlank { BookingOptions.foodTypeNonVegetarian }
-    val visiblePlans = BookingOptions.plansByFoodType(selectedFoodType)
-    val foodTypes = listOf(
-        Triple(BookingOptions.foodTypeVegetarian, "Vegetarian", Icons.Filled.Eco),
-        Triple(BookingOptions.foodTypeNonVegetarian, "Non-Veg", Icons.Filled.Restaurant),
-        Triple(BookingOptions.foodTypeCustom, "Custom", Icons.Filled.AutoAwesome)
-    )
-
-    BookingCard {
-        BookingSectionTitle("Food preference", Icons.Filled.RestaurantMenu)
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val columns = responsiveColumns(maxWidth, wide = 3, regular = 3, compact = 1)
-            SelectionGrid(foodTypes, columns, spacing = 8.dp) { (type, label, icon), itemModifier ->
-                val selected = selectedFoodType == type
-                BookingSelectableCard(
-                    selected = selected,
-                    onClick = {
-                        val defaultPlan = BookingOptions.defaultPlanForFoodType(type)
-                        viewModel.updateDraft {
-                            it.copy(
-                                cateringFoodType = type,
-                                cateringPlan = defaultPlan.backendValue
-                            )
-                        }
-                    },
-                    modifier = itemModifier,
-                    contentPadding = 10.dp
-                ) {
-                    Column(
-                        Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            icon,
-                            contentDescription = null,
-                            tint = if (selected) BookingPalette.Accent else BookingPalette.Green,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Text(
-                            label,
-                            color = BookingPalette.Ink,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        visiblePlans.forEach { plan ->
-            PlanCard(
-                option = plan,
-                selected = draft.cateringPlan == plan.backendValue
-            ) {
-                viewModel.updateDraft { it.copy(cateringPlan = plan.backendValue) }
-            }
-        }
-    }
-
-    if (draft.cateringPlan == BookingOptions.planCustomMenu) {
-        BookingTextField(
-            value = draft.foodRequirements,
-            onValueChange = { viewModel.updateDraft { current -> current.copy(foodRequirements = it) } },
-            label = "Your menu requirements",
-            placeholder = "Example: Chicken Biryani, Paneer Curry, Gulab Jamun…",
-            singleLine = false,
-            minLines = 3,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
-        )
-    }
-
-    BookingCard {
-        BookingSectionTitle("Event location", Icons.Filled.LocationOn)
-        BookingTextField(
-            value = draft.address,
-            onValueChange = { value -> viewModel.updateDraft { it.copy(address = value) } },
-            label = "Event address",
-            placeholder = "House / building, street",
-            singleLine = false,
-            minLines = 2,
-            maxLines = 4,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
-        )
-        BookingTextField(
-            value = draft.area,
-            onValueChange = { value -> viewModel.updateDraft { it.copy(area = value) } },
-            label = "Area / locality",
-            placeholder = "Enter area or locality",
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                imeAction = ImeAction.Next
-            )
-        )
-        BookingTextField(
-            value = draft.city,
-            onValueChange = { value -> viewModel.updateDraft { it.copy(city = value) } },
-            label = "City",
-            placeholder = "Enter city",
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                imeAction = ImeAction.Next
-            )
-        )
-        BookingTextField(
-            value = draft.landmark,
-            onValueChange = { value -> viewModel.updateDraft { it.copy(landmark = value) } },
-            label = "Landmark (optional)",
-            placeholder = "Nearby landmark",
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                imeAction = ImeAction.Done
-            )
-        )
-    }
-}
-
-@Composable
-private fun PlanCard(
-    option: BookingOptions.CateringPlanOption,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    BookingSelectableCard(
-        selected = selected,
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = 16.dp
-    ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            BookingSelectionIndicator(selected = selected, radio = true, modifier = Modifier.padding(top = 2.dp))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                FlowRowCompat {
-                    Text(
-                        option.title,
-                        color = BookingPalette.Ink,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    if (option.popular) {
-                        Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = BookingPalette.AmberSoft
-                        ) {
-                            Text(
-                                "POPULAR",
-                                color = BookingPalette.Amber,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.ExtraBold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-                Text(
-                    option.pricePerPerson?.let { "₹$it / person" } ?: "Price on request",
-                    color = if (selected) BookingPalette.Accent else BookingPalette.Green,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                option.description?.let {
-                    Text(it, color = BookingPalette.Ink, style = MaterialTheme.typography.bodyMedium)
-                }
-                Text(
-                    option.menuItems.joinToString(" • "),
-                    color = BookingPalette.Muted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        }
+    val labels = draft.selectedFoodServices.sortedBy { it.sortOrder }.map { it.displayName }
+    if (showErrors && labels.isEmpty()) {
+        ScheduleMessage("Please select at least one food service.", isError = true)
+    } else {
+        SelectionSummaryText(labels, emptyHint = "Tap a meal to add it to your event.")
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FlowRowCompat(content: @Composable () -> Unit) {
+private fun CateringPackageStep(draft: BookingDraft, viewModel: BookingViewModel, showErrors: Boolean) {
+    BookingStepHeading(
+        title = "Choose your menu",
+        subtitle = "Pick a package for ${draft.guestCount?.let { "$it guests" } ?: "your guests"} or build a custom menu."
+    )
+
+    val foodTypes = listOf(
+        BookingOptions.foodTypeVegetarian to "Vegetarian",
+        BookingOptions.foodTypeNonVegetarian to "Non-vegetarian",
+        BookingOptions.foodTypeCustom to "Custom menu"
+    )
+    val selectedFoodType = draft.cateringFoodType.ifBlank { BookingOptions.foodTypeNonVegetarian }
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        itemVerticalAlignment = Alignment.CenterVertically
-    ) { content() }
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.selectableGroup()
+    ) {
+        foodTypes.forEach { (type, label) ->
+            BookingChip(
+                text = label,
+                selected = selectedFoodType == type,
+                leadingIcon = when (type) {
+                    BookingOptions.foodTypeVegetarian -> Icons.Filled.Eco
+                    BookingOptions.foodTypeNonVegetarian -> Icons.Filled.Restaurant
+                    else -> Icons.Filled.AutoAwesome
+                },
+                onClick = {
+                    viewModel.updateDraft { current ->
+                        val keepPlan = BookingOptions.planByBackendValue(current.cateringPlan)?.foodType == type
+                        current.copy(
+                            cateringFoodType = type,
+                            cateringPlan = when {
+                                keepPlan -> current.cateringPlan
+                                type == BookingOptions.foodTypeCustom -> BookingOptions.planCustomMenu
+                                else -> ""
+                            }
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    val plans = BookingOptions.plansByFoodType(selectedFoodType)
+    val guests = draft.guestCount
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val effectiveWidth = maxWidth / LocalDensity.current.fontScale.coerceAtLeast(1f)
+        val carousel = plans.size > 1 && effectiveWidth >= 300.dp
+        val cardContent: @Composable (BookingOptions.CateringPlanOption, Modifier) -> Unit = { plan, cardModifier ->
+            val total = plan.pricePerPerson?.let { price -> guests?.let { price.toLong() * it } }
+            PackageCard(
+                title = plan.title.lowercase(Locale.ROOT).split(' ', '-').joinToString(" ") { word ->
+                    word.replaceFirstChar { it.titlecase(Locale.ROOT) }
+                }.replace("Non Veg", "Non-Veg"),
+                priceText = plan.pricePerPerson?.let { formatRupees(it.toLong()) } ?: BookingPriceDisplay.PRICE_ON_QUOTE,
+                priceUnit = plan.pricePerPerson?.let { "person" },
+                highlights = plan.menuItems,
+                visual = remember(plan.backendValue) {
+                    BookingImagery.visual(BookingImagery.packagePhoto(plan), seed = plan.backendValue.hashCode())
+                },
+                selected = draft.cateringPlan == plan.backendValue,
+                onClick = { viewModel.updateDraft { it.copy(cateringPlan = plan.backendValue, cateringFoodType = plan.foodType) } },
+                badge = if (plan.popular) "MOST POPULAR" else null,
+                footnote = when {
+                    total != null -> "Estimated ${formatRupees(total)} for $guests guests"
+                    plan.pricePerPerson == null -> "Describe your dishes below and CaterHub will send a quote."
+                    else -> null
+                },
+                modifier = cardModifier
+            )
+        }
+        if (carousel) {
+            val initialIndex = plans.indexOfFirst { it.backendValue == draft.cateringPlan }.coerceAtLeast(0)
+            val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+            LazyRow(
+                state = listState,
+                flingBehavior = rememberSnapFlingBehavior(listState),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth().selectableGroup()
+            ) {
+                items(plans, key = { it.backendValue }) { plan ->
+                    cardContent(plan, Modifier.width(maxWidth * 0.84f))
+                }
+            }
+        } else {
+            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                plans.forEach { plan -> cardContent(plan, Modifier.fillMaxWidth()) }
+            }
+        }
+    }
+    if (showErrors && draft.cateringPlan.isBlank()) {
+        ScheduleMessage("Please choose a catering package.", isError = true)
+    } else if (plans.size > 1) {
+        Text("Swipe to compare packages", color = BookingPalette.Muted, style = MaterialTheme.typography.labelMedium)
+    }
+
+    val isCustom = draft.cateringPlan == BookingOptions.planCustomMenu
+    BookingTextField(
+        value = draft.foodRequirements,
+        onValueChange = { value -> viewModel.updateDraft { it.copy(foodRequirements = value) } },
+        label = if (isCustom) "Dishes for your custom menu" else "Dietary notes (optional)",
+        placeholder = if (isCustom) "Example: Chicken Biryani, Paneer Curry, Gulab Jamun…" else "Spice level, Jain food, must-have dishes…",
+        singleLine = false,
+        minLines = if (isCustom) 3 else 2,
+        isError = showErrors && isCustom && draft.foodRequirements.isBlank(),
+        supportingText = if (showErrors && isCustom && draft.foodRequirements.isBlank()) "Tell us the dishes you would like." else null,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+    )
 }
 
 @Composable
-private fun DateTimeStep(
-    draft: BookingDraft,
-    viewModel: BookingViewModel
-) {
+private fun CateringWhenWhereStep(draft: BookingDraft, viewModel: BookingViewModel, showErrors: Boolean) {
     BookingStepHeading(
-        title = "When is your event?",
-        subtitle = "Pick a date and start time, and share any food preferences."
+        title = "When & where?",
+        subtitle = "Choose the date, serving start time and venue."
     )
 
     val scheduleValidation = remember(draft.eventDate, draft.eventTime) { viewModel.validateStep(3) }
-    val showScheduleError = draft.eventDate.isNotBlank() && draft.eventTime.isNotBlank() &&
-        scheduleValidation is BookingValidationResult.Invalid
+    val scheduleInvalid = scheduleValidation is BookingValidationResult.Invalid
+    val showScheduleError = scheduleInvalid &&
+        (showErrors || (draft.eventDate.isNotBlank() && draft.eventTime.isNotBlank()))
 
     BookingCard {
-        BookingSectionTitle("Date", Icons.Filled.CalendarMonth)
+        BookingSubheading(
+            "Event date",
+            icon = Icons.Filled.CalendarMonth,
+            trailing = draft.eventDate.takeIf { it.isNotBlank() }?.let(::formatBookingDate)
+        )
         EventDateSelector(
             isoDate = draft.eventDate.takeIf { it.isNotBlank() },
             onDateSelected = { iso -> viewModel.updateDraft { it.copy(eventDate = iso) } },
-            isError = showScheduleError
+            isError = showScheduleError && draft.eventDate.isBlank()
         )
-        BookingSectionTitle("Start time", Icons.Filled.Schedule)
-        EventTimeSelector(
-            label = "Start time",
+        BookingSubheading(
+            "Serving starts at",
+            icon = Icons.Filled.Schedule,
+            trailing = draft.eventTime.takeIf { it.isNotBlank() }?.let(::formatBookingTime)
+        )
+        StartTimeSlotPicker(
             time = draft.eventTime.takeIf { it.isNotBlank() },
             onTimeSelected = { time -> viewModel.updateDraft { it.copy(eventTime = time) } },
-            defaultTime = LocalTime.NOON,
-            isError = showScheduleError,
-            modifier = Modifier.fillMaxWidth()
+            isError = showScheduleError
         )
         if (showScheduleError) {
             ScheduleMessage((scheduleValidation as BookingValidationResult.Invalid).message, isError = true)
-        } else if (draft.eventDate.isBlank() || draft.eventTime.isBlank()) {
-            ScheduleMessage("Choose both a date and a start time to continue.", isError = false)
         }
     }
 
     BookingCard {
-        BookingSectionTitle("Requirements", Icons.AutoMirrored.Filled.Notes)
-        BookingTextField(
-            value = draft.foodRequirements,
-            onValueChange = { value -> viewModel.updateDraft { it.copy(foodRequirements = value) } },
-            label = "Food requirements (optional)",
-            placeholder = "Dietary needs, spice level, must-have dishes…",
-            singleLine = false,
-            minLines = 2,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+        BookingSubheading("Venue", icon = Icons.Filled.LocationOn)
+        BookingLocationSection(
+            address = draft.address,
+            onAddressChange = { value -> viewModel.updateDraft { it.copy(address = value) } },
+            area = draft.area,
+            onAreaChange = { value -> viewModel.updateDraft { it.copy(area = value) } },
+            city = draft.city,
+            onCityChange = { value -> viewModel.updateDraft { it.copy(city = value) } },
+            landmark = draft.landmark,
+            onLandmarkChange = { value -> viewModel.updateDraft { it.copy(landmark = value) } },
+            showErrors = showErrors
         )
+    }
+
+    BookingCard {
+        BookingSubheading("Anything else?", icon = Icons.AutoMirrored.Filled.Notes)
         BookingTextField(
             value = draft.specialInstructions,
             onValueChange = { value -> viewModel.updateDraft { it.copy(specialInstructions = value) } },
             label = "Additional instructions (optional)",
-            placeholder = "Serving time, setup, parking or access details…",
+            placeholder = "Serving setup, parking or access details…",
             singleLine = false,
             minLines = 2,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
@@ -828,104 +708,86 @@ private fun DateTimeStep(
 }
 
 @Composable
-private fun ReviewStep(draft: BookingDraft, enabled: Boolean, onEdit: (Int) -> Unit) {
-    BookingStepHeading(
-        title = "Review your booking",
-        subtitle = "Check the details below before submitting your request."
+private fun CateringReviewStep(draft: BookingDraft, enabled: Boolean, onEdit: (Int) -> Unit) {
+    val event = EventTypeCatalog.eventTypes.firstOrNull { it.backendValue == draft.eventType }
+    val occasion = EventTypeCatalog.displayNameForBackendValue(draft.eventType).ifBlank { null }
+    BookingReviewHeader(
+        visual = remember(event?.id) {
+            BookingImagery.visual(BookingImagery.eventPhoto(event?.id ?: "other"))
+        },
+        title = occasion ?: "Your event",
+        subtitle = "Event catering" + (BookingOptions.planByBackendValue(draft.cateringPlan)?.title?.let { " · $it" } ?: ""),
+        facts = listOfNotNull(
+            draft.eventDate.takeIf { it.isNotBlank() }?.let { Icons.Filled.CalendarMonth to formatBookingDate(it) },
+            draft.guestCount?.let { Icons.Filled.Groups to "$it guests" },
+            draft.eventTime.takeIf { it.isNotBlank() }?.let { Icons.Filled.Schedule to formatBookingReviewTimeRange(it) }
+        )
     )
 
-    ReviewSection("Event", Icons.Filled.Event, editStep = 0, enabled = enabled, onEdit = onEdit) {
-        ReviewDetail("Event type", EventTypeCatalog.displayNameForBackendValue(draft.eventType).ifBlank { "Not selected" })
-        ReviewDetail("Guests", draft.guestCount?.let { "$it guests" } ?: "Not selected")
+    BookingReviewSection("Event details", Icons.Filled.Event, { onEdit(CateringJourney.STEP_EVENT) }, enabled) {
+        BookingReviewRow("Event type", occasion ?: "Not selected")
+        BookingReviewRow("Guests", draft.guestCount?.let { "$it guests" } ?: "Not selected")
     }
 
-    ReviewSection("Food services", Icons.Filled.LunchDining, editStep = 1, enabled = enabled, onEdit = onEdit) {
-        ReviewDetail("Services", draft.selectedFoodServicesLabel())
+    BookingReviewSection("Selected services", Icons.Filled.LunchDining, { onEdit(CateringJourney.STEP_FOOD_SERVICES) }, enabled) {
+        BookingReviewRow("Service", "Event catering")
+        BookingReviewRow("Meals", draft.selectedFoodServicesLabel())
     }
 
     val plan = BookingOptions.planByBackendValue(draft.cateringPlan)
-    ReviewSection("Plan & location", Icons.Filled.RestaurantMenu, editStep = 2, enabled = enabled, onEdit = onEdit) {
-        ReviewDetail("Catering plan", draft.cateringPlan.ifBlank { BookingOptions.fullCatering })
-        plan?.pricePerPerson?.let { ReviewDetail("Plan price", "₹$it / person") }
-        ReviewDetail("Location", draft.deliveryAddress().ifBlank { "Not provided" })
-    }
-
-    ReviewSection("Date & requirements", Icons.Filled.CalendarMonth, editStep = 3, enabled = enabled, onEdit = onEdit) {
-        ReviewDetail("Date", draft.eventDate.takeIf { it.isNotBlank() }?.let(::formatBookingDate) ?: "Not selected")
-        ReviewDetail("Start time", formatBookingReviewTimeRange(draft.eventTime))
-        ReviewDetail("Food requirements", draft.foodRequirements.ifBlank { "Standard plan menu" })
-        if (draft.specialInstructions.isNotBlank()) {
-            ReviewDetail("Additional instructions", draft.specialInstructions)
-        }
-    }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = BookingCardShape,
-        color = BookingPalette.GreenSoft,
-        border = BorderStroke(1.dp, BookingPalette.Green.copy(alpha = 0.25f))
-    ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Info, contentDescription = null, tint = BookingPalette.Green)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Total", color = BookingPalette.Muted, style = MaterialTheme.typography.labelMedium)
-                Text(
-                    "To be quoted",
-                    color = BookingPalette.Ink,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "CaterHub will confirm the final quote for your request.",
-                    color = BookingPalette.Muted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReviewSection(
-    title: String,
-    icon: ImageVector,
-    editStep: Int,
-    enabled: Boolean,
-    onEdit: (Int) -> Unit,
-    content: @Composable () -> Unit
-) {
-    BookingCard {
-        BookingSectionTitle(
-            title,
-            icon,
-            trailing = {
-                TextButton(
-                    onClick = { onEdit(editStep) },
-                    enabled = enabled,
-                    colors = ButtonDefaults.textButtonColors(contentColor = BookingPalette.Accent)
-                ) {
-                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Edit", fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics {
-                        contentDescription = "Edit $title"
-                    })
-                }
-            }
+    BookingReviewSection("Menu package", Icons.Filled.RestaurantMenu, { onEdit(CateringJourney.STEP_PACKAGE) }, enabled) {
+        BookingReviewRow("Package", plan?.title ?: draft.cateringPlan.ifBlank { "Not selected" })
+        BookingReviewRow(
+            "Price",
+            plan?.pricePerPerson?.let { "${formatRupees(it.toLong())} / person" } ?: BookingPriceDisplay.PRICE_ON_QUOTE
         )
-        HorizontalDivider(color = BookingPalette.Divider)
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { content() }
+        plan?.menuItems?.takeIf { plan.pricePerPerson != null }?.let { BookingReviewRow("Includes", it.joinToString(", ")) }
+        if (draft.foodRequirements.isNotBlank()) {
+            BookingReviewRow(if (plan?.pricePerPerson == null) "Your dishes" else "Dietary notes", draft.foodRequirements)
+        }
+    }
+
+    BookingReviewSection("Date & time", Icons.Filled.CalendarMonth, { onEdit(CateringJourney.STEP_WHEN_WHERE) }, enabled) {
+        BookingReviewRow("Date", draft.eventDate.takeIf { it.isNotBlank() }?.let(::formatBookingDate) ?: "Not selected")
+        BookingReviewRow("Serving starts", formatBookingReviewTimeRange(draft.eventTime))
+    }
+
+    BookingReviewSection("Location", Icons.Filled.LocationOn, { onEdit(CateringJourney.STEP_WHEN_WHERE) }, enabled) {
+        val venue = listOf(draft.address, draft.area, draft.city).map { it.trim() }.filter { it.isNotBlank() }.joinToString(", ")
+        BookingReviewRow("Venue", venue.ifBlank { "Not provided" })
+        if (draft.landmark.isNotBlank()) BookingReviewRow("Landmark", draft.landmark.trim())
+        if (draft.specialInstructions.isNotBlank()) BookingReviewRow("Instructions", draft.specialInstructions)
+    }
+
+    val estimate = CateringJourney.estimate(draft)
+    if (estimate != null) {
+        PriceBreakdownCard(
+            lines = listOf(
+                PriceLine(
+                    label = plan?.title ?: draft.cateringPlan,
+                    detail = "${formatRupees(estimate.perPerson.toLong())} × ${estimate.guests} guests",
+                    amount = formatRupees(estimate.total)
+                )
+            ),
+            totalLabel = "Estimated total",
+            totalValue = BookingPriceDisplay.cateringTotal(draft) { formatRupees(it) },
+            note = "Based on the published package price. CaterHub confirms the final quote after reviewing your request. Taxes and delivery are not included in this estimate."
+        )
+    } else {
+        PriceBreakdownCard(
+            lines = listOf(
+                PriceLine(
+                    plan?.title ?: draft.cateringPlan.ifBlank { "Custom menu" },
+                    draft.guestCount?.let { "$it guests" },
+                    BookingPriceDisplay.PRICE_ON_QUOTE
+                )
+            ),
+            totalLabel = "Total",
+            totalValue = BookingPriceDisplay.PRICE_ON_QUOTE,
+            note = "CaterHub will review your menu and confirm the price before the booking is finalised."
+        )
     }
 }
-
-@Composable
-private fun ReviewDetail(label: String, value: String) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label, color = BookingPalette.Muted, style = MaterialTheme.typography.labelMedium)
-        Text(value, color = BookingPalette.Ink, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-    }
-}
-
 @Composable
 fun BookingSuccessScreen(
     viewModel: BookingViewModel,
@@ -934,56 +796,45 @@ fun BookingSuccessScreen(
     onHome: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val booking = (uiState as? BookingUiState.Submitted)?.booking
 
-    val submitted = uiState as? BookingUiState.Submitted
-    val booking = submitted?.booking
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            Icons.Filled.CheckCircle,
-            contentDescription = null,
-            tint = Green,
-            modifier = Modifier.size(52.dp)
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "Booking request submitted",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.ExtraBold,
-            color = Maroon
-        )
-        Text(
-            "Your request has been sent to CaterHub.",
-            color = Muted
-        )
-
-        Spacer(Modifier.height(20.dp))
-
-        if (booking != null) {
-            BookingSummaryCard(booking)
+    BookingFlowTheme {
+        CaterHubLightSystemBars()
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(BookingPalette.Background)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Spacer(Modifier.height(24.dp))
+            BookingSuccessMark()
+            Text(
+                "Booking request submitted",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = BookingPalette.Ink,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "Your request has been sent to CaterHub. We'll confirm the details and final quote shortly.",
+                color = BookingPalette.Muted,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(8.dp))
+            if (booking != null) {
+                BookingSummaryCard(booking)
+            }
+            Spacer(Modifier.height(8.dp))
+            BookingPrimaryButton("View booking", { onViewBooking(bookingId) }, Modifier.fillMaxWidth())
+            BookingSecondaryButton("Back to Home", onHome, Modifier.fillMaxWidth())
         }
-
-        Spacer(Modifier.height(20.dp))
-
-        CaterHubPrimaryButton(
-            "View Booking",
-            { onViewBooking(bookingId) },
-            Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(10.dp))
-        CaterHubSecondaryButton(
-            "Back to Home",
-            onHome,
-            Modifier.fillMaxWidth()
-        )
     }
 }
+
 
 @Composable
 fun BookingHistoryScreen(
@@ -1211,7 +1062,7 @@ private fun UnifiedBookingCard(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                if (booking.quoteBased) "Price: To be quoted" else "Price: ₹${booking.totalAmount ?: 0}",
+                if (booking.quoteBased || booking.totalAmount == null) "Price on quote" else "Price: ₹${booking.totalAmount}",
                 color = if (booking.quoteBased) Green else Maroon,
                 fontWeight = FontWeight.Bold
             )
@@ -1255,7 +1106,7 @@ private fun UnifiedBookingDetailsCard(booking: CustomerBookingUiModel) {
             } else {
                 booking.services.forEach { Text(it, color = TextDark) }
             }
-            SummaryRow("Price", if (booking.quoteBased) "To be quoted" else "₹${booking.totalAmount ?: 0}")
+            SummaryRow("Price", if (booking.quoteBased || booking.totalAmount == null) BookingPriceDisplay.PRICE_ON_QUOTE else "₹${booking.totalAmount}")
             SummaryRow("Status", booking.status.replace('_', ' ').lowercase(Locale.ROOT).replaceFirstChar { it.titlecase(Locale.ROOT) })
             SummaryRow("Created", formatDateTime(booking.createdAt))
         }

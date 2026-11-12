@@ -2,115 +2,113 @@
 
 package com.daily.cetaring.presentation.screens
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Cake
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Celebration
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CleaningServices
-import androidx.compose.material.icons.filled.EventSeat
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.TableRestaurant
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.daily.cetaring.data.remote.dto.CreateCateringStaffBookingRequest
 import com.daily.cetaring.data.remote.dto.CateringStaffLineItem
+import com.daily.cetaring.data.remote.dto.CreateCateringStaffBookingRequest
 import com.daily.cetaring.data.remote.dto.ServiceRequestRequest
-import com.daily.cetaring.data.remote.dto.WorkerType
 import com.daily.cetaring.data.repository.WorkerRepository
+import com.daily.cetaring.domain.booking.BookingPriceDisplay
+import com.daily.cetaring.domain.booking.ServiceJourney
+import com.daily.cetaring.presentation.components.BookingReviewHeader
+import com.daily.cetaring.domain.booking.ServiceJourneyCatalog
+import com.daily.cetaring.domain.booking.ServiceJourneyStep
+import com.daily.cetaring.domain.booking.ServiceRequestCatalog
+import com.daily.cetaring.domain.booking.ServiceRequestDraft
+import com.daily.cetaring.domain.booking.ServiceRequestLine
+import com.daily.cetaring.domain.booking.ServiceRequestValidator
 import com.daily.cetaring.domain.catalog.EventTypeCatalog
 import com.daily.cetaring.domain.catalog.ServiceCatalog
-import com.daily.cetaring.domain.catalog.ServiceListingCatalog
-import com.daily.cetaring.presentation.components.ServiceImage
-import com.daily.cetaring.presentation.components.ServiceImagery
 import com.daily.cetaring.presentation.components.BookingBottomActionBar
+import com.daily.cetaring.presentation.components.BookingCard
+import com.daily.cetaring.presentation.components.BookingFlowTheme
 import com.daily.cetaring.presentation.components.BookingFlowTopBar
+import com.daily.cetaring.presentation.components.BookingHeroBanner
+import com.daily.cetaring.presentation.components.BookingImagery
+import com.daily.cetaring.presentation.components.BookingLocationSection
 import com.daily.cetaring.presentation.components.BookingPalette
 import com.daily.cetaring.presentation.components.BookingPrimaryButton
+import com.daily.cetaring.presentation.components.BookingReviewRow
+import com.daily.cetaring.presentation.components.BookingReviewSection
 import com.daily.cetaring.presentation.components.BookingSecondaryButton
+import com.daily.cetaring.presentation.components.BookingStepHeading
 import com.daily.cetaring.presentation.components.BookingStepProgress
+import com.daily.cetaring.presentation.components.BookingSubheading
+import com.daily.cetaring.presentation.components.BookingSuccessMark
+import com.daily.cetaring.presentation.components.BookingTextField
+import com.daily.cetaring.presentation.components.EndTimeDurationPicker
 import com.daily.cetaring.presentation.components.EventDateSelector
-import com.daily.cetaring.presentation.components.EventTimeRangeRow
+import com.daily.cetaring.presentation.components.EventImageGrid
 import com.daily.cetaring.presentation.components.EventTimeRules
-import com.daily.cetaring.presentation.components.EventTimeSelector
-import com.daily.cetaring.presentation.components.EventTypeSelectorField
+import com.daily.cetaring.presentation.components.ImageRowCard
+import com.daily.cetaring.presentation.components.PriceBreakdownCard
+import com.daily.cetaring.presentation.components.PriceLine
+import com.daily.cetaring.presentation.components.QuantityStepper
 import com.daily.cetaring.presentation.components.ScheduleMessage
-import com.daily.cetaring.presentation.components.BookingFlowTheme
-import com.daily.cetaring.presentation.components.ReviewLineItem
-import com.daily.cetaring.presentation.components.ReviewRequestCard
+import com.daily.cetaring.presentation.components.SelectToggleButton
+import com.daily.cetaring.presentation.components.SelectionSummaryText
+import com.daily.cetaring.presentation.components.ServiceImagery
+import com.daily.cetaring.presentation.components.StartTimeSlotPicker
+import com.daily.cetaring.presentation.components.rememberReducedMotion
+import com.daily.cetaring.ui.theme.CaterHubLightSystemBars
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-private val Cream = BookingPalette.Ivory
-private val Gold = BookingPalette.ChampagneDeep
-private val Green = BookingPalette.Emerald
-private val TextDark = BookingPalette.Ink
-private val Muted = BookingPalette.Muted
-private val Border = BookingPalette.Border
 private val DateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val TimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-private val DateDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
-private val DateReviewFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+private val DateReviewFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy")
 private val TimeDisplayFormatter = DateTimeFormatter.ofPattern("h:mm a")
-
-private val ServiceRequestStepTitles = listOf("Services", "Event details", "Review")
-
-private data class ServiceItem(
-    val id: String,
-    val name: String,
-    val price: Int,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector,
-    val workerType: WorkerType? = null,
-    val quoteOnly: Boolean = false,
-    val priceUnit: String = if (workerType == null) "item" else "person"
-)
-
-private data class ServiceCategory(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val serviceType: String,
-    val items: List<ServiceItem>,
-    val color: Color
-)
-
-private data class EventDetailsState(
-    val eventType: String?,
-    val eventDate: String,
-    val startTime: String,
-    val endTime: String,
-    val eventAddress: String,
-    val area: String
-)
 
 internal data class SubmittedServiceRequestSummary(
     val categoryTitle: String,
@@ -126,9 +124,9 @@ internal data class SubmittedServiceRequestSummary(
 internal fun bookingReferenceFor(id: Long): String = "CH-SR-%06d".format(id)
 
 // Mirror the backend column/DTO limits so customers never hit a server-side length error.
-internal const val EVENT_ADDRESS_MAX_LENGTH = 255
-internal const val EVENT_AREA_MAX_LENGTH = 100
-internal const val EVENT_NOTES_MAX_LENGTH = 2000
+internal const val EVENT_ADDRESS_MAX_LENGTH = ServiceRequestDraft.ADDRESS_MAX
+internal const val EVENT_AREA_MAX_LENGTH = ServiceRequestDraft.AREA_MAX
+internal const val EVENT_NOTES_MAX_LENGTH = ServiceRequestDraft.NOTES_MAX
 
 /** Idempotency keys must match the backend pattern [A-Za-z0-9_-]{1,64}. */
 internal fun newBookingIdempotencyKey(): String = java.util.UUID.randomUUID().toString()
@@ -173,86 +171,30 @@ internal val SubmittedServiceRequestSummarySaver: Saver<SubmittedServiceRequestS
         }
     )
 
-private fun categoryFor(type: String): ServiceCategory {
+/** Keeps the whole request (including selected quantities) across login and process death. */
+private val ServiceRequestDraftSaver: Saver<ServiceRequestDraft, Any> = listSaver(
+    save = { ServiceRequestDraft.toSaveable(it) },
+    restore = { ServiceRequestDraft.fromSaveable(it) ?: ServiceRequestDraft() }
+)
+
+private data class ServiceCategoryInfo(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val serviceType: String
+)
+
+private fun categoryInfoFor(type: String): ServiceCategoryInfo {
     val category = ServiceCatalog.category(type) ?: ServiceCatalog.category("event-support")!!
-    // Booking screens use the emerald booking accent rather than per-category brand reds.
-    val color = BookingPalette.Emerald
-    val items = ServiceCatalog.customerRolesForCategory(category.id).map { role ->
-        ServiceItem(
-            id = role.id,
-            name = role.title,
-            price = role.defaultUnitPrice ?: 0,
-            icon = roleIcon(category.id, role.id),
-            workerType = role.workerType,
-            quoteOnly = role.quoteOnly,
-            priceUnit = ServiceListingCatalog.priceUnitFor(category.id, role)
-        )
-    }
-    return ServiceCategory(
+    return ServiceCategoryInfo(
         id = category.id,
         title = "Book ${category.title}",
         subtitle = category.subtitle,
-        serviceType = category.serviceType,
-        items = items,
-        color = color
+        serviceType = category.serviceType
     )
 }
 
-private fun roleIcon(categoryId: String, roleId: String) = when {
-    roleId == "photographer" -> Icons.Filled.CameraAlt
-    roleId == "videographer" -> Icons.Filled.Videocam
-    roleId == "live-streaming-operator" -> Icons.Filled.LiveTv
-    roleId == "tent-rental" -> Icons.Filled.Celebration
-    roleId == "table-rental" -> Icons.Filled.TableRestaurant
-    roleId == "chair-rental" -> Icons.Filled.EventSeat
-    roleId == "dining-equipment" -> Icons.Filled.Restaurant
-    categoryId == "catering-food" -> Icons.Filled.Restaurant
-    categoryId == "decoration" && roleId.contains("lighting") -> Icons.Filled.Lightbulb
-    categoryId == "religious-ceremony" -> Icons.Filled.Cake
-    categoryId == "transport-logistics" -> Icons.Filled.LocationOn
-    roleId.contains("clean") -> Icons.Filled.CleaningServices
-    roleId.contains("staff") || roleId.contains("worker") || roleId.contains("helper") -> Icons.Filled.Groups
-    else -> Icons.Filled.Star
-}
-
-@Composable
-private fun DividerLine() {
-    HorizontalDivider(color = Border)
-}
-
-@Composable
-private fun CaterHubActionButtons(
-    primaryText: String,
-    onPrimary: () -> Unit,
-    secondaryText: String,
-    onSecondary: () -> Unit,
-    accent: Color
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        OutlinedButton(
-            onClick = onSecondary,
-            modifier = Modifier
-                .weight(1f)
-                .height(54.dp),
-            shape = RoundedCornerShape(18.dp)
-        ) {
-            Text(secondaryText, fontWeight = FontWeight.Bold)
-        }
-        Button(
-            onClick = onPrimary,
-            modifier = Modifier
-                .weight(1f)
-                .height(54.dp),
-            shape = RoundedCornerShape(18.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = accent)
-        ) {
-            Text(primaryText, fontWeight = FontWeight.Bold)
-        }
-    }
-}
+private fun rupees(amount: Int): String = formatRupees(amount.toLong())
 
 @Composable
 fun ServiceRequestScreen(
@@ -268,22 +210,16 @@ fun ServiceRequestScreen(
     onViewMyBookings: () -> Unit = {},
     onBackToHome: () -> Unit = {}
 ) {
-    val category = remember(serviceType) { categoryFor(serviceType) }
-    val items = category.items
-    val selected = remember(serviceType) {
-        mutableStateMapOf<String, Int>().apply {
-            // A service chosen on the category listing arrives pre-selected; it can still be changed here.
-            if (preselectedServiceId != null && items.any { it.id == preselectedServiceId }) put(preselectedServiceId, 1)
-        }
+    val category = remember(serviceType) { categoryInfoFor(serviceType) }
+    val journey = remember(category.id) { ServiceJourneyCatalog.forCategory(category.id) }
+    val lines = remember(category.id) { ServiceRequestCatalog.linesFor(category.id) }
+
+    var draft by rememberSaveable(serviceType, stateSaver = ServiceRequestDraftSaver) {
+        mutableStateOf(ServiceRequestDraft.initial(lines, preselectedServiceId))
     }
     var step by rememberSaveable(serviceType) { mutableIntStateOf(0) }
-    var eventType by rememberSaveable(serviceType) { mutableStateOf<String?>(null) }
-    var eventDate by rememberSaveable(serviceType) { mutableStateOf("") }
-    var startTime by rememberSaveable(serviceType) { mutableStateOf("") }
-    var endTime by rememberSaveable(serviceType) { mutableStateOf("") }
-    var location by rememberSaveable(serviceType) { mutableStateOf("") }
-    var area by rememberSaveable(serviceType) { mutableStateOf("") }
-    var notes by rememberSaveable(serviceType) { mutableStateOf("") }
+    var returnToReview by rememberSaveable(serviceType) { mutableStateOf(false) }
+    var showErrors by rememberSaveable(serviceType) { mutableStateOf(false) }
     var submitting by rememberSaveable(serviceType) { mutableStateOf(false) }
     var error by rememberSaveable(serviceType) { mutableStateOf<String?>(null) }
     var idempotencyKey by rememberSaveable(serviceType) { mutableStateOf<String?>(null) }
@@ -291,19 +227,20 @@ fun ServiceRequestScreen(
         mutableStateOf<SubmittedServiceRequestSummary?>(null)
     }
     val scope = rememberCoroutineScope()
+    val reducedMotion = rememberReducedMotion()
+    val currentStep = journey.steps[step.coerceIn(0, journey.steps.lastIndex)]
+    val isReview = currentStep == ServiceJourneyStep.REVIEW
 
-    val fixedTotal = items.sumOf { item -> (selected[item.id] ?: 0) * item.price }
-    val hasSelection = selected.values.any { it > 0 }
-    val hasQuoteServices = items.any { (selected[it.id] ?: 0) > 0 && it.quoteOnly }
-    val eventDetails = EventDetailsState(
-        eventType = eventType,
-        eventDate = eventDate,
-        startTime = startTime,
-        endTime = endTime,
-        eventAddress = location,
-        area = area
-    )
-    val eventDetailsValid = isEventDetailsValid(eventDetails)
+    fun updateDraft(transform: (ServiceRequestDraft) -> ServiceRequestDraft) {
+        draft = transform(draft)
+        error = null
+    }
+
+    fun goTo(target: Int) {
+        showErrors = false
+        error = null
+        step = target
+    }
 
     fun submitRequest() {
         if (submitting) return
@@ -313,29 +250,34 @@ fun ServiceRequestScreen(
         // Set before launching so a rapid double tap cannot start a second request.
         submitting = true
         error = null
+        val snapshot = draft
         scope.launch {
             try {
-                val confirmedEventType = eventType ?: run {
+                val confirmedEventType = snapshot.eventType ?: run {
                     error = "Please choose the event type."
-                    step = 1
+                    step = journey.indexOf(ServiceJourneyStep.EVENT)
                     return@launch
                 }
-                val selectedItems = items.filter { (selected[it.id] ?: 0) > 0 }
-                val staffingLines = selectedItems.mapNotNull { item ->
-                    item.workerType?.let { workerType ->
+                val selectedLines = snapshot.selectedLines(lines)
+                val fixedTotal = snapshot.fixedTotal(lines)
+                val hasQuoteServices = snapshot.hasQuoteServices(lines)
+                val staffingLines = selectedLines.mapNotNull { line ->
+                    line.workerType?.let { workerType ->
                         CateringStaffLineItem(
                             workerType = workerType,
-                            requiredWorkers = selected[item.id] ?: 0,
-                            payment = BigDecimal(item.price.coerceAtLeast(1))
+                            requiredWorkers = snapshot.quantityOf(line.id),
+                            payment = BigDecimal((line.unitPrice ?: 0).coerceAtLeast(1))
                         )
                     }
                 }
-                val selectedNames = selectedItems.map { it.name }
-
-                val details = selectedItems.joinToString("; ") { item ->
-                    val qty = selected[item.id] ?: 0
-                    if (item.quoteOnly) "${item.name}: selected x$qty (quote)" else "${item.name}: $qty x ₹${item.price}"
+                val selectedNames = selectedLines.map { it.name }
+                val details = selectedLines.joinToString("; ") { line ->
+                    val qty = snapshot.quantityOf(line.id)
+                    if (line.quoteOnly) "${line.name}: selected x$qty (quote)" else "${line.name}: $qty x ₹${line.unitPrice}"
                 }
+                val address = snapshot.address.trim()
+                val area = snapshot.area.trim()
+                val instructions = snapshot.notes.trim().ifBlank { null }
 
                 // Both flows are atomic on the backend: the customer request and its worker jobs are
                 // created in one transaction, so workers never see a job for a failed booking.
@@ -343,13 +285,13 @@ fun ServiceRequestScreen(
                     workerRepository.createCateringStaffBooking(
                         CreateCateringStaffBookingRequest(
                             eventType = confirmedEventType,
-                            eventDate = eventDate,
-                            startTime = startTime,
-                            endTime = endTime,
-                            location = location.trim(),
-                            area = area.trim(),
+                            eventDate = snapshot.eventDate,
+                            startTime = snapshot.startTime,
+                            endTime = snapshot.endTime,
+                            location = address,
+                            area = area,
                             selectedServices = selectedNames,
-                            instructions = notes.trim().ifBlank { null },
+                            instructions = instructions,
                             details = "Catering staff: $details",
                             totalAmount = BigDecimal(fixedTotal),
                             staffing = staffingLines
@@ -361,13 +303,13 @@ fun ServiceRequestScreen(
                         ServiceRequestRequest(
                             serviceType = category.serviceType,
                             eventType = confirmedEventType,
-                            eventDate = eventDate,
-                            startTime = startTime,
-                            endTime = endTime,
-                            location = location.trim(),
-                            area = area.trim(),
+                            eventDate = snapshot.eventDate,
+                            startTime = snapshot.startTime,
+                            endTime = snapshot.endTime,
+                            location = address,
+                            area = area,
                             selectedServices = selectedNames,
-                            instructions = notes.trim().ifBlank { null },
+                            instructions = instructions,
                             details = "Services: $details",
                             quoteBased = hasQuoteServices,
                             totalAmount = BigDecimal(fixedTotal),
@@ -380,14 +322,14 @@ fun ServiceRequestScreen(
                 submittedSummary = SubmittedServiceRequestSummary(
                     categoryTitle = category.title.removePrefix("Book "),
                     eventType = confirmedEventType,
-                    eventDate = eventDate,
-                    startTime = startTime,
-                    endTime = endTime,
-                    location = "${area.trim()}, ${location.trim()}",
+                    eventDate = snapshot.eventDate,
+                    startTime = snapshot.startTime,
+                    endTime = snapshot.endTime,
+                    location = "$area, $address",
                     reference = bookingReferenceFor(response.id),
                     totalLabel = when {
-                        hasQuoteServices && response.totalAmount.signum() > 0 -> "₹$serverTotal + To be quoted"
-                        hasQuoteServices -> "To be quoted"
+                        hasQuoteServices && response.totalAmount.signum() > 0 -> "₹$serverTotal + quote"
+                        hasQuoteServices -> BookingPriceDisplay.PRICE_ON_QUOTE
                         else -> "₹$serverTotal"
                     }
                 )
@@ -406,395 +348,504 @@ fun ServiceRequestScreen(
     LaunchedEffect(resumeSubmissionAfterAuth, isAuthenticated) {
         if (resumeSubmissionAfterAuth && isAuthenticated) {
             onResumeSubmissionHandled()
-            if (step == 2 && submittedSummary == null && !submitting && hasSelection && eventDetailsValid) submitRequest()
+            if (step == journey.reviewIndex && submittedSummary == null && !submitting &&
+                ServiceRequestValidator.validateForSubmit(draft, lines) == null
+            ) {
+                submitRequest()
+            }
         }
     }
 
-    if (submittedSummary != null) {
-        val summary = checkNotNull(submittedSummary)
-        Scaffold(
-            containerColor = Cream,
-            topBar = {
-                TopAppBar(
-                    title = { Text("Request submitted", color = TextDark, fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackToHome) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to Home", tint = category.color)
-                        }
-                    }
-                )
-            }
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Border)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Filled.CheckCircle, null, tint = Green)
-                            Text(
-                                if (category.id == "catering-staff") "Staff booking submitted" else "Request submitted",
-                                fontWeight = FontWeight.ExtraBold,
-                                color = TextDark,
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                        }
-                        Text(
-                            if (category.id == "catering-staff") {
-                                "Your staff request is confirmed and has been sent to matching CaterHub workers."
-                            } else {
-                                "Your event request has been received by CaterHub."
-                            },
-                            color = Muted
-                        )
-                        DividerLine()
-                        Text(summary.eventType, fontWeight = FontWeight.ExtraBold, color = TextDark)
-                        Text(summary.categoryTitle, color = category.color, fontWeight = FontWeight.Bold)
-                        Text("${displayDateForReview(summary.eventDate)}\n${displayTime(summary.startTime)} – ${displayTime(summary.endTime)}", color = TextDark)
-                        Text(summary.location, color = Muted)
-                        if (summary.totalLabel.isNotBlank()) {
-                            Text("Total: ${summary.totalLabel}", fontWeight = FontWeight.Bold, color = TextDark)
-                        }
-                        DividerLine()
-                        if (summary.reference.isNotBlank()) {
-                            Text("Booking reference", color = Muted, style = MaterialTheme.typography.labelMedium)
-                            Text(summary.reference, fontWeight = FontWeight.ExtraBold, color = category.color)
-                        }
-                        Text("Status", color = Muted, style = MaterialTheme.typography.labelMedium)
-                        Text("Pending confirmation", fontWeight = FontWeight.Bold, color = TextDark)
-                    }
-                }
-                CaterHubActionButtons(
-                    primaryText = "View My Bookings",
-                    onPrimary = onViewMyBookings,
-                    secondaryText = "Back to Home",
-                    onSecondary = onBackToHome,
-                    accent = category.color
-                )
-            }
-        }
+    val summary = submittedSummary
+    if (summary != null) {
+        ServiceRequestSubmittedView(
+            summary = summary,
+            categoryId = category.id,
+            onViewMyBookings = onViewMyBookings,
+            onBackToHome = onBackToHome
+        )
         return
     }
 
+    fun goBack() {
+        returnToReview = false
+        idempotencyKey = null
+        if (step == 0) onBackClick() else goTo(step - 1)
+    }
+
+    BackHandler(enabled = step > 0 && !submitting) { goBack() }
+
     BookingFlowTheme {
-    Scaffold(
-        containerColor = BookingPalette.Background,
-        topBar = { BookingFlowTopBar(category.title, onBackClick) },
-        bottomBar = {
-            BookingBottomActionBar {
-                BookingSecondaryButton(
-                    text = if (step == 0) "Cancel" else "Back",
-                    onClick = { if (step == 0) onBackClick() else { step--; error = null; idempotencyKey = null } },
-                    enabled = !submitting,
-                    modifier = Modifier.weight(1f)
-                )
-                BookingPrimaryButton(
-                    text = if (step == 2) "Submit Request" else "Continue",
-                    loading = submitting,
-                    loadingText = "Submitting…",
-                    onClick = {
-                        if (step < 2) {
-                            error = when {
-                                step == 0 && !hasSelection -> "Please select at least one service."
-                                step == 1 -> eventDetailsValidationMessage(eventDetails)
-                                else -> null
-                            }
-                            if (error == null) step++
-                        } else {
-                            if (isAuthenticated) submitRequest() else onAuthRequired()
-                        }
-                    },
-                    enabled = !submitting && (step != 0 || hasSelection) && (step != 1 || eventDetailsValid),
-                    modifier = Modifier.weight(1.4f)
-                )
-            }
-        }
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            BookingStepProgress(
-                stepIndex = step,
-                stepTitles = ServiceRequestStepTitles,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp)
-            )
-
-            Column(
-                Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                when (step) {
-                    0 -> {
-                        CategoryHeader(category = category)
-                        items.forEach { item ->
-                            val count = selected[item.id] ?: 0
-                            ServiceItemCard(
-                            categoryId = category.id,
-                                item = item,
-                                count = count,
-                                onMinus = { selected[item.id] = (count - 1).coerceAtLeast(0) },
-                                onPlus = { selected[item.id] = (count + 1).coerceAtMost(5000) },
-                                onCount = { selected[item.id] = it.coerceIn(0, 5000) }
+        CaterHubLightSystemBars()
+        Scaffold(
+            containerColor = BookingPalette.Background,
+            topBar = { BookingFlowTopBar(category.title, onBackClick) },
+            bottomBar = {
+                val fixedTotal = draft.fixedTotal(lines)
+                val hasQuote = draft.hasQuoteServices(lines)
+                BookingBottomActionBar(
+                    summary = {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                when {
+                                    isReview -> "Ready to submit"
+                                    returnToReview -> "Editing · returns to review"
+                                    else -> "Next: ${journey.stepTitles()[step + 1]}"
+                                },
+                                color = BookingPalette.Muted,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
                             )
-                        }
-                        if (hasSelection) TotalCard(fixedTotal, category.color, hasQuoteOnly = items.any { (selected[it.id] ?: 0) > 0 && it.quoteOnly })
-                    }
-                    1 -> {
-                        Text("Event details", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = TextDark)
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, Border)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                EventTypeSelectorField(
-                                    selectedBackendValue = eventType,
-                                    onSelected = {
-                                        eventType = it.backendValue
-                                        error = null
-                                    }
-                                )
-
-                                ScheduleHeading("Date")
-                                EventDateSelector(
-                                    isoDate = eventDate.takeIf { it.isNotBlank() },
-                                    onDateSelected = {
-                                        eventDate = it
-                                        error = null
-                                    }
-                                )
-
-                                val invalidRange = startTime.isNotBlank() && endTime.isNotBlank() &&
-                                    !isValidTimeRange(startTime, endTime)
-                                ScheduleHeading("Time")
-                                EventTimeRangeRow(
-                                    start = { modifier ->
-                                        EventTimeSelector(
-                                            label = "Start time",
-                                            time = startTime.takeIf { it.isNotBlank() },
-                                            onTimeSelected = { startTime = it; error = null },
-                                            defaultTime = LocalTime.of(18, 0),
-                                            isError = invalidRange,
-                                            modifier = modifier
-                                        )
+                            if (draft.hasSelection(lines)) {
+                                Text(
+                                    when {
+                                        hasQuote && fixedTotal > 0 -> "${rupees(fixedTotal)} + quote"
+                                        hasQuote -> BookingPriceDisplay.PRICE_ON_QUOTE
+                                        else -> rupees(fixedTotal)
                                     },
-                                    end = { modifier ->
-                                        EventTimeSelector(
-                                            label = "End time",
-                                            time = endTime.takeIf { it.isNotBlank() },
-                                            onTimeSelected = { endTime = it; error = null },
-                                            defaultTime = startTime.toLocalTimeOrNull()?.plusHours(3) ?: LocalTime.of(21, 0),
-                                            isError = invalidRange,
-                                            modifier = modifier
-                                        )
-                                    }
+                                    color = BookingPalette.Emerald,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
                                 )
-
-                                if (invalidRange) {
-                                    ScheduleMessage("End time must be after start time", isError = true)
+                            }
+                        }
+                    }
+                ) {
+                    BookingSecondaryButton(
+                        text = if (step == 0) "Cancel" else "Back",
+                        onClick = { goBack() },
+                        enabled = !submitting,
+                        modifier = Modifier.weight(1f)
+                    )
+                    BookingPrimaryButton(
+                        text = when {
+                            isReview -> "Submit request"
+                            returnToReview -> "Save & review"
+                            else -> "Continue"
+                        },
+                        loading = submitting,
+                        loadingText = "Submitting…",
+                        enabled = !submitting,
+                        onClick = {
+                            val message = ServiceRequestValidator.validateStep(currentStep, draft, lines)
+                            when {
+                                message != null -> {
+                                    showErrors = true
+                                    error = message
                                 }
-
-                                SectionLabel()
-                                OutlinedTextField(
-                                    location,
-                                    { location = it.take(EVENT_ADDRESS_MAX_LENGTH); error = null },
-                                    label = { Text("Event address") },
-                                    supportingText = { Text("${location.length}/$EVENT_ADDRESS_MAX_LENGTH") },
-                                    minLines = 2,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textStyle = LocalTextStyle.current.copy(color = TextDark)
-                                )
-                                OutlinedTextField(
-                                    area,
-                                    { area = it.take(EVENT_AREA_MAX_LENGTH); error = null },
-                                    label = { Text("Area / locality") },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textStyle = LocalTextStyle.current.copy(color = TextDark)
-                                )
-                                OutlinedTextField(
-                                    notes,
-                                    { notes = it.take(EVENT_NOTES_MAX_LENGTH) },
-                                    label = { Text("Additional instructions (optional)") },
-                                    supportingText = { Text("${notes.length}/$EVENT_NOTES_MAX_LENGTH") },
-                                    minLines = 3,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textStyle = LocalTextStyle.current.copy(color = TextDark)
-                                )
+                                isReview -> if (isAuthenticated) submitRequest() else onAuthRequired()
+                                returnToReview -> {
+                                    returnToReview = false
+                                    goTo(journey.reviewIndex)
+                                }
+                                else -> goTo(step + 1)
                             }
-                        }
-                    }
-                    else -> {
-                        val selectedItems = items.filter { (selected[it.id] ?: 0) > 0 }
-                        ReviewRequestCard(
-                            eventType = EventTypeCatalog.displayNameForBackendValue(eventType),
-                            eventDate = eventDate.takeIf { it.isNotBlank() }?.let(::displayDateForReview).orEmpty(),
-                            timeRange = "${startTime.takeIf { it.isNotBlank() }?.let(::displayTime).orEmpty()} – ${endTime.takeIf { it.isNotBlank() }?.let(::displayTime).orEmpty()}",
-                            location = "$area, $location",
-                            services = selectedItems.map { item ->
-                                val qty = selected[item.id] ?: 0
-                                ReviewLineItem(
-                                    title = "${qty} × ${item.name}",
-                                    subtitle = if (item.quoteOnly) "To be quoted" else "₹${item.price} per ${item.priceUnit}",
-                                    amountText = if (item.quoteOnly) null else "₹${qty * item.price}"
-                                )
-                            },
-                            totalLabel = if (hasQuoteServices) {
-                                if (fixedTotal > 0) "₹$fixedTotal + To be quoted" else "To be quoted"
-                            } else {
-                                "₹$fixedTotal"
-                            }
-                        )
-                        if (hasQuoteServices) {
-                            Text("Price will be confirmed by CaterHub.", color = Muted)
-                        }
-                    }
+                        },
+                        modifier = Modifier.weight(1.4f)
+                    )
                 }
             }
-
-                error?.let { ScheduleMessage(it, isError = true, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
+        ) { padding ->
+            Column(Modifier.fillMaxSize().padding(padding)) {
+                BookingStepProgress(
+                    stepIndex = step,
+                    stepTitles = journey.stepTitles(),
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp)
+                )
+                AnimatedContent(
+                    targetState = step,
+                    transitionSpec = {
+                        if (reducedMotion) {
+                            fadeIn(tween(0)).togetherWith(fadeOut(tween(0)))
+                        } else {
+                            val forward = targetState > initialState
+                            (fadeIn(tween(240, delayMillis = 60)) +
+                                slideInHorizontally(tween(280)) { width -> if (forward) width / 8 else -width / 8 })
+                                .togetherWith(fadeOut(tween(140)))
+                        }
+                    },
+                    label = "serviceRequestStep",
+                    modifier = Modifier.weight(1f).fillMaxWidth()
+                ) { shownStep ->
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        when (journey.steps[shownStep.coerceIn(0, journey.steps.lastIndex)]) {
+                            ServiceJourneyStep.EVENT -> ServiceEventStep(journey, draft, showErrors) { value ->
+                                updateDraft { it.copy(eventType = value) }
+                            }
+                            ServiceJourneyStep.SERVICES -> ServiceSelectionStep(
+                                journey = journey,
+                                subtitle = category.subtitle,
+                                lines = lines,
+                                draft = draft,
+                                showErrors = showErrors,
+                                onQuantity = { id, qty -> updateDraft { it.withQuantity(id, qty) } }
+                            )
+                            ServiceJourneyStep.WHEN_WHERE -> ServiceWhenWhereStep(journey, draft, showErrors) { transform ->
+                                updateDraft(transform)
+                            }
+                            ServiceJourneyStep.REVIEW -> ServiceReviewStep(
+                                journey = journey,
+                                categoryTitle = category.title.removePrefix("Book "),
+                                lines = lines,
+                                draft = draft,
+                                enabled = !submitting
+                            ) { target ->
+                                returnToReview = true
+                                idempotencyKey = null
+                                goTo(journey.indexOf(target))
+                            }
+                        }
+                        error?.let { ScheduleMessage(it, isError = true) }
+                    }
+                }
             }
         }
     }
 }
 
+@Composable
+private fun ServiceEventStep(
+    journey: ServiceJourney,
+    draft: ServiceRequestDraft,
+    showErrors: Boolean,
+    onSelect: (String) -> Unit
+) {
+    BookingStepHeading(title = journey.eventHeading, subtitle = journey.eventSubtitle)
+    EventImageGrid(
+        selectedBackendValue = draft.eventType,
+        onSelect = { onSelect(it.backendValue) }
+    )
+    if (showErrors && draft.eventType.isNullOrBlank()) {
+        ScheduleMessage("Please select an event type.", isError = true)
+    }
+}
 
-private fun isValidTimeRange(start: String, end: String): Boolean =
-    EventTimeRules.isEndAfterStart(start, end)
+@Composable
+private fun ServiceSelectionStep(
+    journey: ServiceJourney,
+    subtitle: String,
+    lines: List<ServiceRequestLine>,
+    draft: ServiceRequestDraft,
+    showErrors: Boolean,
+    onQuantity: (String, Int) -> Unit
+) {
+    BookingHeroBanner(
+        visual = remember(journey.categoryId) { ServiceImagery.bannerVisual(journey.categoryId) },
+        eyebrow = subtitle,
+        title = journey.servicesHeading
+    )
+    Text(journey.servicesSubtitle, color = BookingPalette.Muted, style = MaterialTheme.typography.bodyMedium)
 
-private fun isEventDetailsValid(details: EventDetailsState): Boolean =
-    eventDetailsValidationMessage(details) == null
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        lines.forEach { line ->
+            val qty = draft.quantityOf(line.id)
+            val selected = qty > 0
+            ImageRowCard(
+                title = line.name,
+                description = line.description.ifBlank { null },
+                priceText = line.unitPrice?.let { "${rupees(it)} / ${line.priceUnit}" } ?: "Price on quote",
+                visual = remember(journey.categoryId, line.id) { ServiceImagery.serviceVisual(journey.categoryId, line.id) },
+                selected = selected,
+                onClick = if (line.quoteOnly) {
+                    { onQuantity(line.id, if (selected) 0 else 1) }
+                } else if (!selected) {
+                    { onQuantity(line.id, 1) }
+                } else {
+                    null
+                },
+                footer = if (!line.quoteOnly && selected) {
+                    {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (line.workerType == null) {
+                                BookingTextField(
+                                    value = qty.toString(),
+                                    onValueChange = { text ->
+                                        onQuantity(line.id, text.filter(Char::isDigit).take(4).toIntOrNull() ?: 0)
+                                    },
+                                    label = "Quantity",
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
+                                )
+                            }
+                            Text(
+                                "Subtotal ${rupees(qty * (line.unitPrice ?: 0))}",
+                                color = BookingPalette.Emerald,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                } else {
+                    null
+                }
+            ) {
+                if (line.quoteOnly) {
+                    SelectToggleButton(
+                        selected = selected,
+                        onClick = { onQuantity(line.id, if (selected) 0 else 1) },
+                        label = line.name
+                    )
+                } else {
+                    QuantityStepper(
+                        value = qty,
+                        onDecrement = { onQuantity(line.id, qty - 1) },
+                        onIncrement = { onQuantity(line.id, qty + 1) },
+                        label = line.name,
+                        canIncrement = qty < ServiceRequestDraft.MAX_QUANTITY
+                    )
+                }
+            }
+        }
+    }
 
-private fun eventDetailsValidationMessage(details: EventDetailsState): String? = when {
-    details.eventType.isNullOrBlank() -> "Please select an event type."
-    details.eventDate.isBlank() -> "Please select a date."
-    details.startTime.isBlank() -> "Please select a start time."
-    details.endTime.isBlank() -> "Please select an end time."
-    !isValidTimeRange(details.startTime, details.endTime) -> "End time must be after start time"
-    !EventTimeRules.startsInFuture(details.eventDate, details.startTime) -> "Please choose a start time later than now."
-    details.eventAddress.trim().isEmpty() -> "Please enter the event address."
-    details.area.trim().isEmpty() -> "Please enter the area/locality."
-    else -> null
+    val labels = draft.selectedLines(lines).map { line ->
+        val qty = draft.quantityOf(line.id)
+        if (line.quoteOnly || qty == 1) line.name else "$qty × ${line.name}"
+    }
+    if (showErrors && labels.isEmpty()) {
+        ScheduleMessage("Please select at least one service.", isError = true)
+    } else {
+        SelectionSummaryText(labels, emptyHint = "Select at least one service to continue.")
+    }
+}
+
+@Composable
+private fun ServiceWhenWhereStep(
+    journey: ServiceJourney,
+    draft: ServiceRequestDraft,
+    showErrors: Boolean,
+    onUpdate: ((ServiceRequestDraft) -> ServiceRequestDraft) -> Unit
+) {
+    BookingStepHeading(
+        title = journey.whenWhereHeading,
+        subtitle = "Choose the date, timing and venue."
+    )
+    val scheduleMessage = ServiceRequestValidator.validateSchedule(draft)
+    val invalidRange = draft.startTime.isNotBlank() && draft.endTime.isNotBlank() &&
+        !EventTimeRules.isEndAfterStart(draft.startTime, draft.endTime)
+    val showScheduleError = scheduleMessage != null &&
+        (showErrors || invalidRange || (draft.eventDate.isNotBlank() && draft.startTime.isNotBlank() && draft.endTime.isNotBlank()))
+
+    BookingCard {
+        BookingSubheading(
+            "Date",
+            icon = Icons.Filled.CalendarMonth,
+            trailing = draft.eventDate.takeIf { it.isNotBlank() }?.let(::displayDateForReview)
+        )
+        EventDateSelector(
+            isoDate = draft.eventDate.takeIf { it.isNotBlank() },
+            onDateSelected = { iso -> onUpdate { it.copy(eventDate = iso) } },
+            isError = showErrors && draft.eventDate.isBlank()
+        )
+        BookingSubheading(
+            "Start time",
+            icon = Icons.Filled.Schedule,
+            trailing = draft.startTime.takeIf { it.isNotBlank() }?.let(::displayTime)
+        )
+        StartTimeSlotPicker(
+            time = draft.startTime.takeIf { it.isNotBlank() },
+            onTimeSelected = { time ->
+                onUpdate { current ->
+                    // Keep a previously chosen end only while it is still after the new start.
+                    val keepEnd = current.endTime.isNotBlank() && EventTimeRules.isEndAfterStart(time, current.endTime)
+                    current.copy(startTime = time, endTime = if (keepEnd) current.endTime else "")
+                }
+            },
+            isError = showErrors && draft.startTime.isBlank()
+        )
+        BookingSubheading(
+            "How long?",
+            icon = Icons.Filled.Schedule,
+            trailing = draft.endTime.takeIf { it.isNotBlank() }?.let { "Ends ${displayTime(it)}" }
+        )
+        EndTimeDurationPicker(
+            startTime = draft.startTime.takeIf { it.isNotBlank() },
+            endTime = draft.endTime.takeIf { it.isNotBlank() },
+            onEndSelected = { end -> onUpdate { it.copy(endTime = end) } },
+            isError = invalidRange || (showErrors && draft.endTime.isBlank())
+        )
+        if (showScheduleError) ScheduleMessage(scheduleMessage.orEmpty(), isError = true)
+    }
+
+    BookingCard {
+        BookingSubheading("Venue", icon = Icons.Filled.LocationOn)
+        BookingLocationSection(
+            address = draft.address,
+            onAddressChange = { value -> onUpdate { it.copy(address = value.take(EVENT_ADDRESS_MAX_LENGTH)) } },
+            area = draft.area,
+            onAreaChange = { value -> onUpdate { it.copy(area = value.take(EVENT_AREA_MAX_LENGTH)) } },
+            addressMaxLength = EVENT_ADDRESS_MAX_LENGTH,
+            areaMaxLength = EVENT_AREA_MAX_LENGTH,
+            showErrors = showErrors
+        )
+    }
+
+    BookingCard {
+        BookingSubheading("Anything else?", icon = Icons.AutoMirrored.Filled.Notes)
+        BookingTextField(
+            value = draft.notes,
+            onValueChange = { value -> onUpdate { it.copy(notes = value.take(EVENT_NOTES_MAX_LENGTH)) } },
+            label = "Additional instructions (optional)",
+            placeholder = "Access, parking, dress code or special requests…",
+            supportingText = "${draft.notes.length}/$EVENT_NOTES_MAX_LENGTH",
+            singleLine = false,
+            minLines = 3,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+        )
+    }
+}
+
+@Composable
+private fun ServiceReviewStep(
+    journey: ServiceJourney,
+    categoryTitle: String,
+    lines: List<ServiceRequestLine>,
+    draft: ServiceRequestDraft,
+    enabled: Boolean,
+    onEdit: (ServiceJourneyStep) -> Unit
+) {
+    val event = EventTypeCatalog.eventTypes.firstOrNull { it.backendValue == draft.eventType }
+    val occasion = EventTypeCatalog.displayNameForBackendValue(draft.eventType).ifBlank { null }
+    BookingReviewHeader(
+        visual = remember(event?.id) { BookingImagery.visual(BookingImagery.eventPhoto(event?.id ?: "other")) },
+        title = occasion ?: categoryTitle,
+        subtitle = if (occasion != null) categoryTitle else null,
+        facts = listOfNotNull(
+            draft.eventDate.takeIf { it.isNotBlank() }?.let { Icons.Filled.CalendarMonth to displayDateForReview(it) },
+            draft.startTime.takeIf { it.isNotBlank() }?.let { Icons.Filled.Schedule to displayTime(it) }
+        )
+    )
+
+    journey.steps.forEach { step ->
+        when (step) {
+            ServiceJourneyStep.EVENT -> BookingReviewSection(
+                if (journey.categoryId == "beauty") "Occasion" else "Event details",
+                Icons.Filled.Event,
+                { onEdit(ServiceJourneyStep.EVENT) },
+                enabled
+            ) {
+                BookingReviewRow("Event type", occasion ?: "Not selected")
+                BookingReviewRow("Service", categoryTitle)
+            }
+            ServiceJourneyStep.SERVICES -> BookingReviewSection(
+                journey.servicesTitle,
+                Icons.Filled.Star,
+                { onEdit(ServiceJourneyStep.SERVICES) },
+                enabled
+            ) {
+                draft.selectedLines(lines).forEach { line ->
+                    val qty = draft.quantityOf(line.id)
+                    BookingReviewRow(
+                        line.name,
+                        if (line.quoteOnly) "Selected · price on quote" else "$qty × ${rupees(line.unitPrice ?: 0)} / ${line.priceUnit}"
+                    )
+                }
+            }
+            ServiceJourneyStep.WHEN_WHERE -> {
+                BookingReviewSection("Date & time", Icons.Filled.CalendarMonth, { onEdit(ServiceJourneyStep.WHEN_WHERE) }, enabled) {
+                    BookingReviewRow("Date", draft.eventDate.takeIf { it.isNotBlank() }?.let(::displayDateForReview) ?: "Not selected")
+                    BookingReviewRow("Starts", draft.startTime.takeIf { it.isNotBlank() }?.let(::displayTime) ?: "Not selected")
+                    BookingReviewRow("Ends", draft.endTime.takeIf { it.isNotBlank() }?.let(::displayTime) ?: "Not selected")
+                }
+                BookingReviewSection("Location", Icons.Filled.LocationOn, { onEdit(ServiceJourneyStep.WHEN_WHERE) }, enabled) {
+                    BookingReviewRow("Venue", draft.location().ifBlank { "Not provided" })
+                    if (draft.notes.isNotBlank()) BookingReviewRow("Instructions", draft.notes.trim())
+                }
+            }
+            ServiceJourneyStep.REVIEW -> Unit
+        }
+    }
+
+    val selected = draft.selectedLines(lines)
+    val fixedTotal = draft.fixedTotal(lines)
+    val hasQuote = draft.hasQuoteServices(lines)
+    PriceBreakdownCard(
+        lines = selected.map { line ->
+            val qty = draft.quantityOf(line.id)
+            if (line.quoteOnly) {
+                PriceLine(line.name, null, BookingPriceDisplay.PRICE_ON_QUOTE)
+            } else {
+                PriceLine(line.name, "$qty × ${rupees(line.unitPrice ?: 0)} / ${line.priceUnit}", rupees(qty * (line.unitPrice ?: 0)))
+            }
+        },
+        totalLabel = BookingPriceDisplay.serviceTotalLabel(hasQuote, fixedTotal),
+        totalValue = BookingPriceDisplay.serviceTotal(fixedTotal, hasQuote) { rupees(it) },
+        note = if (hasQuote) {
+            "CaterHub will confirm the price for quoted services before your booking is finalised."
+        } else {
+            "Based on published prices. Your booking reference and confirmed total appear after submission."
+        }
+    )
+}
+
+@Composable
+private fun ServiceRequestSubmittedView(
+    summary: SubmittedServiceRequestSummary,
+    categoryId: String,
+    onViewMyBookings: () -> Unit,
+    onBackToHome: () -> Unit
+) {
+    BackHandler { onBackToHome() }
+    val isStaff = categoryId == "catering-staff"
+    BookingFlowTheme {
+        CaterHubLightSystemBars()
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(BookingPalette.Background)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Spacer(Modifier.height(24.dp))
+            BookingSuccessMark()
+            Text(
+                if (isStaff) "Staff booking submitted" else "Request submitted",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = BookingPalette.Ink,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                if (isStaff) {
+                    "Your staff request is confirmed and has been sent to matching CaterHub workers."
+                } else {
+                    "Your event request has been received by CaterHub."
+                },
+                color = BookingPalette.Muted,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(4.dp))
+            BookingCard {
+                if (summary.reference.isNotBlank()) BookingReviewRow("Booking reference", summary.reference)
+                BookingReviewRow("Service", summary.categoryTitle)
+                BookingReviewRow("Occasion", EventTypeCatalog.displayNameForBackendValue(summary.eventType).ifBlank { summary.eventType })
+                BookingReviewRow(
+                    "Date & time",
+                    "${displayDateForReview(summary.eventDate)} · ${displayTime(summary.startTime)} – ${displayTime(summary.endTime)}"
+                )
+                BookingReviewRow("Location", summary.location)
+                if (summary.totalLabel.isNotBlank()) BookingReviewRow("Total", summary.totalLabel)
+                BookingReviewRow("Status", "Pending confirmation")
+            }
+            Spacer(Modifier.height(4.dp))
+            BookingPrimaryButton("View my bookings", onViewMyBookings, Modifier.fillMaxWidth())
+            BookingSecondaryButton("Back to Home", onBackToHome, Modifier.fillMaxWidth())
+        }
+    }
 }
 
 private fun String.toLocalDateOrNull(): LocalDate? = runCatching { LocalDate.parse(this, DateFormatter) }.getOrNull()
 private fun String.toLocalTimeOrNull(): LocalTime? = runCatching { LocalTime.parse(this, TimeFormatter) }.getOrNull()
-private fun displayDate(value: String): String =
-    value.toLocalDateOrNull()?.format(DateDisplayFormatter) ?: value
 private fun displayDateForReview(value: String): String =
     value.toLocalDateOrNull()?.format(DateReviewFormatter) ?: value
 private fun displayTime(value: String): String =
     value.toLocalTimeOrNull()?.format(TimeDisplayFormatter) ?: value
-
-@Composable
-private fun CategoryHeader(category: ServiceCategory) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Border)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ServiceImage(
-                visual = remember(category.id) { ServiceImagery.categoryVisual(category.id) },
-                contentDescription = null,
-                shape = RoundedCornerShape(14.dp),
-                iconSize = 24.dp,
-                modifier = Modifier.size(56.dp)
-            )
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(category.title.removePrefix("Book "), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = TextDark)
-                Text(category.subtitle, color = Muted)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ServiceItemCard(categoryId: String, item: ServiceItem, count: Int, onMinus: () -> Unit, onPlus: () -> Unit, onCount: (Int) -> Unit) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Border)) {
-        Column(Modifier.padding(15.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ServiceImage(
-                    visual = remember(categoryId, item.id) { ServiceImagery.serviceVisual(categoryId, item.id) },
-                    contentDescription = null,
-                    shape = RoundedCornerShape(15.dp),
-                    iconSize = 24.dp,
-                    modifier = Modifier.size(56.dp)
-                )
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(item.name, fontWeight = FontWeight.ExtraBold, color = TextDark)
-                    Text(if (item.quoteOnly) "Price: To be quoted" else "₹${item.price} / ${item.priceUnit}", color = if (item.quoteOnly) Green else TextDark, fontWeight = FontWeight.Bold)
-                }
-                if (item.quoteOnly) {
-                    OutlinedButton(onClick = { if (count == 0) onPlus() else onMinus() }) {
-                        if (count > 0) Icon(Icons.Filled.Check, "Selected") else Text("Select")
-                    }
-                } else {
-                    OutlinedButton(onClick = onMinus, enabled = count > 0) { Text("−") }
-                    Text("$count", Modifier.padding(horizontal = 8.dp), fontWeight = FontWeight.ExtraBold, color = TextDark)
-                    OutlinedButton(onClick = onPlus) { Icon(Icons.Filled.Add, "Add") }
-                }
-            }
-            if (!item.quoteOnly && (item.name == "Chairs" || item.name == "Tables")) {
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    count.toString(),
-                    { onCount(it.filter(Char::isDigit).toIntOrNull() ?: 0) },
-                    label = { Text("Custom quantity") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = LocalTextStyle.current.copy(color = TextDark)
-                )
-            }
-            if (count > 0 && !item.quoteOnly) Text("Selected total: ₹${count * item.price}", Modifier.padding(top = 7.dp), color = Green, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-private fun TotalCard(total: Int, color: Color, hasQuoteOnly: Boolean) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = color.copy(.10f))) {
-        Row(Modifier.padding(17.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(if (hasQuoteOnly) "Current fixed total" else "Current total", fontWeight = FontWeight.Bold, color = TextDark)
-            Text(if (hasQuoteOnly) "₹$total + quote" else "₹$total", fontWeight = FontWeight.ExtraBold, color = color)
-        }
-    }
-}
-
-@Composable
-private fun ScheduleHeading(text: String) {
-    Text(text, fontWeight = FontWeight.ExtraBold, color = TextDark, modifier = Modifier.padding(top = 4.dp))
-}
-
-@Composable
-private fun SectionLabel() {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Filled.LocationOn, null, tint = Gold, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(7.dp))
-        Text("Event location", fontWeight = FontWeight.ExtraBold, color = TextDark)
-    }
-}

@@ -519,7 +519,10 @@ fun BookingSecondaryButton(
 
 /** Sticky bottom action area that stays above the navigation bar and the keyboard. */
 @Composable
-fun BookingBottomActionBar(content: @Composable RowScope.() -> Unit) {
+fun BookingBottomActionBar(
+    summary: (@Composable () -> Unit)? = null,
+    content: @Composable RowScope.() -> Unit
+) {
     Surface(color = BookingPalette.Surface, shadowElevation = 8.dp) {
         Column(
             Modifier
@@ -528,6 +531,9 @@ fun BookingBottomActionBar(content: @Composable RowScope.() -> Unit) {
                 .imePadding()
         ) {
             HorizontalDivider(color = BookingPalette.Border)
+            if (summary != null) {
+                Box(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 10.dp)) { summary() }
+            }
             Row(
                 Modifier
                     .fillMaxWidth()

@@ -2,6 +2,10 @@ package com.daily.cetaring.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.daily.cetaring.auth.OtpAutoStatus
+import com.daily.cetaring.auth.OtpEntryRules
+import com.daily.cetaring.auth.OtpEntryState
+import com.daily.cetaring.auth.OtpMessageParser
 import com.daily.cetaring.data.remote.dto.AuthResponse
 import com.daily.cetaring.data.remote.dto.CustomerAccessVerifyRequest
 import com.daily.cetaring.data.remote.dto.CustomerAccessVerifyResponse
@@ -64,6 +68,8 @@ class AuthViewModel(
 
     companion object {
         const val DEFAULT_RESEND_COOLDOWN_SECONDS = 60
+        const val OTP_EXPIRED_MESSAGE = "This OTP has expired. Tap Resend OTP to get a new code."
+        const val OTP_INCORRECT_MESSAGE = "Incorrect OTP. Please check the code and try again."
         const val CUSTOMER_ACCESS_PURPOSE = "CUSTOMER_ACCESS"
         private const val MAX_RESEND_COOLDOWN_SECONDS = 3600L
         private val FULL_NAME_PATTERN = Regex("^[\\p{L}\\p{M}][\\p{L}\\p{M} .'-]{1,79}$")
@@ -100,6 +106,34 @@ class AuthViewModel(
 
     val otpUiState: StateFlow<OtpUiState> =
         _otpUiState.asStateFlow()
+
+    private val _otpEntry = MutableStateFlow(OtpEntryState())
+
+    /** The OTP being entered: single source of truth for the six visual boxes. */
+    val otpEntry: StateFlow<OtpEntryState> = _otpEntry.asStateFlow()
+
+    /** Starts a new OTP session (before a send or resend) and returns its id for SMS callbacks. */
+    fun beginOtpSession(listenForSms: Boolean): Int {
+        _otpEntry.value = OtpEntryRules.startSession(_otpEntry.value, listenForSms)
+        return _otpEntry.value.sessionId
+    }
+
+    fun onOtpInput(raw: String) {
+        _otpEntry.value = OtpEntryRules.onManualInput(_otpEntry.value, raw)
+    }
+
+    /** Parses an SMS for [sessionId]. The message and code are never logged. */
+    fun onOtpSmsReceived(message: String, sessionId: Int) {
+        _otpEntry.value = OtpEntryRules.onAutoDetected(_otpEntry.value, OtpMessageParser.extractOtp(message), sessionId)
+    }
+
+    fun onOtpAutoDetectionEnded(sessionId: Int, status: OtpAutoStatus) {
+        _otpEntry.value = OtpEntryRules.onAutoEnded(_otpEntry.value, sessionId, status)
+    }
+
+    fun clearOtpEntry() {
+        _otpEntry.value = OtpEntryState(sessionId = _otpEntry.value.sessionId + 1)
+    }
 
     /**
      * Send OTP
@@ -227,6 +261,7 @@ class AuthViewModel(
         purpose: String,
         name: String?
     ) {
+        if (_otpUiState.value is OtpUiState.Verifying) return
         viewModelScope.launch {
 
             _otpUiState.value =
@@ -439,15 +474,13 @@ class AuthViewModel(
             ) ->
                 message
 
-            (
-                message.contains("otp", ignoreCase = true) &&
-                    (
-                        message.contains("expired", ignoreCase = true) ||
-                            message.contains("invalid", ignoreCase = true) ||
-                            message.contains("incorrect", ignoreCase = true)
-                        )
-                ) ->
-                "OTP expired or invalid. Please request a new OTP."
+            message.contains("otp", ignoreCase = true) &&
+                (message.contains("expired", ignoreCase = true) || message.contains("no active", ignoreCase = true)) ->
+                OTP_EXPIRED_MESSAGE
+
+            message.contains("otp", ignoreCase = true) &&
+                (message.contains("invalid", ignoreCase = true) || message.contains("incorrect", ignoreCase = true)) ->
+                OTP_INCORRECT_MESSAGE
 
             message.contains(
                 "session has expired",

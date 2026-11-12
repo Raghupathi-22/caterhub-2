@@ -135,7 +135,15 @@ import com.daily.cetaring.domain.catalog.ServiceCategoryDefinition
 import com.daily.cetaring.domain.catalog.WorkerProfileCatalog
 import com.daily.cetaring.domain.worker.WorkerRegistrationDraft
 import com.daily.cetaring.domain.worker.WorkerRegistrationRules
+import com.daily.cetaring.presentation.components.ProfilePreviewHeader
+import com.daily.cetaring.presentation.components.ProfileReviewSection
+import com.daily.cetaring.presentation.components.PremiumProfessionalRoleCard
+import com.daily.cetaring.presentation.components.PremiumServiceCategoryCard
+import com.daily.cetaring.presentation.components.RegistrationProgressIndicator
+import com.daily.cetaring.presentation.components.ServiceImage
+import com.daily.cetaring.presentation.components.ServiceImagery
 import com.daily.cetaring.presentation.components.WorkerBioField
+import com.daily.cetaring.presentation.components.WorkerRemovableChip
 import com.daily.cetaring.presentation.components.WorkerMultiSelectSection
 import com.daily.cetaring.presentation.components.WorkerPalette
 import com.daily.cetaring.presentation.components.WorkerSelectChip
@@ -174,10 +182,16 @@ fun WorkerRegistrationScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var draft by rememberSaveable(stateSaver = DraftSaver) { mutableStateOf(WorkerRegistrationDraft()) }
     var showSubmitted by rememberSaveable { mutableStateOf(false) }
+    // Set when a section is edited from the review; Continue then returns straight to the review.
+    var returnToReview by rememberSaveable { mutableStateOf(false) }
 
     val isSubmitting = uiState is WorkerUiState.Loading
     val stepError = WorkerRegistrationRules.stepError(draft, draft.step)
     val info = WorkerRegistrationRules.stepInfo(draft.step)
+
+    LaunchedEffect(draft.step) {
+        if (draft.step == WorkerRegistrationRules.LAST_STEP) returnToReview = false
+    }
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
@@ -233,8 +247,9 @@ fun WorkerRegistrationScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Ivory)
                 )
-                StepProgress(
+                RegistrationProgressIndicator(
                     current = draft.step,
+                    total = STEP_COUNT,
                     modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp)
                 )
             }
@@ -245,9 +260,17 @@ fun WorkerRegistrationScreen(
                 hint = stepError,
                 canContinue = stepError == null,
                 isSubmitting = isSubmitting,
+                returningToReview = returnToReview && draft.step < WorkerRegistrationRules.LAST_STEP,
                 onBack = handleBack,
                 onContinue = {
-                    if (draft.step < WorkerRegistrationRules.LAST_STEP) draft = WorkerRegistrationRules.next(draft) else submit()
+                    when {
+                        draft.step == WorkerRegistrationRules.LAST_STEP -> submit()
+                        returnToReview -> {
+                            draft = WorkerRegistrationRules.returnToReview(draft)
+                            if (draft.step == WorkerRegistrationRules.LAST_STEP) returnToReview = false
+                        }
+                        else -> draft = WorkerRegistrationRules.next(draft)
+                    }
                 }
             )
         }
@@ -284,8 +307,13 @@ fun WorkerRegistrationScreen(
                     else -> ReviewStep(
                         draft = draft,
                         enabled = !isSubmitting,
-                        onEdit = { target -> update(WorkerRegistrationRules.goTo(draft, target)) },
-                        onBio = { update(WorkerRegistrationRules.setBio(draft, it)) }
+                        onEdit = { target ->
+                            if (!isSubmitting) {
+                                returnToReview = true
+                                draft = WorkerRegistrationRules.goTo(draft, target)
+                            }
+                        },
+                        onDraftChange = update
                     )
                 }
                 Spacer(Modifier.height(8.dp))
@@ -297,34 +325,6 @@ fun WorkerRegistrationScreen(
 // ---------------------------------------------------------------------------------------------
 // Shared layout
 // ---------------------------------------------------------------------------------------------
-
-@Composable
-private fun StepProgress(current: Int, modifier: Modifier = Modifier) {
-    Row(
-        modifier.fillMaxWidth().semantics { contentDescription = "Step ${current + 1} of $STEP_COUNT" },
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        repeat(STEP_COUNT) { index ->
-            val fill by animateFloatAsState(
-                targetValue = if (index <= current) 1f else 0f, animationSpec = tween(320), label = "step-fill-$index"
-            )
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(5.dp)
-                    .clip(CircleShape)
-                    .background(Border)
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(fill)
-                        .background(if (index == current) Gold else Emerald, CircleShape)
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun StepHeader(title: String, description: String) {
@@ -346,6 +346,7 @@ private fun BottomActions(
     hint: String?,
     canContinue: Boolean,
     isSubmitting: Boolean,
+    returningToReview: Boolean,
     onBack: () -> Unit,
     onContinue: () -> Unit
 ) {
@@ -385,7 +386,16 @@ private fun BottomActions(
                         CircularProgressIndicator(strokeWidth = 2.dp, color = Color.White, modifier = Modifier.size(20.dp))
                         Text("  Submitting…", fontWeight = FontWeight.Bold)
                     } else {
-                        Text(if (isLast) "Submit Registration" else "Continue", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            when {
+                                isLast -> "Submit Registration"
+                                returningToReview -> "Save & review"
+                                else -> "Continue"
+                            },
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -407,10 +417,13 @@ private fun ServiceStep(selectedCategoryId: String, onSelect: (String) -> Unit) 
             categories.chunked(columns).forEach { row ->
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { category ->
-                        CategoryCard(
-                            category = category,
+                        PremiumServiceCategoryCard(
+                            title = category.title,
+                            subtitle = category.subtitle,
+                            visual = ServiceImagery.categoryVisual(category.id),
                             selected = category.id == selectedCategoryId,
                             onClick = { onSelect(category.id) },
+                            imageHeight = if (columns == 1) 130.dp else 96.dp,
                             modifier = Modifier.weight(1f).fillMaxHeight()
                         )
                     }
@@ -418,50 +431,6 @@ private fun ServiceStep(selectedCategoryId: String, onSelect: (String) -> Unit) 
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun CategoryCard(category: ServiceCategoryDefinition, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
-    val visual = categoryUiMeta(category)
-    val background by animateColorAsState(if (selected) EmeraldTint else Color.White, tween(200), label = "category-bg")
-    val borderColor by animateColorAsState(if (selected) Emerald else Border, tween(200), label = "category-border")
-    val shape = RoundedCornerShape(22.dp)
-    Box(
-        modifier
-            .heightIn(min = 150.dp)
-            .clip(shape)
-            .background(background)
-            .border(if (selected) 2.dp else 1.dp, borderColor, shape)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .semantics { stateDescription = if (selected) "Selected" else "Not selected" }
-            .padding(16.dp)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(
-                Modifier.size(52.dp).background(visual.accent.copy(alpha = 0.13f), RoundedCornerShape(16.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(visual.icon, contentDescription = null, tint = visual.accent, modifier = Modifier.size(28.dp))
-            }
-            Text(category.title, color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            Text(category.subtitle, color = Muted, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
-        }
-        SelectionBadge(selected, Modifier.align(Alignment.TopEnd))
-    }
-}
-
-@Composable
-private fun SelectionBadge(selected: Boolean, modifier: Modifier = Modifier) {
-    val color by animateColorAsState(if (selected) Emerald else Color.Transparent, tween(200), label = "badge")
-    Box(
-        modifier
-            .size(24.dp)
-            .background(color, CircleShape)
-            .border(1.5.dp, if (selected) Emerald else FieldBorder, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        if (selected) Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
     }
 }
 
@@ -473,67 +442,48 @@ private fun SelectionBadge(selected: Boolean, modifier: Modifier = Modifier) {
 private fun RoleStep(categoryId: String, selectedRoleId: String, onChangeCategory: () -> Unit, onSelect: (String) -> Unit) {
     val roles = remember(categoryId) { ServiceCatalog.workerRegistrationRolesForCategory(categoryId) }
     val category = remember(categoryId) { ServiceCatalog.category(categoryId) }
-    val accent = category?.let { categoryUiMeta(it).accent } ?: Emerald
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (category != null) {
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GoldTint).padding(start = 14.dp, end = 4.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(GoldTint)
+                    .padding(start = 8.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(categoryUiMeta(category).icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
-                Text(
-                    category.title,
-                    color = Ink,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f).padding(start = 10.dp)
+                ServiceImage(
+                    visual = ServiceImagery.categoryVisual(category.id),
+                    contentDescription = null,
+                    modifier = Modifier.size(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    iconSize = 18.dp
                 )
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text("SELECTED SERVICE", color = Muted, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Text(category.title, color = Ink, fontWeight = FontWeight.Bold)
+                }
                 TextButton(onClick = onChangeCategory) { Text("Change", color = Maroon, fontWeight = FontWeight.Bold) }
             }
+            Text(
+                "${roles.size} roles available in ${category.title}",
+                color = Muted,
+                style = MaterialTheme.typography.labelMedium
+            )
         }
         roles.forEach { role ->
             key(role.id) {
-                RoleCard(
+                val visual = ServiceImagery.serviceVisual(categoryId, role.id)
+                PremiumProfessionalRoleCard(
                     title = role.title,
                     description = ServiceCatalog.workerRegistrationRoleDescription(role.id),
+                    visual = visual,
                     icon = workerRoleIcon(categoryId, role.id),
-                    accent = accent,
                     selected = role.id == selectedRoleId,
                     onClick = { onSelect(role.id) }
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun RoleCard(title: String, description: String?, icon: ImageVector, accent: Color, selected: Boolean, onClick: () -> Unit) {
-    val background by animateColorAsState(if (selected) EmeraldTint else Color.White, tween(200), label = "role-bg")
-    val borderColor by animateColorAsState(if (selected) Emerald else Border, tween(200), label = "role-border")
-    val shape = RoundedCornerShape(20.dp)
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .clip(shape)
-            .background(background)
-            .border(if (selected) 2.dp else 1.dp, borderColor, shape)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .semantics { stateDescription = if (selected) "Selected" else "Not selected" }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Box(
-            Modifier.size(48.dp).background(if (selected) Emerald else accent.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = if (selected) Color.White else accent, modifier = Modifier.size(24.dp))
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            if (description != null) Text(description, color = Muted, style = MaterialTheme.typography.bodySmall)
-        }
-        SelectionBadge(selected)
     }
 }
 
@@ -713,99 +663,108 @@ private fun DetailsStep(draft: WorkerRegistrationDraft, enabled: Boolean, onChan
 // Step 5 – review
 // ---------------------------------------------------------------------------------------------
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun ReviewStep(
     draft: WorkerRegistrationDraft,
     enabled: Boolean,
     onEdit: (Int) -> Unit,
-    onBio: (String) -> Unit
+    onDraftChange: (WorkerRegistrationDraft) -> Unit
 ) {
     val role = ServiceCatalog.workerRegistrationRole(draft.roleId)
     val category = ServiceCatalog.category(draft.categoryId)
-    val completion = WorkerRegistrationRules.completion(draft)
-    val issues = WorkerRegistrationRules.validationSummary(draft)
+    val checklist = WorkerRegistrationRules.checklist(draft)
+    val strength = WorkerRegistrationRules.profileStrength(draft)
     val profileLabel = role?.workerType?.label?.takeIf { it != role.title }
-    val progress by animateFloatAsState(completion / 100f, tween(500), label = "completion")
+    val roleVisual = ServiceImagery.serviceVisual(draft.categoryId, draft.roleId).let { visual ->
+        if (visual.photoRes == null && role != null) visual.copy(icon = workerRoleIcon(draft.categoryId, role.id)) else visual
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Surface(shape = RoundedCornerShape(24.dp), color = Emerald) {
-            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Box(
-                        Modifier.size(56.dp).background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(18.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            role?.let { workerRoleIcon(draft.categoryId, it.id) } ?: Icons.Filled.Badge,
-                            contentDescription = null,
-                            tint = Gold,
-                            modifier = Modifier.size(30.dp)
-                        )
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(role?.title ?: "Role not selected", color = Color.White, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            listOfNotNull(category?.title, WorkerProfileCatalog.experienceLabel(draft.experienceYears)).joinToString(" · "),
-                            color = Color.White.copy(alpha = 0.8f),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row {
-                        Text("Profile strength", color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                        Text("$completion%", color = Gold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
-                    }
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        color = Gold,
-                        trackColor = Color.White.copy(alpha = 0.18f),
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape)
-                    )
-                    if (draft.bio.isBlank() && issues.isEmpty()) {
-                        Text("Add a short bio to reach 100%.", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-        }
+        ProfilePreviewHeader(
+            roleTitle = role?.title ?: "Role not selected",
+            categoryTitle = category?.title,
+            experienceLabel = draft.experienceYears?.let { WorkerProfileCatalog.experienceLabel(it) },
+            visual = roleVisual,
+            strength = strength,
+            checklist = checklist,
+            onItemClick = { step -> if (enabled) onEdit(step) }
+        )
 
-        if (issues.isNotEmpty()) {
-            Surface(shape = RoundedCornerShape(18.dp), color = Maroon.copy(alpha = 0.06f), border = BorderStroke(1.dp, Maroon.copy(alpha = 0.3f))) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Filled.ErrorOutline, contentDescription = null, tint = Maroon, modifier = Modifier.size(20.dp))
-                        Text("Complete these before submitting", color = Maroon, fontWeight = FontWeight.Bold)
-                    }
-                    issues.forEach { (step, message) ->
-                        TextButton(onClick = { onEdit(step) }, enabled = enabled) { Text("• $message", color = Ink) }
-                    }
-                }
-            }
-        }
-
-        ReviewSection("Service & role", onEdit = { onEdit(1) }, enabled = enabled) {
-            ReviewValue(category?.title ?: "Not selected")
-            ReviewValue(role?.title ?: "Not selected", strong = true)
+        ProfileReviewSection("Service & role", Icons.Filled.Badge, onEdit = { onEdit(0) }, enabled = enabled, missing = role == null) {
+            ReviewKeyValue("Service", category?.title)
+            ReviewKeyValue("Professional role", role?.title)
             if (profileLabel != null) Text("Listed on your profile as $profileLabel", color = Muted, style = MaterialTheme.typography.bodySmall)
         }
-        ReviewSection("Experience", onEdit = { onEdit(2) }, enabled = enabled) {
-            ReviewValue(WorkerProfileCatalog.experienceLabel(draft.experienceYears), strong = true)
-        }
-        ReviewSection("Skills", onEdit = { onEdit(3) }, enabled = enabled) { ReviewChips(draft.skills) }
-        ReviewSection("Preferred service areas", onEdit = { onEdit(3) }, enabled = enabled) { ReviewChips(draft.areas) }
-        ReviewSection("Languages", onEdit = { onEdit(3) }, enabled = enabled) { ReviewChips(draft.languages) }
-
-        Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Border)) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("About you", color = Ink, fontWeight = FontWeight.Bold)
-                WorkerBioField(
-                    value = draft.bio,
-                    onValueChange = onBio,
-                    maxLength = WorkerProfileCatalog.MAX_BIO_LENGTH,
-                    enabled = enabled
+        ProfileReviewSection(
+            "Experience",
+            Icons.Filled.WorkspacePremium,
+            onEdit = { onEdit(2) },
+            enabled = enabled,
+            missing = draft.experienceYears == null
+        ) {
+            if (draft.experienceYears == null) {
+                MissingValue("Experience not selected")
+            } else {
+                Text(
+                    WorkerProfileCatalog.experienceLabel(draft.experienceYears),
+                    color = Emerald,
+                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.titleLarge
                 )
             }
+        }
+        ProfileReviewSection(
+            "Professional skills",
+            Icons.Filled.AutoAwesome,
+            onEdit = { onEdit(3) },
+            enabled = enabled,
+            missing = draft.skills.isEmpty()
+        ) {
+            if (draft.skills.isEmpty()) {
+                MissingValue("Select at least one skill")
+            } else {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    draft.skills.forEach { skill ->
+                        key(skill) {
+                            WorkerRemovableChip(
+                                label = skill,
+                                onRemove = { onDraftChange(WorkerRegistrationRules.toggleSkill(draft, skill)) },
+                                enabled = enabled && draft.skills.size > 1
+                            )
+                        }
+                    }
+                }
+                if (draft.skills.size == 1) {
+                    Text("At least one skill is required.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        ProfileReviewSection(
+            "Preferred service areas",
+            Icons.Filled.LocationOn,
+            onEdit = { onEdit(3) },
+            enabled = enabled,
+            missing = draft.areas.isEmpty()
+        ) { ReviewChips(draft.areas, "Select at least one service area") }
+        ProfileReviewSection(
+            "Languages",
+            Icons.Filled.Language,
+            onEdit = { onEdit(3) },
+            enabled = enabled,
+            missing = draft.languages.isEmpty()
+        ) { ReviewChips(draft.languages, "Select at least one language") }
+        ProfileReviewSection("Professional bio (optional)", Icons.Filled.RecordVoiceOver, onEdit = null, enabled = enabled) {
+            Text(
+                "A short introduction about your work helps customers trust you.",
+                color = Muted,
+                style = MaterialTheme.typography.bodySmall
+            )
+            WorkerBioField(
+                value = draft.bio,
+                onValueChange = { onDraftChange(WorkerRegistrationRules.setBio(draft, it)) },
+                maxLength = WorkerProfileCatalog.MAX_BIO_LENGTH,
+                enabled = enabled
+            )
         }
 
         Text(
@@ -817,40 +776,43 @@ private fun ReviewStep(
 }
 
 @Composable
-private fun ReviewSection(title: String, onEdit: () -> Unit, enabled: Boolean, content: @Composable () -> Unit) {
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.dp, Border)) {
-        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title.uppercase(), color = Muted, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                TextButton(onClick = onEdit, enabled = enabled, modifier = Modifier.semantics { contentDescription = "Edit $title" }) {
-                    Icon(Icons.Filled.Edit, contentDescription = null, tint = Maroon, modifier = Modifier.size(16.dp))
-                    Text(" Edit", color = Maroon, fontWeight = FontWeight.Bold)
-                }
-            }
-            Column(Modifier.padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) { content() }
+private fun ReviewKeyValue(label: String, value: String?) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = Muted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        if (value == null) {
+            MissingValue("Not selected")
+        } else {
+            Text(value, color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.End)
         }
     }
 }
 
 @Composable
-private fun ReviewValue(value: String, strong: Boolean = false) {
-    Text(value, color = Ink, fontWeight = if (strong) FontWeight.Bold else FontWeight.Normal, style = MaterialTheme.typography.bodyLarge)
+private fun MissingValue(text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Icon(Icons.Filled.ErrorOutline, contentDescription = null, tint = Maroon, modifier = Modifier.size(16.dp))
+        Text(text, color = Maroon, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ReviewChips(items: List<String>) {
+private fun ReviewChips(items: List<String>, emptyText: String) {
     if (items.isEmpty()) {
-        Text("None selected", color = Maroon, style = MaterialTheme.typography.bodyMedium)
+        MissingValue(emptyText)
         return
     }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEach { item ->
             Text(
                 item,
                 color = Emerald,
                 style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.clip(CircleShape).background(EmeraldTint).padding(horizontal = 12.dp, vertical = 6.dp)
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(EmeraldTint)
+                    .border(1.dp, Emerald.copy(alpha = 0.25f), CircleShape)
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
             )
         }
     }
